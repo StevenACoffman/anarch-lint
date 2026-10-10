@@ -1,0 +1,42 @@
+{
+  "schema": "anarch-lint.baseline.v1",
+  "modelHash": "1ca8ee7bbd18949670617708b3870f4572826c6b2a33ccefdeefd0229b2c32ca",
+  "findings": [],
+  "metrics": [
+    {
+      "name": "mmi.low",
+      "value": 5.46,
+      "higherIsBetter": true
+    },
+    {
+      "name": "types.inCycles",
+      "value": 2,
+      "higherIsBetter": false
+    },
+    {
+      "name": "types.maxCycleGroup",
+      "value": 2,
+      "higherIsBetter": false
+    },
+    {
+      "name": "types.relativeCyclicity",
+      "value": 0.025974,
+      "higherIsBetter": false
+    },
+    {
+      "name": "types.sdi",
+      "value": 11,
+      "higherIsBetter": false
+    },
+    {
+      "name": "subsystems.inCycles",
+      "value": 0,
+      "higherIsBetter": false
+    },
+    {
+      "name": "subsystems.sdi",
+      "value": 0,
+      "higherIsBetter": false
+    }
+  ]
+}

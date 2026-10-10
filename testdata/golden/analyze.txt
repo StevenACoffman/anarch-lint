@@ -1,0 +1,127 @@
+anarch-lint report (anarch-lint.report.v1)
+patterns ./... · tags none · model 7d350c6facc1 · GOVERSION
+
+MMI 4.04 – 7.38  (5 judgements pending, 1 criteria unmeasured)
+  1.1.1  Source code allocated to subsystems (domain modules)                measured    100.00%   score 10
+  1.1.2  Source code allocated to technical layers                           measured    100.00%   score 10
+  1.1.3  Size relationship of the subsystems                                 measured    3.333333  score 3
+  1.1.4  Size relationship of the technical layers                           measured    2.5       score 5
+  1.1.5  Subsystems, layers, packages and types have clear responsibilities  judgement   -         unscored
+  1.1.6  Layers and subsystems are mapped through packages                   judgement   -         unscored
+  1.2.1  Subsystems have interfaces (% violating imports)                    measured    50.00%    score 0
+  1.2.2  Internal interfaces are mapped through packages                     judgement   -         unscored
+  1.3.1  Source code in large types                                          measured    0.00%     score 10
+  1.3.2  Source code in large functions                                      measured    0.00%     score 10
+  1.3.3  Types in large packages                                             measured    0.00%     score 10
+  1.3.4  Functions with high cyclomatic complexity                           measured    0.00%     score 10
+  2.1.1  Violations of the technical layering                                measured    0.00%     score 10
+  2.1.2  Violations of the subsystem layering                                unmeasured  -         unscored
+  2.2.1  Types in cycles                                                     measured    33.33%    score 0
+  2.2.2  Packages in cycles                                                  measured    0.00%     score 10
+  2.2.3  Types per cycle (largest cycle group)                               measured    3         score 10
+  2.2.4  Packages per cycle (largest cycle group)                            measured    0         score 10
+  3.1    Source code allocated to pattern roles                              measured    10.71%    score 0
+  3.2    References against the role order                                   measured    50.00%    score 0
+  3.3    Explicit mapping of the patterns                                    judgement   -         unscored
+  3.4    Separation of domain and technical source code                      judgement   -         unscored
+
+CONFORMANCE coverage 100.00% · compliance 33.33% (1 of 3 rules pass)
+  failing  interfaces
+  failing  roles
+
+ORDERING (Lilienthal 2008, ch. 7)
+  Zyklenausmaß      ClassesInCycles                     5
+  Zyklenausmaß      PckgInCycles                        0
+  Zyklenausmaß      SubsysInCycles                      2
+  Zyklenausmaß      RefClassesInCycles                  5
+  Zyklenausmaß      RefPckgInCycles                     0
+  Zyklenausmaß      RefSubsysInCycles                   2
+  Zyklenreichweite  PackageCycleGroupsFromClassCycles   0
+  Zyklenreichweite  SubsysCycleGroupsFromClassCycles    0
+  Zyklenreichweite  RefsInClassCyclesBetweenPackages    0
+  Zyklenreichweite  RefsInClassCyclesBetweenSubsystems  0
+  Verflochtenheit   DirectRefsInClassCycles             1
+  Verflochtenheit   DirectRefsInPackageCycles           0
+  Verflochtenheit   DirectRefsInSubsystemCycles         1
+  Zyklenumfang      max ClassesInCycle                  3
+  Zyklenumfang      max PckgInCycle                     0
+  Zyklenumfang      max SubsysInCycle                   2
+
+COUPLING (von Zitzewitz)  types       packages   subsystems
+  elements                15          8          3
+  CCD                     37          13         5
+  ACD                     2.47        1.62       1.67
+  propagation cost        16.4%       20.3%      55.6%
+  relative cyclicity      24.0%       0.0%       66.7%
+  largest cycle group     3           0          2
+  SDI                     22 (exact)  0 (exact)  11 (exact)
+
+PACKAGES (Martin; furthest from the main sequence first)  Ca  Ce  I     A     D
+  example.com/fx/billing/invoice                          1   0   0.00  0.00  1.00
+  example.com/fx/gen                                      0   0   0.00  0.00  1.00
+  example.com/fx/metrics                                  0   0   0.00  0.00  1.00
+  example.com/fx/roles                                    1   0   0.00  0.17  0.83
+  example.com/fx/shop/catalog                             1   1   0.50  0.00  0.50
+  example.com/fx/app                                      0   2   1.00  0.00  0.00
+  example.com/fx/billing/tax                              0   1   1.00  0.00  0.00
+  example.com/fx/service                                  1   0   0.00  1.00  0.00
+
+READ FIRST (Component Rank)
+  example.com/fx/billing/invoice.Invoice  0.2655
+  example.com/fx/billing/invoice.Line     0.2353
+  example.com/fx/shop/catalog.Item        0.0906
+  example.com/fx/shop/catalog.Category    0.0847
+  example.com/fx/shop/catalog.Product     0.0773
+  example.com/fx/roles.Entity             0.0411
+  example.com/fx/billing/invoice.Total    0.0228
+  example.com/fx/billing/tax.Rate         0.0228
+  example.com/fx/metrics.Counter          0.0228
+  example.com/fx/roles.Customer           0.0228
+
+FINDINGS (3 errors, 3 warnings)
+  warning  deep-nesting  example.com/fx/metrics.Nested  metrics/metrics.go:48
+           example.com/fx/metrics.Nested nests 5 levels deep, above 4
+           fix: return early, and extract the innermost loop or branch into a named function
+  error    interface-bypass  example.com/fx/billing/tax  billing/tax/tax.go:4
+           example.com/fx/billing/tax imports example.com/fx/shop/catalog, which is not an interface package of subsystem shop
+           fix: subsystem shop declares no interface: declare the packages others may import, such as example.com/fx/shop/catalog, as its interface in the model
+  error    role-order-violation  example.com/fx/billing/invoice.Line  billing/invoice/invoice.go:8
+           example.com/fx/billing/invoice.Line (entity) refers to example.com/fx/billing/invoice.Invoice (aggregate), against the role order
+           fix: invert the reference through an interface owned by the entity role, or give one of the types a role that fits
+  error    subsystem-cycle  billing ↔ shop  billing/tax/tax.go:4
+           subsystems billing ↔ shop form a cycle
+           evidence: example.com/fx/billing/tax imports example.com/fx/shop/catalog at billing/tax/tax.go:4
+           fix: cut billing → shop (1 import): move each importing package to the subsystem it serves, or invert the import through an interface
+  warning  subsystem-without-interface  shop  
+           subsystem shop declares no interface package
+           fix: list the packages other subsystems may import as its interface; Siedersleben's advice is its topmost package (mmi.md §7.6)
+  warning  subsystem-without-interface  support  
+           subsystem support declares no interface package
+           fix: list the packages other subsystems may import as its interface; Siedersleben's advice is its topmost package (mmi.md §7.6)
+
+JUDGEMENTS (for a human expert or an adversarial LLM; never gate)
+  1.1.5  pending  Does each subsystem, layer, package and type have one clear responsibility, and does its name describe it?
+                  evidence: coupling: example.com/fx/billing/tax imports 1 packages of other subsystems and 0 of its own
+                  evidence: coupling: example.com/fx/shop/catalog imports 1 packages of other subsystems and 0 of its own
+                  evidence: lcom4: example.com/fx/metrics.Counter has 2 independent groups of methods and fields
+                  evidence: lcom4: example.com/fx/shop/catalog.Item has 2 independent groups of methods and fields
+                  evidence: balance: largest package example.com/fx/metrics has 45 of 84 lines; smallest example.com/fx/gen has 1
+                  evidence hash: 2b15a3f4de13d72edfef185d3379e8e0c2e8b7b90decfccd3d4ee4c1cb3b4124
+  1.1.6  pending  Do the packages map the technical layers and the subsystems (domain modules) of the target architecture, and is that the right mapping?
+                  evidence: subsystems: 3 declared; 0 packages unassigned, 0 ambiguous
+                  evidence: layers: 2 declared; 0 packages unassigned, 0 ambiguous
+                  evidence hash: 709ec3e189ad22779207b81fccc52e0c9a58d59b0231bcb013c1f985e41d02d0
+  1.2.2  pending  Is each subsystem's internal interface mapped through packages that other subsystems can see and use?
+                  evidence: subsystems: 3 declared
+                  evidence: interface-bypass: example.com/fx/billing/tax imports example.com/fx/shop/catalog, which is not an interface package of subsystem shop
+                  evidence: subsystem-without-interface: subsystem shop declares no interface package
+                  evidence: subsystem-without-interface: subsystem support declares no interface package
+                  evidence hash: bdd3b492d9bf87528359145f5b828bb0bbcfed2cf2571a50f0a7e871ddba0bf8
+  3.3    pending  Are the patterns mapped explicitly, through type names, embedding or directives, rather than left for readers to infer?
+                  evidence: roles: 4 declared; of 15 types, 1 have a role by directive, 1 by embedding a marker, 1 by implementing an interface, 2 by name suffix, 0 only by package, 10 none
+                  evidence hash: 98ed7328752ccd9c6bcc7363398c66bcfd7de9ef35bbfbe33cce4a8a53486d24
+  3.4    pending  Are domain and technical code separated, as DDD, Quasar or hexagonal architecture separate them?
+                  evidence: forbidden-import rules: 0 declared
+                  evidence hash: e8fc77dbb3638bb331012a5ec6d95999d477ff1692df1b3945c82da89adeb826
+
+ASSUMPTIONS: 14, listed in the JSON report (--format=json)

@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "subsystems": [
+    {
+      "name": "billing",
+      "packages": [
+        "example.com/fx/billing/..."
+      ],
+      "interface": [
+        "example.com/fx/billing/invoice"
+      ]
+    },
+    {
+      "name": "shop",
+      "packages": [
+        "example.com/fx/shop/..."
+      ]
+    },
+    {
+      "name": "support",
+      "packages": [
+        "example.com/fx/metrics",
+        "example.com/fx/gen",
+        "example.com/fx/roles",
+        "example.com/fx/app",
+        "example.com/fx/service"
+      ]
+    }
+  ],
+  "layers": [
+    {
+      "name": "domain",
+      "packages": [
+        "example.com/fx/billing/...",
+        "example.com/fx/shop/..."
+      ]
+    },
+    {
+      "name": "support",
+      "packages": [
+        "example.com/fx/metrics",
+        "example.com/fx/gen",
+        "example.com/fx/roles",
+        "example.com/fx/app",
+        "example.com/fx/service"
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "name": "handler"
+    },
+    {
+      "name": "aggregate",
+      "suffix": "Invoice"
+    },
+    {
+      "name": "entity",
+      "suffix": "Line",
+      "embeds": [
+        "example.com/fx/roles.Entity"
+      ]
+    },
+    {
+      "name": "repository",
+      "implements": [
+        "example.com/fx/roles.Repository"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+anarch-lint
+Ciceri
+Lilienthal
+Zitzewitz
+LCOM4
+ACD
+SDI
+MMI
+subsystems?
+gopackages
+tabwriter
+gitignored
+Carola
+O'Reilly
+cyclicity
+cyclomatic

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "layers": [
+    {"name": "interface", "packages": ["github.com/sklinkert/go-ddd/internal/interface/..."]},
+    {"name": "infrastructure", "packages": ["github.com/sklinkert/go-ddd/internal/infrastructure/..."]},
+    {"name": "application", "packages": ["github.com/sklinkert/go-ddd/internal/application/..."]},
+    {"name": "domain", "packages": ["github.com/sklinkert/go-ddd/internal/domain/..."]}
+  ],
+  "forbiddenImports": [
+    {"from": ["github.com/sklinkert/go-ddd/internal/interface/..."],
+     "imports": ["github.com/sklinkert/go-ddd/internal/domain/..."],
+     "reason": "the interface layer must not leak domain objects outward (go-ddd README)"}
+  ]
+}

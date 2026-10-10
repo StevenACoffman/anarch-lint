@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "subsystems": [
+    {"name": "cli", "packages": ["github.com/StevenACoffman/anarch-lint", "github.com/StevenACoffman/anarch-lint/cmd/..."],
+     "interface": ["github.com/StevenACoffman/anarch-lint/cmd/root"]},
+    {"name": "presentation", "packages": ["github.com/StevenACoffman/anarch-lint/internal/text"],
+     "interface": ["github.com/StevenACoffman/anarch-lint/internal/text"]},
+    {"name": "loading", "packages": ["github.com/StevenACoffman/anarch-lint/internal/gopackages"],
+     "interface": ["github.com/StevenACoffman/anarch-lint/internal/gopackages"]},
+    {"name": "vcs", "packages": ["github.com/StevenACoffman/anarch-lint/internal/git"],
+     "interface": ["github.com/StevenACoffman/anarch-lint/internal/git"]},
+    {"name": "domain", "packages": ["github.com/StevenACoffman/anarch-lint/internal/arch"],
+     "interface": ["github.com/StevenACoffman/anarch-lint/internal/arch"]}
+  ],
+  "subsystemOrder": ["cli", "presentation", "loading", "vcs", "domain"],
+  "layers": [
+    {"name": "command", "packages": ["github.com/StevenACoffman/anarch-lint", "github.com/StevenACoffman/anarch-lint/cmd/..."]},
+    {"name": "adapter", "packages": ["github.com/StevenACoffman/anarch-lint/internal/text",
+      "github.com/StevenACoffman/anarch-lint/internal/gopackages", "github.com/StevenACoffman/anarch-lint/internal/git"]},
+    {"name": "domain", "packages": ["github.com/StevenACoffman/anarch-lint/internal/arch"]}
+  ],
+  "forbiddenImports": [
+    {"from": ["github.com/StevenACoffman/anarch-lint/internal/arch"],
+     "imports": ["os", "os/...", "time", "math/rand", "math/rand/...", "golang.org/x/...", "github.com/...", "pgregory.net/..."],
+     "reason": "the domain is a pure functional core: no I/O, no clock, no randomness, no third-party code (mmi-plan.md §2)"},
+    {"from": ["github.com/StevenACoffman/anarch-lint/internal/gopackages"],
+     "imports": ["github.com/StevenACoffman/anarch-lint/internal/git", "github.com/StevenACoffman/anarch-lint/internal/text"],
+     "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)"},
+    {"from": ["github.com/StevenACoffman/anarch-lint/internal/git"],
+     "imports": ["github.com/StevenACoffman/anarch-lint/internal/gopackages", "github.com/StevenACoffman/anarch-lint/internal/text"],
+     "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)"},
+    {"from": ["github.com/StevenACoffman/anarch-lint/internal/text"],
+     "imports": ["github.com/StevenACoffman/anarch-lint/internal/gopackages", "github.com/StevenACoffman/anarch-lint/internal/git"],
+     "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)"}
+  ]
+}

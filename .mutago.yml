@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/quality-gates/mutago/master/schema/config-schema.json
+#
+# Mutation testing configuration.
+#
+# Mutation testing answers a question coverage cannot: not "was this line executed?" but
+# "would any test have noticed if it behaved differently?". A surviving mutant marks a line the
+# suite runs without checking.
+#
+# A score is still a metric, and a metric written to is a metric gamed. Read survivors as a
+# prompt — is this behaviour worth pinning, or is the mutant indifferent? — rather than as a list
+# of tests to add. Thresholds live in the justfile recipe that names the scope, not here, because
+# the right floor depends on what is being mutated: internal/arch holds every measure, rule and
+# gate, all pure, and is the package with a floor.
+#
+# mutago reads this file only when given --config=.mutago.yml; the justfile recipes pass it.
+
+# Tests for a file live in several _test.go files, not one named after it.
+skip_without_test: false
+skip_with_build_tags: true
+
+exclude_dirs:
+  # The release helper, which the suite does not exercise at all.
+  - bin
+  # The fixture modules and golden files the end-to-end tests read: inputs, not code.
+  - testdata
+
+ignore_source_lines:
+  - "// Code generated"
