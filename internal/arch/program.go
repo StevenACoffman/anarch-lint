@@ -24,6 +24,16 @@ type Span struct {
 	End   int    `json:"end"`
 }
 
+// Input is everything a measure reads: the program, the target architecture,
+// the reviewers' verdicts, and the inputs a report records. The shell builds
+// it; every measure reads it and none modifies it.
+type Input struct {
+	Program  Program
+	Model    Model
+	Verdicts []Verdict
+	Inputs   Inputs
+}
+
 // Program is everything a loader extracts from the packages under analysis.
 // The slices are sorted by ID or path; [Analyze] relies on it, and a loader
 // must guarantee it.
@@ -45,11 +55,18 @@ type Program struct {
 	// Injections are the calls that hand a concrete in-scope type to a
 	// parameter of interface type, sorted.
 	Injections []Injection `json:"injections"`
+	// Facts are the connascence and Balanced Coupling facts, filled only
+	// when the loader is asked for them.
+	Facts Facts `json:"facts"`
 }
 
 // Package is one Go package under analysis.
 type Package struct {
 	Path string `json:"path"`
+	// Name is the package name; "main" marks a binary.
+	Name string `json:"name"`
+	// Module is the path of the Go module the package belongs to.
+	Module string `json:"module"`
 	// Files are the package's non-test source files, relative to the root.
 	Files []string `json:"files"`
 	// Lines is the package's lines of code (mmi.md §7.3).
@@ -111,6 +128,11 @@ type Func struct {
 	// Uses names the receiver's fields and methods that a method's body
 	// selects through the receiver variable, for LCOM4.
 	Uses []string `json:"uses,omitempty"`
+	// BodyHash identifies the body's shape: a hash of its syntax with every
+	// identifier and literal replaced by a placeholder, so two bodies that
+	// differ only in names and values hash alike. It is set only with facts,
+	// for bodies of at least ten statements (connascence.md §2.5).
+	BodyHash string `json:"bodyHash,omitempty"`
 }
 
 // Complexity holds the cyclomatic-complexity variants of mmi.md §7.3.

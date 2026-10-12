@@ -46,7 +46,7 @@ without first fixing every finding.`,
 }
 
 func (cfg *Config) exec(ctx context.Context, args []string) error {
-	report, err := cfg.Analyze(ctx, args)
+	report, err := cfg.GateInput(ctx, args)
 	if err != nil {
 		return fmt.Errorf("baseline: %w", err)
 	}

@@ -1,0 +1,155 @@
+anarch-lint balance (anarch-lint.balance.v1)
+patterns ./... · model 5ced60b0ed00 · codeowners 16c41ce3f256 · churn none · GOVERSION
+
+PAIRS (downstream -> upstream: strength, distance, volatility, balance)
+  pair             strength                          distance                volatility  quadrant        balance  
+  audit -> auth    contract (name)                   4 system                unjudged    low-cohesion    4        
+  billing -> auth  functional (identity)             7 system owners         unjudged    tight-coupling  2        
+  billing <-> web  functional (algorithm) candidate  9 system owners deploy  unjudged    tight-coupling  1        
+  web -> auth      intrusive                         7 system owners         unjudged    tight-coupling  4        
+
+FINDINGS (3 errors, 0 warnings)
+  error  subsystem-owners-differ  billing  
+         the packages of subsystem billing have 2 different sets of owners in CODEOWNERS
+         evidence: owners: @cx/money
+         evidence: owners: @cx/platform
+         fix: give the subsystem one owner in the model, or align CODEOWNERS with the subsystem
+  error  tight-coupling-functional  billing  billing/invoice.go:31
+         billing couples to auth at the functional level across a distance of 7, and auth's volatility is unjudged, so it counts as core: a step toward a distributed monolith
+         evidence: strength functional (fact), distance 7 (locality system, owner boundary true, deploy boundary false, async false), volatility unjudged, balance 2
+         evidence: value.foreign-switch fact: 1 switch outside its package enumerates example.com/cx/auth.Role without a default
+         evidence: identity.shared-variable fact: 2 packages use the package variable example.com/cx/auth.Sessions
+         evidence: value.equal-constants candidate: 2 packages declare constants of type untyped int equal to 8080
+         evidence: billing/invoice.go:20 uses type example.com/cx/auth.Role: it exposes the model type example.com/cx/auth.Role
+         evidence: example.com/cx/billing.Describe uses type example.com/cx/auth.Role: it exposes the model type example.com/cx/auth.Role
+         evidence: example.com/cx/billing.Describe uses const example.com/cx/auth.RoleAdmin: it exposes the model type example.com/cx/auth.Role
+         evidence: example.com/cx/billing.Describe uses const example.com/cx/auth.RoleUser: it exposes the model type example.com/cx/auth.Role
+         evidence: example.com/cx/billing.Login uses type example.com/cx/auth.Credentials: it exposes the model type example.com/cx/auth.Credentials
+         evidence: example.com/cx/billing.Login uses var example.com/cx/auth.Sessions: it reaches into the upstream's state
+         evidence: name.cross-subsystem fact: 8 places in 3 packages refer to example.com/cx/auth.Role by name
+         evidence: type.cross-package fact: example.com/cx/auth.Role appears in the signatures or fields of 5 places in other packages
+         evidence: meaning.shadowed-constant fact: example.com/cx/auth declares RoleAdmin = "admin"; 4 places write the literal instead
+         evidence: name.cross-subsystem fact: 4 places in 3 packages refer to example.com/cx/auth.RoleAdmin by name
+         evidence: name.cross-subsystem fact: 3 places in 2 packages refer to example.com/cx/auth.RoleUser by name
+         evidence: name.cross-subsystem fact: 2 places in 2 packages refer to example.com/cx/auth.Credentials by name
+         evidence: type.cross-package fact: example.com/cx/auth.Credentials appears in the signatures or fields of 1 place in other packages
+         evidence: name.cross-subsystem fact: 2 places in 2 packages refer to example.com/cx/auth.Sessions by name
+         evidence: position.unkeyed-literal fact: 1 literal of example.com/cx/auth.Credentials lists its fields by position
+         fix: co-locate the shared functionality, or replace the duplicated knowledge with a published event or a contract
+  error  tight-coupling-intrusive  web  web/admin.go:28
+         web couples to auth at the intrusive level across a distance of 7, and auth's volatility is unjudged, so it counts as core: a step toward a distributed monolith
+         evidence: strength intrusive (fact), distance 7 (locality system, owner boundary true, deploy boundary false, async false), volatility unjudged, balance 4
+         evidence: example.com/cx/web.Peek converts example.com/cx/auth.Secret through unsafe.Pointer
+         evidence: example.com/cx/web links Steal to example.com/cx/auth.check, bypassing its interface
+         evidence: identity.shared-variable fact: 2 packages use the package variable example.com/cx/auth.Sessions
+         evidence: example.com/cx/web.Admin uses type example.com/cx/auth.Role: it exposes the model type example.com/cx/auth.Role
+         evidence: example.com/cx/web.Allowed uses const example.com/cx/auth.RoleAdmin: it exposes the model type example.com/cx/auth.Role
+         evidence: example.com/cx/web.Allowed uses type example.com/cx/auth.Role: it exposes the model type example.com/cx/auth.Role
+         evidence: example.com/cx/web.Reset uses var example.com/cx/auth.Sessions: it reaches into the upstream's state
+         evidence: example.com/cx/web.Peek uses type example.com/cx/auth.Secret: it exposes the model type example.com/cx/auth.Secret
+         evidence: example.com/cx/web.Steal uses type example.com/cx/auth.Role: it exposes the model type example.com/cx/auth.Role
+         evidence: meaning.shadowed-constant fact: example.com/cx/auth declares RoleAdmin = "admin"; 4 places write the literal instead
+         evidence: name.cross-subsystem fact: 8 places in 3 packages refer to example.com/cx/auth.Role by name
+         evidence: type.cross-package fact: example.com/cx/auth.Role appears in the signatures or fields of 5 places in other packages
+         evidence: name.cross-subsystem fact: 4 places in 3 packages refer to example.com/cx/auth.RoleAdmin by name
+         evidence: name.cross-subsystem fact: 2 places in 2 packages refer to example.com/cx/auth.Sessions by name
+         evidence: name.cross-subsystem fact: 2 places in 2 packages refer to example.com/cx/auth.Secret by name
+         evidence: type.cross-package fact: example.com/cx/auth.Secret appears in the signatures or fields of 1 place in other packages
+         fix: integrate through the upstream's interface, a façade or an anti-corruption layer, instead of its implementation
+
+CANDIDATES (2, 0 rejected)
+  intrusive-reflection       example.com/cx/web -> token
+                             example.com/cx/web.Peek looks up the unexported name "token" with reflect.Value.FieldByName
+                             fix: ask the owning package for the value through its interface
+  tight-coupling-functional  billing -> web
+                             billing couples to web at the functional level across a distance of 9, and web's volatility is unjudged, so it counts as core: a step toward a distributed monolith
+                             fix: co-locate the shared functionality, or replace the duplicated knowledge with a published event or a contract
+
+VOLATILITY (judged subdomain; churn is evidence, not volatility)
+  auth     unjudged  bounded context none  -  
+  billing  unjudged  bounded context none  -  
+  web      unjudged  bounded context none  -  
+  state    unjudged  bounded context none  -  
+  audit    unjudged  bounded context none  -  
+
+EXPOSURE (packages with a functional or intrusive upstream dependency)
+  example.com/cx/billing  functional fact  Ca 1  dependents 1  weighted instability 1.000  
+  example.com/cx/web      intrusive fact   Ca 1  dependents 1  weighted instability 0.556  
+
+NO DEPLOY UNIT: example.com/cx/audit, example.com/cx/state
+
+JUDGEMENTS (for a human expert or an adversarial LLM; an approved verdict confirms or rejects)
+  balance/b8a015bc0a8d61d4                       pending  Is this Balanced Coupling candidate real?
+                                                          answers: confirmed, rejected
+                                                          evidence: strength functional (candidate), distance 9 (locality system, owner boundary true, deploy boundary true, async false), volatility unjudged, balance 1
+                                                          evidence: algorithm.same-pattern candidate: the regular expression "^[A-Z]{3}-[0-9]+$" is written in 2 packages
+                                                          evidence: algorithm.same-layout candidate: the time layout "2006-01-02" is written in 2 packages
+                                                          evidence: algorithm.same-algorithm candidate: 2 packages call crypto/sha256
+                                                          evidence: algorithm.clone candidate: 2 functions in 2 packages have the same body shape as example.com/cx/billing.Total
+                                                          evidence hash: 8707bca34afbfd108fecfa7f15193848d4895f179d4d8e57b0d13758bc6083f2
+  bounded-context/audit                          pending  Is this subsystem a bounded context, with a model of its own?
+                                                          answers: no, yes
+                                                          evidence: packages: example.com/cx/audit
+                                                          evidence: downstream subsystems: 0
+                                                          evidence hash: 1aa38f8033fb28c459ac5732a7ec9b912f92a4c9b467e6d1ff95769903739c4a
+  bounded-context/auth                           pending  Is this subsystem a bounded context, with a model of its own?
+                                                          answers: no, yes
+                                                          evidence: packages: example.com/cx/auth
+                                                          evidence: downstream subsystems: 3
+                                                          evidence hash: 82e36d83e0d850a69748e5421543867f71f96466da13bff7330606f7c9e323c6
+  bounded-context/billing                        pending  Is this subsystem a bounded context, with a model of its own?
+                                                          answers: no, yes
+                                                          evidence: packages: example.com/cx/billing, example.com/cx/cmd/client
+                                                          evidence: downstream subsystems: 0
+                                                          evidence hash: e19c33f7a2972757b1187beaa5e09afdb70962c9ddbb21d459e7859e7d00c5b6
+  bounded-context/state                          pending  Is this subsystem a bounded context, with a model of its own?
+                                                          answers: no, yes
+                                                          evidence: packages: example.com/cx/state
+                                                          evidence: downstream subsystems: 0
+                                                          evidence hash: 942de81792fdc4468ca28f774a73ada6dc694b522085b1f93436b47916e2b65b
+  bounded-context/web                            pending  Is this subsystem a bounded context, with a model of its own?
+                                                          answers: no, yes
+                                                          evidence: packages: example.com/cx/cmd/server, example.com/cx/web
+                                                          evidence: downstream subsystems: 1
+                                                          evidence hash: c20869eebfa553af9a8568fc4d9f99ec71e73bc8e48a0f29a7a33a45740a8e79
+  contract-type/example.com/cx/auth.Credentials  pending  Is this exported type part of the domain model or an integration contract?
+                                                          answers: contract, model
+                                                          evidence: type example.com/cx/auth.Credentials (struct) in package example.com/cx/auth
+                                                          evidence: fields: User, Password
+                                                          evidence hash: a2e463e22847b3c5533b1b95f5020977847976e97c48e913572ebe0e832ae205
+  contract-type/example.com/cx/auth.Role         pending  Is this exported type part of the domain model or an integration contract?
+                                                          answers: contract, model
+                                                          evidence: type example.com/cx/auth.Role (other) in package example.com/cx/auth
+                                                          evidence hash: f096dfb36c09357313994617759faa54d74d81faa338ec1c878213762711c098
+  contract-type/example.com/cx/auth.Secret       pending  Is this exported type part of the domain model or an integration contract?
+                                                          answers: contract, model
+                                                          evidence: type example.com/cx/auth.Secret (struct) in package example.com/cx/auth
+                                                          evidence: fields: token
+                                                          evidence hash: b15115ec641110cb0fc86a53dc0e34a22a7332cc710953f5d859bdcd841ce844
+  subdomain/audit                                pending  Is this subsystem a core, supporting or generic subdomain of the business?
+                                                          answers: core, generic, supporting
+                                                          evidence: packages: example.com/cx/audit
+                                                          evidence: downstream subsystems: 0
+                                                          evidence hash: 4541d94176135d17d2861336201c7e6ad58faa40a30315848ece524312acff9d
+  subdomain/auth                                 pending  Is this subsystem a core, supporting or generic subdomain of the business?
+                                                          answers: core, generic, supporting
+                                                          evidence: packages: example.com/cx/auth
+                                                          evidence: downstream subsystems: 3
+                                                          evidence hash: e079d2329ef475c0771f05e436c10d6e20c563a427a7186e245f2a30f76d77be
+  subdomain/billing                              pending  Is this subsystem a core, supporting or generic subdomain of the business?
+                                                          answers: core, generic, supporting
+                                                          evidence: packages: example.com/cx/billing, example.com/cx/cmd/client
+                                                          evidence: downstream subsystems: 0
+                                                          evidence hash: a91079ed51996b5e0cb2155d6b16abd461f2b86fecdbfc90d6ab6f94b0d1bea3
+  subdomain/state                                pending  Is this subsystem a core, supporting or generic subdomain of the business?
+                                                          answers: core, generic, supporting
+                                                          evidence: packages: example.com/cx/state
+                                                          evidence: downstream subsystems: 0
+                                                          evidence hash: 243ac8e8e774bfdf4f86bd51b5e1d626866acc3ecc487692fe80f09d15bc4bc2
+  subdomain/web                                  pending  Is this subsystem a core, supporting or generic subdomain of the business?
+                                                          answers: core, generic, supporting
+                                                          evidence: packages: example.com/cx/cmd/server, example.com/cx/web
+                                                          evidence: downstream subsystems: 1
+                                                          evidence hash: d30aabe9d8834f5000f445b2a9ea30dacf129e0a1256ba02df32a961f413fd8b
+
+ASSUMPTIONS: 8, listed in the JSON report (--format=json)

@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "subsystems": [
+    {"name": "auth", "packages": ["example.com/cx/auth"], "interface": ["example.com/cx/auth"]},
+    {"name": "billing", "packages": ["example.com/cx/billing", "example.com/cx/cmd/client"]},
+    {"name": "web", "packages": ["example.com/cx/web", "example.com/cx/cmd/server"]},
+    {"name": "state", "packages": ["example.com/cx/state"], "owner": "@cx/platform"},
+    {"name": "audit", "packages": ["example.com/cx/audit"]}
+  ],
+  "connascence": {
+    "maxStrength": {"package": 9, "subsystem": 5, "system": 3, "external": 2},
+    "maxDegree": {"system": 20}
+  },
+  "balance": {"gate": true, "messaging": ["github.com/nats-io/nats.go/..."]}
+}

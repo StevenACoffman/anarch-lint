@@ -24,6 +24,8 @@ type extractor struct {
 	imports map[[2]string]*arch.Import // keyed by (from, to)
 	types   map[string]int             // type ID -> index into prog.Types
 	named   map[string]*types.TypeName // type ID -> its object, for interface checks
+	// facts collects the connascence facts; nil when they are not wanted.
+	facts *factSink
 }
 
 // fileContext is what extraction needs to know about the file it is in.
@@ -40,8 +42,8 @@ type methodDecl struct {
 	lines    int
 }
 
-func newExtractor(dir string, inScope map[string]bool) *extractor {
-	return &extractor{
+func newExtractor(dir string, inScope map[string]bool, facts bool) *extractor {
+	x := &extractor{
 		dir:     dir,
 		inScope: inScope,
 		refs:    map[[2]string]*arch.Ref{},
@@ -49,13 +51,20 @@ func newExtractor(dir string, inScope map[string]bool) *extractor {
 		types:   map[string]int{},
 		named:   map[string]*types.TypeName{},
 	}
+	if facts {
+		x.facts = newFactSink(inScope)
+	}
+	return x
 }
 
 // addPackage extracts the facts of one package. readFile returns a source
 // file's bytes, which go/packages does not keep.
 func (x *extractor) addPackage(p *packages.Package, readFile func(string) ([]byte, error)) error {
 	files, generated := sourceFiles(p)
-	pkg := arch.Package{Path: p.PkgPath, Generated: generated}
+	pkg := arch.Package{Path: p.PkgPath, Name: p.Name, Generated: generated}
+	if p.Module != nil {
+		pkg.Module = p.Module.Path
+	}
 	var methods []methodDecl
 	for _, f := range files {
 		name := p.Fset.File(f.Pos()).Name()
@@ -76,6 +85,9 @@ func (x *extractor) addPackage(p *packages.Package, readFile func(string) ([]byt
 		)
 		pkg.Lines += fc.lines.total()
 		x.addImports(&fc, f)
+		if x.facts != nil {
+			x.facts.linknames(&fc, f)
+		}
 		methods = append(methods, x.addDecls(&fc, f)...)
 	}
 	slices.Sort(pkg.Files)
@@ -115,6 +127,9 @@ func (x *extractor) addDecls(fc *fileContext, f *ast.File) []methodDecl {
 		switch d := decl.(type) {
 		case *ast.GenDecl:
 			x.addTypeSpecs(fc, d)
+			if x.facts != nil && (d.Tok == token.VAR || d.Tok == token.CONST) {
+				x.facts.valueFacts(fc, d)
+			}
 		case *ast.FuncDecl:
 			fn := x.addFunc(fc, d)
 			if fn.Receiver != "" {
@@ -155,6 +170,9 @@ func (x *extractor) addTypeSpecs(fc *fileContext, d *ast.GenDecl) {
 		x.named[t.ID] = tn
 		x.prog.Types = append(x.prog.Types, t)
 		x.addRefs(fc, tn, ts)
+		if x.facts != nil {
+			x.facts.typeFacts(fc, ts, t.ID)
+		}
 	}
 }
 
@@ -182,6 +200,9 @@ func (x *extractor) addFunc(fc *fileContext, d *ast.FuncDecl) arch.Func {
 	if d.Name.Name == "init" || d.Name.Name == "_" {
 		// Several may exist; the position keeps the ID unique.
 		fn.ID += "@" + fc.path + ":" + strconv.Itoa(span.Start)
+	}
+	if x.facts != nil {
+		x.facts.funcFacts(fc, d, &fn)
 	}
 	x.prog.Funcs = append(x.prog.Funcs, fn)
 	return fn
@@ -221,7 +242,11 @@ func (x *extractor) addRefs(fc *fileContext, from *types.TypeName, node ast.Node
 // program returns the accumulated facts, sorted.
 func (x *extractor) program() arch.Program {
 	x.implementations()
+
 	p := x.prog
+	if x.facts != nil {
+		p.Facts = x.facts.sortFacts()
+	}
 	slices.SortFunc(p.Packages, func(a, b arch.Package) int { return cmp.Compare(a.Path, b.Path) })
 	slices.SortFunc(p.Types, func(a, b arch.Type) int { return cmp.Compare(a.ID, b.ID) })
 	slices.SortFunc(p.Funcs, func(a, b arch.Func) int { return cmp.Compare(a.ID, b.ID) })

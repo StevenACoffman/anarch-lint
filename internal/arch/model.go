@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 )
 
@@ -56,6 +57,34 @@ type Model struct {
 	// Gates are absolute floors the check gate applies on top of the
 	// baseline ratchet. omitzero keeps a model without them hashing as before.
 	Gates Gates `json:"gates,omitzero"`
+	// Connascence opts the connascence measures into the gate, with the
+	// strength and degree each locality allows (connascence.md §1.4).
+	Connascence ConnascenceLimits `json:"connascence,omitzero"`
+	// Balance opts the Balanced Coupling measures into the gate
+	// (connascence.md §9).
+	Balance BalanceSettings `json:"balance,omitzero"`
+}
+
+// ConnascenceLimits are the strongest connascence and the largest degree
+// allowed at each locality: "Stronger connascences are more acceptable [sic]
+// within a module" (connascence.io). A locality left out takes the default
+// of [ConnascenceLimits.Strength]; a degree limit applies only where set.
+// Setting either map opts the connascence findings into the gate.
+type ConnascenceLimits struct {
+	MaxStrength map[Locality]int `json:"maxStrength,omitempty"`
+	MaxDegree   map[Locality]int `json:"maxDegree,omitempty"`
+}
+
+// BalanceSettings configure the Balanced Coupling measures (connascence.md
+// §9).
+type BalanceSettings struct {
+	// Gate opts the Balanced Coupling findings into the gate; without it they
+	// are warnings.
+	Gate bool `json:"gate,omitempty"`
+	// Messaging lists patterns for message-bus client packages: a package
+	// that imports one may integrate asynchronously, which only a reviewer
+	// can confirm (connascence.md §9.3).
+	Messaging []string `json:"messaging,omitempty"`
 }
 
 // Subsystem is a named group of packages: a domain module in MMI terms.
@@ -66,6 +95,9 @@ type Subsystem struct {
 	Packages []string `json:"packages"`
 	// Interface lists patterns for the packages other subsystems may import.
 	Interface []string `json:"interface,omitempty"`
+	// Owner is the team that owns the subsystem. It takes precedence over a
+	// CODEOWNERS file for the Balanced Coupling owner boundary.
+	Owner string `json:"owner,omitempty"`
 }
 
 // Layer is a named, ordered group of packages.
@@ -152,9 +184,15 @@ func DecodeModel(r io.Reader) (Model, error) {
 	dec := json.NewDecoder(r)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&m); err != nil {
+		// A field's own UnmarshalText reports an Error; keep its message
+		// rather than the code-prefixed text.
+		msg := err.Error()
+		if ErrorCode(err) == EINVALID {
+			msg = ErrorMessage(err)
+		}
 		return Model{}, &Error{
 			Op:  op,
-			Err: &Error{Code: EINVALID, Message: "model: " + err.Error()},
+			Err: &Error{Code: EINVALID, Message: "model: " + msg},
 		}
 	}
 	if err := m.validate(); err != nil {
@@ -200,6 +238,7 @@ func (m *Model) validate() error {
 	// same one first.
 	for _, check := range []func(func(string, ...any) error) error{
 		m.validateNames, m.validateReferences, m.validateGates, m.Thresholds.validate,
+		m.Connascence.validate, m.Balance.validate,
 	} {
 		if err := check(invalid); err != nil {
 			return err
@@ -283,6 +322,66 @@ func (t Thresholds) validate(invalid func(string, ...any) error) error {
 			t.ComplexityVariant,
 		)
 	}
+}
+
+// StrengthLimit returns the strongest connascence allowed at locality l: the
+// model's limit, or the default. The defaults allow every kind up to the
+// package, then follow connascence.md §1.4: algorithm across subsystems,
+// meaning across a module, type beyond it.
+func (c *ConnascenceLimits) StrengthLimit(l Locality) int {
+	if v, ok := c.MaxStrength[l]; ok {
+		return v
+	}
+	switch l {
+	case LocalityFunction, LocalityType, LocalityFile, LocalityPackage:
+		return int(StrengthIdentity)
+	case LocalitySubsystem:
+		return int(StrengthAlgorithm)
+	case LocalitySystem:
+		return int(StrengthMeaning)
+	default:
+		return int(StrengthType)
+	}
+}
+
+// DegreeLimit returns the largest degree allowed at locality l, and false when no
+// limit is set there.
+func (c *ConnascenceLimits) DegreeLimit(l Locality) (int, bool) {
+	v, ok := c.MaxDegree[l]
+	return v, ok
+}
+
+// Enabled reports whether the model opts the connascence findings into the
+// gate, by setting either limit.
+func (c *ConnascenceLimits) Enabled() bool {
+	return len(c.MaxStrength) > 0 || len(c.MaxDegree) > 0
+}
+
+// validate rejects a strength limit outside 1–9 and a degree limit below 1.
+func (c ConnascenceLimits) validate(invalid func(string, ...any) error) error {
+	for _, l := range slices.Sorted(maps.Keys(c.MaxStrength)) {
+		if v := c.MaxStrength[l]; v < 1 || v > int(StrengthIdentity) {
+			return invalid("connascence maxStrength %s %d is outside 1–9", l, v)
+		}
+	}
+	for _, l := range slices.Sorted(maps.Keys(c.MaxDegree)) {
+		if v := c.MaxDegree[l]; v < 1 {
+			return invalid("connascence maxDegree %s %d is below 1", l, v)
+		}
+	}
+	return nil
+}
+
+// Enabled reports whether the model opts the Balanced Coupling findings into
+// the gate.
+func (b *BalanceSettings) Enabled() bool { return b.Gate }
+
+// validate rejects an empty messaging pattern.
+func (b BalanceSettings) validate(invalid func(string, ...any) error) error {
+	if slices.Contains(b.Messaging, "") {
+		return invalid("balance messaging has an empty pattern")
+	}
+	return nil
 }
 
 // namesOf returns the name of every element of xs.

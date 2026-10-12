@@ -1,0 +1,127 @@
+anarch-lint connascence (anarch-lint.connascence.v1)
+patterns ./... · model 5ced60b0ed00 · GOVERSION
+
+SUMMARY (facts+candidates at each locality)
+  kind              function  type  file  package  subsystem  system  external  
+  0 contranascence  -         -     1+0   -        -          -       -         
+  1 name            -         -     -     -        -          7+0     -         
+  2 type            -         -     -     -        -          3+0     -         
+  3 meaning         1+1       -     -     -        -          1+0     -         
+  4 position        2+1       -     -     -        -          1+0     -         
+  5 algorithm       -         -     -     -        -          0+4     -         
+  6 execution       -         0+3   -     -        -          -       -         
+  7 timing          0+1       -     -     -        -          -       -         
+  8 value           -         -     -     -        -          1+1     -         
+  9 identity        -         -     -     -        -          1+0     -         
+
+FINDINGS (3 errors, 0 warnings)
+  error  connascence-identity  example.com/cx/auth.Sessions  billing/invoice.go:63
+         2 packages use the package variable example.com/cx/auth.Sessions
+         evidence: strength 9 (identity), locality system, degree 2: above maxStrength.system 3
+         evidence: site: billing/invoice.go:63 (example.com/cx/billing.Login)
+         evidence: site: web/admin.go:23 (example.com/cx/web.Reset)
+         fix: pass the shared value in explicitly instead of reaching for a package variable
+  error  connascence-position  example.com/cx/auth.Credentials  auth/role.go:44
+         1 literal of example.com/cx/auth.Credentials lists its fields by position
+         evidence: strength 4 (position), locality system, degree 2: above maxStrength.system 3
+         evidence: site: auth/role.go:44 (example.com/cx/auth.Credentials)
+         evidence: site: billing/invoice.go:64 (example.com/cx/billing.Login)
+         fix: name the fields in the literal, which replaces connascence of position with connascence of name
+  error  connascence-value  example.com/cx/auth.Role  auth/role.go:13
+         1 switch outside its package enumerates example.com/cx/auth.Role without a default
+         evidence: strength 8 (value), locality system, degree 2: above maxStrength.system 3
+         evidence: site: auth/role.go:13
+         evidence: site: auth/role.go:14
+         evidence: site: auth/role.go:16
+         evidence: site: billing/invoice.go:31 (example.com/cx/billing.Describe)
+         fix: move the behaviour into a method on the type, or a table in its package, so a new value is added in one place
+
+CANDIDATES (11, 0 rejected; the first 11, strongest and farthest first)
+  value.equal-constants         8080 (untyped int)  auth/role.go:30
+                                2 packages declare constants of type untyped int equal to 8080
+                                strength 8 (value), locality system, degree 2, 2 sites, confidence high
+                                fix: declare the value once and refer to it from both packages
+  timing.wait                   example.com/cx/state.Wait  state/email.go:39
+                                example.com/cx/state.Wait waits on elapsed time with time.Sleep
+                                strength 7 (timing), locality function, degree 1, 1 sites, confidence low
+                                fix: synchronize on an event, a channel or context cancellation, instead of a duration
+  execution.guarded-field       example.com/cx/state.Email.sent  state/email.go:17
+                                example.com/cx/state.Email.SetSubject refuses to run once Email.sent is set by another method
+                                strength 6 (execution), locality type, degree 2, 2 sites, confidence low
+                                fix: return a ready value from a constructor, or a type whose methods are only reachable in the valid order
+  execution.unpaired-lock       example.com/cx/auth.Store.Get: s.mu.Lock  auth/role.go:61
+                                example.com/cx/auth.Store.Get calls s.mu.Lock without Unlock
+                                strength 6 (execution), locality type, degree 2, 2 sites, confidence low
+                                fix: call defer s.mu.Unlock() right after the Lock
+  execution.lifecycle           example.com/cx/state.Conn Open/Close  state/email.go:33
+                                callers of example.com/cx/state.Conn must call Open before Close
+                                strength 6 (execution), locality type, degree 2, 2 sites, confidence low
+                                fix: return the opened value from a constructor and close it with a defer at the same site
+  algorithm.same-algorithm      crypto/sha256  billing/invoice.go:74
+                                2 packages call crypto/sha256
+                                strength 5 (algorithm), locality system, degree 2, 2 sites, confidence low
+                                fix: let one function own the algorithm and call it from both sides
+  algorithm.clone               example.com/cx/billing.Total  billing/invoice.go:77
+                                2 functions in 2 packages have the same body shape as example.com/cx/billing.Total
+                                strength 5 (algorithm), locality system, degree 2, 2 sites, confidence low
+                                fix: keep one copy and call it, or confirm that the copies may evolve apart
+  algorithm.same-pattern        "^[A-Z]{3}-[0-9]+$"  billing/invoice.go:16
+                                the regular expression "^[A-Z]{3}-[0-9]+$" is written in 2 packages
+                                strength 5 (algorithm), locality system, degree 2, 2 sites, confidence high
+                                fix: compile the pattern once, in one function both sides call
+  algorithm.same-layout         "2006-01-02"  billing/invoice.go:71
+                                the time layout "2006-01-02" is written in 2 packages
+                                strength 5 (algorithm), locality system, degree 2, 2 sites, confidence high
+                                fix: name the layout once, or format and parse through one function
+  position.constant-index       strings.Split  billing/invoice.go:50
+                                the result of strings.Split is read by position, at indexes 0, 1
+                                strength 4 (position), locality function, degree 1, 1 sites, confidence low
+                                fix: turn the positions into a struct with named fields where the value is produced
+  meaning.primitive-parameters  example.com/cx/billing.Send  billing/invoice.go:41
+                                example.com/cx/billing.Send takes a bool parameter and 4 adjacent string parameters
+                                strength 3 (meaning), locality function, degree 1, 1 sites, confidence low
+                                fix: replace a flag argument with two functions or a named option, and adjacent values of one basic type with domain types or an options struct
+
+JUDGEMENTS (for a human expert or an adversarial LLM; an approved verdict confirms or rejects)
+  connascence/e164877bf8defd80  pending  Must these places change together, so that the candidate is connascence?
+                                         answers: confirmed, rejected
+                                         evidence: the time layout "2006-01-02" is written in 2 packages
+                                         evidence: basis: candidate, confidence high
+                                         evidence: strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3
+                                         evidence: site: billing/invoice.go:71 (example.com/cx/billing.Due)
+                                         evidence: site: web/admin.go:42 (example.com/cx/web.Due)
+                                         evidence hash: f0f33388e756c5b6968d7c1370e4a80e280bdbc0607d5438645c82819cc5f725
+  connascence/bf0cd162e8c9fb86  pending  Must these places change together, so that the candidate is connascence?
+                                         answers: confirmed, rejected
+                                         evidence: the regular expression "^[A-Z]{3}-[0-9]+$" is written in 2 packages
+                                         evidence: basis: candidate, confidence high
+                                         evidence: strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3
+                                         evidence: site: billing/invoice.go:16
+                                         evidence: site: web/admin.go:14
+                                         evidence hash: eff70f499987ee817c31afbbf072f9adffa7936ba007cef161e0cbb51895a69a
+  connascence/39785623994321c5  pending  Must these places change together, so that the candidate is connascence?
+                                         answers: confirmed, rejected
+                                         evidence: 2 packages call crypto/sha256
+                                         evidence: basis: candidate, confidence low
+                                         evidence: strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3
+                                         evidence: site: billing/invoice.go:74 (example.com/cx/billing.Sum)
+                                         evidence: site: web/admin.go:45 (example.com/cx/web.Sum)
+                                         evidence hash: 2c2881761cf50cab053091a2eb37dc2b6eb7457dfe3b90d963bd69ebf7af11f2
+  connascence/776fd7466e2e9acd  pending  Must these places change together, so that the candidate is connascence?
+                                         answers: confirmed, rejected
+                                         evidence: 2 functions in 2 packages have the same body shape as example.com/cx/billing.Total
+                                         evidence: basis: candidate, confidence low
+                                         evidence: strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3
+                                         evidence: site: billing/invoice.go:77 (example.com/cx/billing.Total)
+                                         evidence: site: web/admin.go:48 (example.com/cx/web.Tally)
+                                         evidence hash: 81934f0053caf651e32c0e1ec1e4530d4dbcd2e616b448d411dd3a13828a2264
+  connascence/b1236343126f63c5  pending  Must these places change together, so that the candidate is connascence?
+                                         answers: confirmed, rejected
+                                         evidence: 2 packages declare constants of type untyped int equal to 8080
+                                         evidence: basis: candidate, confidence high
+                                         evidence: strength 8 (value), locality system, degree 2: above maxStrength.system 3
+                                         evidence: site: auth/role.go:30
+                                         evidence: site: billing/invoice.go:14
+                                         evidence hash: 5f6bcd9c538031019cfec332b974df8025e5947a338f7acec11fb409854566b4
+
+ASSUMPTIONS: 12, listed in the JSON report (--format=json)

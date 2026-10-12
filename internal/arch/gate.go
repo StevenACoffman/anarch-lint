@@ -43,6 +43,17 @@ type Metric struct {
 	HigherIsBetter bool `json:"higherIsBetter"`
 }
 
+// GateInput is what the gate compares with a baseline: every measure's
+// findings and the system metrics it ratchets, measured under one model.
+type GateInput struct {
+	ModelHash string
+	Findings  []Finding
+	Metrics   []Metric
+	// Conformance holds the coverage and compliance the model's floors
+	// apply to.
+	Conformance Conformance
+}
+
 // GateOptions narrow or relax a gate. The zero value, and a nil pointer,
 // gate every finding with no waivers.
 type GateOptions struct {
@@ -93,13 +104,34 @@ type Regression struct {
 	Current  float64 `json:"current"`
 }
 
-// NewBaseline records the findings and metrics of a report.
-func NewBaseline(r *Report) Baseline {
+// GateInput returns the MMI report's part of the gate: its findings, its
+// system metrics and its conformance.
+func (r *Report) GateInput() GateInput {
+	return GateInput{
+		ModelHash:   r.Inputs.ModelHash,
+		Findings:    append(make([]Finding, 0, len(r.Findings)), r.Findings...),
+		Metrics:     gateMetrics(r),
+		Conformance: r.Conformance,
+	}
+}
+
+// Add adds another measure's findings and metrics to the gate, keeping the
+// findings sorted and the metrics in name order after the MMI's.
+func (in *GateInput) Add(findings []Finding, metrics []Metric) {
+	in.Findings = append(in.Findings, findings...)
+	SortFindings(in.Findings)
+	extra := slices.Clone(metrics)
+	slices.SortFunc(extra, func(a, b Metric) int { return cmp.Compare(a.Name, b.Name) })
+	in.Metrics = append(in.Metrics, extra...)
+}
+
+// NewBaseline records the findings and metrics of the gate's input.
+func NewBaseline(r *GateInput) Baseline {
 	b := Baseline{
 		Schema:    BaselineSchema,
-		ModelHash: r.Inputs.ModelHash,
+		ModelHash: r.ModelHash,
 		Findings:  make([]BaselineFinding, 0, len(r.Findings)),
-		Metrics:   gateMetrics(r),
+		Metrics:   append(make([]Metric, 0, len(r.Metrics)), r.Metrics...),
 	}
 	for i := range r.Findings {
 		f := &r.Findings[i]
@@ -142,7 +174,7 @@ func DecodeBaseline(r io.Reader) (Baseline, error) {
 // Ensures: Passed is true exactly when the two are comparable, nothing new
 // and unwaived has error severity, no metric regressed, and no coverage or
 // compliance floor is missed.
-func Gate(r *Report, b *Baseline, opts *GateOptions) GateResult {
+func Gate(r *GateInput, b *Baseline, opts *GateOptions) GateResult {
 	if opts == nil {
 		opts = &GateOptions{}
 	}
@@ -153,7 +185,7 @@ func Gate(r *Report, b *Baseline, opts *GateOptions) GateResult {
 		return g
 	}
 	g.compare(r, b, opts)
-	g.Regressions = regressions(b.Metrics, gateMetrics(r))
+	g.Regressions = regressions(b.Metrics, r.Metrics)
 	g.Shortfalls = r.Conformance.shortfalls()
 	g.decide()
 	return g
@@ -161,7 +193,7 @@ func Gate(r *Report, b *Baseline, opts *GateOptions) GateResult {
 
 // compare sorts the report's findings against the baseline and the waivers,
 // and records what the baseline had that the report no longer has.
-func (g *GateResult) compare(r *Report, b *Baseline, opts *GateOptions) {
+func (g *GateResult) compare(r *GateInput, b *Baseline, opts *GateOptions) {
 	known := map[string]bool{}
 	for _, f := range b.Findings {
 		known[f.Fingerprint] = true
@@ -191,9 +223,9 @@ func (g *GateResult) compare(r *Report, b *Baseline, opts *GateOptions) {
 }
 
 // newGateResult returns an empty result, every list empty rather than nil.
-func newGateResult(r *Report, b *Baseline, opts *GateOptions) GateResult {
+func newGateResult(r *GateInput, b *Baseline, opts *GateOptions) GateResult {
 	return GateResult{
-		Comparable:     r.Inputs.ModelHash == b.ModelHash,
+		Comparable:     r.ModelHash == b.ModelHash,
 		Scoped:         opts.Changed != nil,
 		New:            make([]Finding, 0),
 		NewWarnings:    make([]Finding, 0),

@@ -64,15 +64,22 @@ func New(parent *root.Config) *Config {
 		LongHelp: `Check measures the packages and compares them with the baseline. It fails, with
 exit status 3, when an error-severity finding is new, when a system metric is
 worse than its baseline value (cycles, SDI, relative cyclicity, the MMI's low
-bound), or when the baseline was recorded under a different model.
+bound, and the connascence and balance metrics below), or when the baseline
+was recorded under a different model.
 
 With --new-from-rev, only findings on lines changed since the revision count,
 the granular gate for one change; the system metrics gate either way.
 
+When the model has a "connascence" section, the connascence findings and the
+degree of each strong instance across subsystems gate too; with "balance":
+{"gate": true}, so do the Balanced Coupling findings and the strong references
+of each tightly coupled pair.
+
 A waiver accepts one new finding, by fingerprint, until its expiry date, with
 a reason and an approver. An expired waiver protects nothing and is reported.
 The model's coverage and compliance floors (gates) fail the check whatever the
-baseline says. Judgement slots never gate.`,
+baseline says. A judgement slot never gates by itself; an approved verdict can
+confirm a candidate into a finding, or suppress one.`,
 		Flags: cfg.Flags,
 		Exec:  cfg.exec,
 	}
@@ -81,7 +88,7 @@ baseline says. Judgement slots never gate.`,
 }
 
 func (cfg *Config) exec(ctx context.Context, args []string) error {
-	report, err := cfg.Analyze(ctx, args)
+	report, err := cfg.GateInput(ctx, args)
 	if err != nil {
 		return fmt.Errorf("check: %w", err)
 	}

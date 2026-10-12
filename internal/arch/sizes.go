@@ -96,9 +96,9 @@ func funcSizes(p *Program, t Thresholds) (linesInLarge, overComplexity int) {
 	return linesInLarge, overComplexity
 }
 
-// cohesionOf returns the LCOM4 of every struct type with two or more methods,
+// CohesionOf returns the LCOM4 of every struct type with two or more methods,
 // sorted by type.
-func cohesionOf(p *Program) []Cohesion {
+func CohesionOf(p *Program) []Cohesion {
 	methods := map[string][]*Func{}
 	for i := range p.Funcs {
 		if fn := &p.Funcs[i]; fn.Receiver != "" {

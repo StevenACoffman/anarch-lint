@@ -16,6 +16,9 @@ import (
 // repository root where go test runs this package.
 const fixture = "testdata/fx"
 
+// connascenceFixture is the connascence and Balanced Coupling fixture module.
+const connascenceFixture = "testdata/cx"
+
 var (
 	update = flag.Bool("update", false, "rewrite the golden files in testdata/golden")
 	corpus = flag.String("corpus", "",
@@ -76,6 +79,143 @@ func TestAnalyzeGolden(t *testing.T) {
 			}
 			golden(t, tc.file, out)
 		})
+	}
+}
+
+func TestConnascenceGolden(t *testing.T) {
+	t.Parallel()
+	cases := map[string]struct {
+		args []string
+		file string
+	}{
+		"text": {args: []string{"-C", connascenceFixture, "connascence"}, file: "connascence.txt"},
+		"json": {
+			args: []string{"-C", connascenceFixture, "--format=json", "connascence"},
+			file: "connascence.json",
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			code, out, errOut := runCLI(t, tc.args...)
+			if code != 0 {
+				t.Fatalf("exit %d: %s", code, errOut)
+			}
+			golden(t, tc.file, out)
+		})
+	}
+}
+
+func TestBalanceGolden(t *testing.T) {
+	t.Parallel()
+	cases := map[string]struct {
+		args []string
+		file string
+	}{
+		"text": {args: []string{"-C", connascenceFixture, "balance"}, file: "balance.txt"},
+		"json": {
+			args: []string{"-C", connascenceFixture, "--format=json", "balance"},
+			file: "balance.json",
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			code, out, errOut := runCLI(t, tc.args...)
+			if code != 0 {
+				t.Fatalf("exit %d: %s", code, errOut)
+			}
+			golden(t, tc.file, out)
+		})
+	}
+}
+
+// With connascence and balance sections in the model, baseline and check
+// gate their findings too.
+func TestGateIncludesConnascenceAndBalance(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	accepted := filepath.Join(dir, "accepted.json")
+	if code, _, errOut := runCLI(
+		t,
+		"-C",
+		connascenceFixture,
+		"baseline",
+		"--out",
+		accepted,
+	); code != 0 {
+		t.Fatalf("baseline: exit %d: %s", code, errOut)
+	}
+	src, err := os.ReadFile(accepted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b struct {
+		ModelHash string `json:"modelHash"`
+		Findings  []struct {
+			Rule string `json:"rule"`
+		} `json:"findings"`
+		Metrics []struct {
+			Name string `json:"name"`
+		} `json:"metrics"`
+	}
+	if err := json.Unmarshal(src, &b); err != nil {
+		t.Fatal(err)
+	}
+	rules := map[string]bool{}
+	for _, f := range b.Findings {
+		rules[f.Rule] = true
+	}
+	for _, want := range []string{"connascence-identity", "tight-coupling-intrusive", "subsystem-owners-differ"} {
+		if !rules[want] {
+			t.Errorf("the baseline records no %s finding: %v", want, rules)
+		}
+	}
+	metrics := map[string]bool{}
+	for _, m := range b.Metrics {
+		metrics[m.Name] = true
+	}
+	if !metrics["balance.strongRefs/web->auth"] {
+		t.Errorf("the baseline ratchets no strong references of web -> auth: %v", metrics)
+	}
+
+	if code, out, _ := runCLI(
+		t,
+		"-C",
+		connascenceFixture,
+		"check",
+		"--baseline",
+		accepted,
+	); code != 0 {
+		t.Fatalf("check against its own baseline: exit %d\n%s", code, out)
+	}
+	empty := filepath.Join(dir, "empty.json")
+	emptyBaseline := `{"schema": "anarch-lint.baseline.v1", "modelHash": "` + b.ModelHash +
+		`", "findings": [], "metrics": []}`
+	if err := os.WriteFile(empty, []byte(emptyBaseline), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, out, _ := runCLI(t, "-C", connascenceFixture, "check", "--baseline", empty)
+	if code != 3 || !strings.Contains(out, "tight-coupling-intrusive") {
+		t.Fatalf("check against an empty baseline: exit %d\n%s", code, out)
+	}
+}
+
+func TestBalanceIsByteIdentical(t *testing.T) {
+	t.Parallel()
+	_, first, _ := runCLI(t, "-C", connascenceFixture, "--format=json", "balance")
+	_, second, _ := runCLI(t, "-C", connascenceFixture, "--format=json", "balance")
+	if first != second {
+		t.Fatal("two runs over the same inputs produced different output")
+	}
+}
+
+func TestConnascenceIsByteIdentical(t *testing.T) {
+	t.Parallel()
+	_, first, _ := runCLI(t, "-C", connascenceFixture, "--format=json", "connascence")
+	_, second, _ := runCLI(t, "-C", connascenceFixture, "--format=json", "connascence")
+	if first != second {
+		t.Fatal("two runs over the same inputs produced different output")
 	}
 }
 

@@ -52,6 +52,10 @@ type Config struct {
 	ModelPath string
 	// JudgementsPath optionally supplies verdicts for the judgement slots.
 	JudgementsPath string
+	// CodeownersPath names the CODEOWNERS file for Balanced Coupling's
+	// owner boundary; empty means the first of .github/CODEOWNERS,
+	// CODEOWNERS and docs/CODEOWNERS in Dir, if any.
+	CodeownersPath string
 	// Tags are build tags.
 	Tags []string
 	// Format is "text" or "json".
@@ -93,6 +97,9 @@ func New(stdin io.Reader, stdout, stderr io.Writer) *Config {
 		"target-architecture model (default: anarch.json in --dir, if present)")
 	cfg.Flags.StringVar(&cfg.JudgementsPath, 0, "judgements", "",
 		"verdicts for the judgement slots, from a human or an LLM reviewer")
+	cfg.Flags.StringVar(&cfg.CodeownersPath, 0, "codeowners", "",
+		"CODEOWNERS file for the owner boundary, matched relative to --dir "+
+			"(default: .github/CODEOWNERS, CODEOWNERS or docs/CODEOWNERS in --dir)")
 	cfg.Flags.StringListVar(&cfg.Tags, 0, "tags", "build tag to compile with (repeatable)")
 	cfg.Flags.StringEnumVar(&cfg.Format, 0, "format", "output format", "text", "json")
 	cfg.Command = &ff.Command{

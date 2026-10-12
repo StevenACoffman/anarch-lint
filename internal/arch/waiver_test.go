@@ -83,7 +83,7 @@ func TestGateWaivers(t *testing.T) {
 	m := fixtureModel()
 	r := analyze(&m)
 	// An empty baseline: every error finding is new.
-	baseline := arch.NewBaseline(&r)
+	baseline := arch.NewBaseline(gateInput(&r))
 	baseline.Findings = nil
 	var waivers []arch.Waiver
 	for i := range r.Findings {
@@ -103,8 +103,7 @@ func TestGateWaivers(t *testing.T) {
 		Expires:     "2027-01-01",
 	}
 
-	before := arch.Gate(
-		&r,
+	before := arch.Gate(gateInput(&r),
 		&baseline,
 		&arch.GateOptions{Waivers: append(waivers, unused), Today: "2026-12-31"},
 	)
@@ -112,10 +111,18 @@ func TestGateWaivers(t *testing.T) {
 	equals(t, len(waivers), len(before.Waived))
 	equals(t, []arch.Waiver{unused}, before.UnusedWaivers)
 
-	onTheDay := arch.Gate(&r, &baseline, &arch.GateOptions{Waivers: waivers, Today: "2027-01-01"})
+	onTheDay := arch.Gate(
+		gateInput(&r),
+		&baseline,
+		&arch.GateOptions{Waivers: waivers, Today: "2027-01-01"},
+	)
 	assert(t, onTheDay.Passed, "a waiver stopped applying on its last day")
 
-	after := arch.Gate(&r, &baseline, &arch.GateOptions{Waivers: waivers, Today: "2027-01-02"})
+	after := arch.Gate(
+		gateInput(&r),
+		&baseline,
+		&arch.GateOptions{Waivers: waivers, Today: "2027-01-02"},
+	)
 	assert(t, !after.Passed, "expired waivers still passed the gate")
 	equals(t, len(waivers), len(after.ExpiredWaivers))
 	equals(t, len(waivers), len(after.New))

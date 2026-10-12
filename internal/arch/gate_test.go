@@ -12,7 +12,7 @@ func TestGate(t *testing.T) {
 	t.Parallel()
 	m := fixtureModel()
 	before := analyze(&m)
-	baseline := arch.NewBaseline(&before)
+	baseline := arch.NewBaseline(gateInput(&before))
 
 	cases := map[string]struct {
 		model       arch.Model
@@ -44,7 +44,7 @@ func TestGate(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			after := analyze(&tc.model)
-			g := arch.Gate(&after, &baseline, &arch.GateOptions{Changed: tc.changed})
+			g := arch.Gate(gateInput(&after), &baseline, &arch.GateOptions{Changed: tc.changed})
 			equals(t, tc.passed, g.Passed)
 			equals(t, tc.comparable, g.Comparable)
 			equals(t, tc.newFindings, len(g.New))
@@ -60,14 +60,14 @@ func TestGateNewFindingAndRegression(t *testing.T) {
 	// dropping the accepted findings and lowering the recorded metrics.
 	m := fixtureModel()
 	r := analyze(&m)
-	baseline := arch.NewBaseline(&r)
+	baseline := arch.NewBaseline(gateInput(&r))
 	baseline.Findings = nil
 	for i := range baseline.Metrics {
 		if baseline.Metrics[i].Name == "subsystems.inCycles" {
 			baseline.Metrics[i].Value = 0
 		}
 	}
-	g := arch.Gate(&r, &baseline, nil)
+	g := arch.Gate(gateInput(&r), &baseline, nil)
 	assert(t, !g.Passed, "the gate passed a new cycle")
 	assert(t, len(g.New) > 0, "no new error findings")
 	equals(
@@ -78,7 +78,7 @@ func TestGateNewFindingAndRegression(t *testing.T) {
 
 	// Scoped to a change that touches no finding's lines, only the metric
 	// regression still fails the gate.
-	scoped := arch.Gate(&r, &baseline, &arch.GateOptions{
+	scoped := arch.Gate(gateInput(&r), &baseline, &arch.GateOptions{
 		Changed: arch.ChangedLines{"elsewhere.go": {{Start: 1, End: 9}}},
 	})
 	equals(t, 0, len(scoped.New))
@@ -113,7 +113,7 @@ func TestBaselineRoundTrip(t *testing.T) {
 	t.Parallel()
 	m := fixtureModel()
 	r := analyze(&m)
-	b := arch.NewBaseline(&r)
+	b := arch.NewBaseline(gateInput(&r))
 	var buf bytes.Buffer
 	ok(t, arch.WriteJSON(&buf, b))
 	again, err := arch.DecodeBaseline(&buf)
@@ -140,13 +140,13 @@ func TestConformanceAndFloors(t *testing.T) {
 	equals(t, []string{"forbiddenImports[0]", "interfaces"}, c.Failing)
 	equals(t, 33.333333, c.Compliance)
 
-	baseline := arch.NewBaseline(&r)
-	equals(t, true, arch.Gate(&r, &baseline, nil).Passed)
+	baseline := arch.NewBaseline(gateInput(&r))
+	equals(t, true, arch.Gate(gateInput(&r), &baseline, nil).Passed)
 
 	m.Gates = arch.Gates{MinCompliance: 50}
 	floored := analyze(&m)
-	floorBaseline := arch.NewBaseline(&floored)
-	g := arch.Gate(&floored, &floorBaseline, nil)
+	floorBaseline := arch.NewBaseline(gateInput(&floored))
+	g := arch.Gate(gateInput(&floored), &floorBaseline, nil)
 	assert(t, !g.Passed, "a compliance below the floor passed the gate")
 	equals(
 		t,

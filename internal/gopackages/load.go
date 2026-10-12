@@ -40,6 +40,9 @@ type Config struct {
 	// Tags are build tags; they decide which files are compiled, and so are
 	// an input of every measure.
 	Tags []string
+	// Facts asks for the connascence and Balanced Coupling facts of
+	// [arch.Facts], which only those measures read.
+	Facts bool
 }
 
 // Load loads the packages cfg names and returns their facts, sorted as
@@ -75,7 +78,7 @@ func Load(ctx context.Context, cfg Config) (arch.Program, error) {
 			Code: arch.ENOTFOUND, Message: fmt.Sprintf("no packages match %q", cfg.Patterns),
 		}}
 	}
-	prog, err := extract(dir, pkgs, os.ReadFile)
+	prog, err := extract(dir, pkgs, cfg.Facts, os.ReadFile)
 	if err != nil {
 		return arch.Program{}, &arch.Error{Op: op, Err: err}
 	}
@@ -105,6 +108,7 @@ func loadErrors(pkgs []*packages.Package) []string {
 func extract(
 	dir string,
 	pkgs []*packages.Package,
+	facts bool,
 	readFile func(string) ([]byte, error),
 ) (arch.Program, error) {
 	slices.SortFunc(
@@ -115,7 +119,7 @@ func extract(
 	for _, p := range pkgs {
 		inScope[p.PkgPath] = true
 	}
-	x := newExtractor(dir, inScope)
+	x := newExtractor(dir, inScope, facts)
 	for _, p := range pkgs {
 		if err := x.addPackage(p, readFile); err != nil {
 			return arch.Program{}, err

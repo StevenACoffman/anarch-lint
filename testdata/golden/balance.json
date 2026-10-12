@@ -1,0 +1,622 @@
+{
+  "schema": "anarch-lint.balance.v1",
+  "inputs": {
+    "tool": "anarch-lint devel",
+    "goVersion": "GOVERSION",
+    "tags": [],
+    "patterns": [
+      "./..."
+    ],
+    "modelHash": "5ced60b0ed00dc8be754060dce8101c13cd45414d6810bef94e0542c3099b08b",
+    "thresholds": {
+      "largeTypeLines": 400,
+      "largeFuncLines": 60,
+      "largePackageTypes": 40,
+      "highComplexity": 15,
+      "complexityVariant": "modified",
+      "maxTypeCycleGroup": 5,
+      "largeFileLines": 800,
+      "maxNesting": 4
+    },
+    "codeowners": "16c41ce3f256768b7bba7ea3904631fd8e1a440309557e50bf34ba0362803550"
+  },
+  "pairs": [
+    {
+      "from": "audit",
+      "to": "auth",
+      "level": "contract",
+      "basis": "fact",
+      "kind": "name",
+      "symmetric": false,
+      "locality": "system",
+      "ownerBoundary": false,
+      "deployBoundary": false,
+      "async": false,
+      "distance": 4,
+      "volatility": "unjudged",
+      "quadrant": "low-cohesion",
+      "score": 4,
+      "levelEvidence": 2,
+      "evidenceCount": 2,
+      "evidence": [
+        "example.com/cx/audit.Record uses func example.com/cx/auth.Version: it exposes no model type of auth",
+        "name.cross-subsystem fact: 2 places in 2 packages refer to example.com/cx/auth.Version by name"
+      ],
+      "site": {
+        "file": "audit/audit.go",
+        "line": 8,
+        "package": "example.com/cx/audit",
+        "func": "example.com/cx/audit.Record"
+      }
+    },
+    {
+      "from": "billing",
+      "to": "auth",
+      "level": "functional",
+      "basis": "fact",
+      "kind": "identity",
+      "symmetric": false,
+      "locality": "system",
+      "ownerBoundary": true,
+      "deployBoundary": false,
+      "async": false,
+      "distance": 7,
+      "volatility": "unjudged",
+      "quadrant": "tight-coupling",
+      "score": 2,
+      "levelEvidence": 3,
+      "evidenceCount": 18,
+      "evidence": [
+        "value.foreign-switch fact: 1 switch outside its package enumerates example.com/cx/auth.Role without a default",
+        "identity.shared-variable fact: 2 packages use the package variable example.com/cx/auth.Sessions",
+        "value.equal-constants candidate: 2 packages declare constants of type untyped int equal to 8080",
+        "billing/invoice.go:20 uses type example.com/cx/auth.Role: it exposes the model type example.com/cx/auth.Role",
+        "example.com/cx/billing.Describe uses type example.com/cx/auth.Role: it exposes the model type example.com/cx/auth.Role",
+        "example.com/cx/billing.Describe uses const example.com/cx/auth.RoleAdmin: it exposes the model type example.com/cx/auth.Role",
+        "example.com/cx/billing.Describe uses const example.com/cx/auth.RoleUser: it exposes the model type example.com/cx/auth.Role",
+        "example.com/cx/billing.Login uses type example.com/cx/auth.Credentials: it exposes the model type example.com/cx/auth.Credentials",
+        "example.com/cx/billing.Login uses var example.com/cx/auth.Sessions: it reaches into the upstream's state",
+        "name.cross-subsystem fact: 8 places in 3 packages refer to example.com/cx/auth.Role by name",
+        "type.cross-package fact: example.com/cx/auth.Role appears in the signatures or fields of 5 places in other packages",
+        "meaning.shadowed-constant fact: example.com/cx/auth declares RoleAdmin = \"admin\"; 4 places write the literal instead",
+        "name.cross-subsystem fact: 4 places in 3 packages refer to example.com/cx/auth.RoleAdmin by name",
+        "name.cross-subsystem fact: 3 places in 2 packages refer to example.com/cx/auth.RoleUser by name",
+        "name.cross-subsystem fact: 2 places in 2 packages refer to example.com/cx/auth.Credentials by name",
+        "type.cross-package fact: example.com/cx/auth.Credentials appears in the signatures or fields of 1 place in other packages",
+        "name.cross-subsystem fact: 2 places in 2 packages refer to example.com/cx/auth.Sessions by name",
+        "position.unkeyed-literal fact: 1 literal of example.com/cx/auth.Credentials lists its fields by position"
+      ],
+      "site": {
+        "file": "billing/invoice.go",
+        "line": 31,
+        "package": "example.com/cx/billing",
+        "func": "example.com/cx/billing.Describe"
+      }
+    },
+    {
+      "from": "billing",
+      "to": "web",
+      "level": "functional",
+      "basis": "candidate",
+      "kind": "algorithm",
+      "symmetric": true,
+      "locality": "system",
+      "ownerBoundary": true,
+      "deployBoundary": true,
+      "async": false,
+      "distance": 9,
+      "volatility": "unjudged",
+      "quadrant": "tight-coupling",
+      "score": 1,
+      "levelEvidence": 4,
+      "evidenceCount": 4,
+      "evidence": [
+        "algorithm.same-pattern candidate: the regular expression \"^[A-Z]{3}-[0-9]+$\" is written in 2 packages",
+        "algorithm.same-layout candidate: the time layout \"2006-01-02\" is written in 2 packages",
+        "algorithm.same-algorithm candidate: 2 packages call crypto/sha256",
+        "algorithm.clone candidate: 2 functions in 2 packages have the same body shape as example.com/cx/billing.Total"
+      ],
+      "site": {
+        "file": "billing/invoice.go",
+        "line": 16,
+        "package": "example.com/cx/billing"
+      }
+    },
+    {
+      "from": "web",
+      "to": "auth",
+      "level": "intrusive",
+      "basis": "fact",
+      "symmetric": false,
+      "locality": "system",
+      "ownerBoundary": true,
+      "deployBoundary": false,
+      "async": false,
+      "distance": 7,
+      "volatility": "unjudged",
+      "quadrant": "tight-coupling",
+      "score": 4,
+      "levelEvidence": 2,
+      "evidenceCount": 16,
+      "evidence": [
+        "example.com/cx/web.Peek converts example.com/cx/auth.Secret through unsafe.Pointer",
+        "example.com/cx/web links Steal to example.com/cx/auth.check, bypassing its interface",
+        "identity.shared-variable fact: 2 packages use the package variable example.com/cx/auth.Sessions",
+        "example.com/cx/web.Admin uses type example.com/cx/auth.Role: it exposes the model type example.com/cx/auth.Role",
+        "example.com/cx/web.Allowed uses const example.com/cx/auth.RoleAdmin: it exposes the model type example.com/cx/auth.Role",
+        "example.com/cx/web.Allowed uses type example.com/cx/auth.Role: it exposes the model type example.com/cx/auth.Role",
+        "example.com/cx/web.Reset uses var example.com/cx/auth.Sessions: it reaches into the upstream's state",
+        "example.com/cx/web.Peek uses type example.com/cx/auth.Secret: it exposes the model type example.com/cx/auth.Secret",
+        "example.com/cx/web.Steal uses type example.com/cx/auth.Role: it exposes the model type example.com/cx/auth.Role",
+        "meaning.shadowed-constant fact: example.com/cx/auth declares RoleAdmin = \"admin\"; 4 places write the literal instead",
+        "name.cross-subsystem fact: 8 places in 3 packages refer to example.com/cx/auth.Role by name",
+        "type.cross-package fact: example.com/cx/auth.Role appears in the signatures or fields of 5 places in other packages",
+        "name.cross-subsystem fact: 4 places in 3 packages refer to example.com/cx/auth.RoleAdmin by name",
+        "name.cross-subsystem fact: 2 places in 2 packages refer to example.com/cx/auth.Sessions by name",
+        "name.cross-subsystem fact: 2 places in 2 packages refer to example.com/cx/auth.Secret by name",
+        "type.cross-package fact: example.com/cx/auth.Secret appears in the signatures or fields of 1 place in other packages"
+      ],
+      "site": {
+        "file": "web/admin.go",
+        "line": 28,
+        "package": "example.com/cx/web",
+        "func": "example.com/cx/web.Peek"
+      }
+    }
+  ],
+  "packages": [
+    {
+      "path": "example.com/cx/audit",
+      "ca": 0,
+      "ce": 1,
+      "upstream": "contract",
+      "upstreamBasis": "fact",
+      "weightedInstability": 1,
+      "dependents": 0
+    },
+    {
+      "path": "example.com/cx/auth",
+      "ca": 3,
+      "ce": 0,
+      "upstream": "none",
+      "weightedInstability": 0,
+      "dependents": 5
+    },
+    {
+      "path": "example.com/cx/billing",
+      "ca": 1,
+      "ce": 1,
+      "upstream": "functional",
+      "upstreamBasis": "fact",
+      "weightedInstability": 1,
+      "dependents": 1
+    },
+    {
+      "path": "example.com/cx/cmd/client",
+      "ca": 0,
+      "ce": 1,
+      "upstream": "none",
+      "weightedInstability": 0,
+      "dependents": 0
+    },
+    {
+      "path": "example.com/cx/cmd/server",
+      "ca": 0,
+      "ce": 1,
+      "upstream": "none",
+      "upstreamBasis": "fact",
+      "weightedInstability": 1,
+      "dependents": 0
+    },
+    {
+      "path": "example.com/cx/state",
+      "ca": 0,
+      "ce": 0,
+      "upstream": "none",
+      "weightedInstability": 0,
+      "dependents": 0
+    },
+    {
+      "path": "example.com/cx/web",
+      "ca": 1,
+      "ce": 1,
+      "upstream": "intrusive",
+      "upstreamBasis": "fact",
+      "weightedInstability": 0.555556,
+      "dependents": 1
+    }
+  ],
+  "subsystems": [
+    {
+      "name": "auth",
+      "subdomain": "unjudged"
+    },
+    {
+      "name": "billing",
+      "subdomain": "unjudged"
+    },
+    {
+      "name": "web",
+      "subdomain": "unjudged"
+    },
+    {
+      "name": "state",
+      "subdomain": "unjudged"
+    },
+    {
+      "name": "audit",
+      "subdomain": "unjudged"
+    }
+  ],
+  "unbound": [
+    "example.com/cx/audit",
+    "example.com/cx/state"
+  ],
+  "findings": [
+    {
+      "fingerprint": "08446bd6e49466e3",
+      "rule": "subsystem-owners-differ",
+      "severity": "error",
+      "subject": "billing",
+      "message": "the packages of subsystem billing have 2 different sets of owners in CODEOWNERS",
+      "fix": "give the subsystem one owner in the model, or align CODEOWNERS with the subsystem",
+      "evidence": [
+        "owners: @cx/money",
+        "owners: @cx/platform"
+      ]
+    },
+    {
+      "fingerprint": "7e83a194a0a924e9",
+      "rule": "tight-coupling-functional",
+      "severity": "error",
+      "subject": "billing",
+      "object": "auth",
+      "location": {
+        "file": "billing/invoice.go",
+        "start": 31,
+        "end": 31
+      },
+      "message": "billing couples to auth at the functional level across a distance of 7, and auth's volatility is unjudged, so it counts as core: a step toward a distributed monolith",
+      "fix": "co-locate the shared functionality, or replace the duplicated knowledge with a published event or a contract",
+      "evidence": [
+        "strength functional (fact), distance 7 (locality system, owner boundary true, deploy boundary false, async false), volatility unjudged, balance 2",
+        "value.foreign-switch fact: 1 switch outside its package enumerates example.com/cx/auth.Role without a default",
+        "identity.shared-variable fact: 2 packages use the package variable example.com/cx/auth.Sessions",
+        "value.equal-constants candidate: 2 packages declare constants of type untyped int equal to 8080",
+        "billing/invoice.go:20 uses type example.com/cx/auth.Role: it exposes the model type example.com/cx/auth.Role",
+        "example.com/cx/billing.Describe uses type example.com/cx/auth.Role: it exposes the model type example.com/cx/auth.Role",
+        "example.com/cx/billing.Describe uses const example.com/cx/auth.RoleAdmin: it exposes the model type example.com/cx/auth.Role",
+        "example.com/cx/billing.Describe uses const example.com/cx/auth.RoleUser: it exposes the model type example.com/cx/auth.Role",
+        "example.com/cx/billing.Login uses type example.com/cx/auth.Credentials: it exposes the model type example.com/cx/auth.Credentials",
+        "example.com/cx/billing.Login uses var example.com/cx/auth.Sessions: it reaches into the upstream's state",
+        "name.cross-subsystem fact: 8 places in 3 packages refer to example.com/cx/auth.Role by name",
+        "type.cross-package fact: example.com/cx/auth.Role appears in the signatures or fields of 5 places in other packages",
+        "meaning.shadowed-constant fact: example.com/cx/auth declares RoleAdmin = \"admin\"; 4 places write the literal instead",
+        "name.cross-subsystem fact: 4 places in 3 packages refer to example.com/cx/auth.RoleAdmin by name",
+        "name.cross-subsystem fact: 3 places in 2 packages refer to example.com/cx/auth.RoleUser by name",
+        "name.cross-subsystem fact: 2 places in 2 packages refer to example.com/cx/auth.Credentials by name",
+        "type.cross-package fact: example.com/cx/auth.Credentials appears in the signatures or fields of 1 place in other packages",
+        "name.cross-subsystem fact: 2 places in 2 packages refer to example.com/cx/auth.Sessions by name",
+        "position.unkeyed-literal fact: 1 literal of example.com/cx/auth.Credentials lists its fields by position"
+      ]
+    },
+    {
+      "fingerprint": "8c3443d6b2119a11",
+      "rule": "tight-coupling-intrusive",
+      "severity": "error",
+      "subject": "web",
+      "object": "auth",
+      "location": {
+        "file": "web/admin.go",
+        "start": 28,
+        "end": 28
+      },
+      "message": "web couples to auth at the intrusive level across a distance of 7, and auth's volatility is unjudged, so it counts as core: a step toward a distributed monolith",
+      "fix": "integrate through the upstream's interface, a façade or an anti-corruption layer, instead of its implementation",
+      "evidence": [
+        "strength intrusive (fact), distance 7 (locality system, owner boundary true, deploy boundary false, async false), volatility unjudged, balance 4",
+        "example.com/cx/web.Peek converts example.com/cx/auth.Secret through unsafe.Pointer",
+        "example.com/cx/web links Steal to example.com/cx/auth.check, bypassing its interface",
+        "identity.shared-variable fact: 2 packages use the package variable example.com/cx/auth.Sessions",
+        "example.com/cx/web.Admin uses type example.com/cx/auth.Role: it exposes the model type example.com/cx/auth.Role",
+        "example.com/cx/web.Allowed uses const example.com/cx/auth.RoleAdmin: it exposes the model type example.com/cx/auth.Role",
+        "example.com/cx/web.Allowed uses type example.com/cx/auth.Role: it exposes the model type example.com/cx/auth.Role",
+        "example.com/cx/web.Reset uses var example.com/cx/auth.Sessions: it reaches into the upstream's state",
+        "example.com/cx/web.Peek uses type example.com/cx/auth.Secret: it exposes the model type example.com/cx/auth.Secret",
+        "example.com/cx/web.Steal uses type example.com/cx/auth.Role: it exposes the model type example.com/cx/auth.Role",
+        "meaning.shadowed-constant fact: example.com/cx/auth declares RoleAdmin = \"admin\"; 4 places write the literal instead",
+        "name.cross-subsystem fact: 8 places in 3 packages refer to example.com/cx/auth.Role by name",
+        "type.cross-package fact: example.com/cx/auth.Role appears in the signatures or fields of 5 places in other packages",
+        "name.cross-subsystem fact: 4 places in 3 packages refer to example.com/cx/auth.RoleAdmin by name",
+        "name.cross-subsystem fact: 2 places in 2 packages refer to example.com/cx/auth.Sessions by name",
+        "name.cross-subsystem fact: 2 places in 2 packages refer to example.com/cx/auth.Secret by name",
+        "type.cross-package fact: example.com/cx/auth.Secret appears in the signatures or fields of 1 place in other packages"
+      ]
+    }
+  ],
+  "candidates": [
+    {
+      "fingerprint": "4cccb590c5cbd238",
+      "rule": "intrusive-reflection",
+      "subject": "example.com/cx/web",
+      "object": "token",
+      "message": "example.com/cx/web.Peek looks up the unexported name \"token\" with reflect.Value.FieldByName",
+      "fix": "ask the owning package for the value through its interface",
+      "evidence": null,
+      "site": {
+        "file": "web/admin.go",
+        "line": 29,
+        "package": "example.com/cx/web",
+        "func": "example.com/cx/web.Peek"
+      }
+    },
+    {
+      "fingerprint": "b8a015bc0a8d61d4",
+      "rule": "tight-coupling-functional",
+      "subject": "billing",
+      "object": "web",
+      "message": "billing couples to web at the functional level across a distance of 9, and web's volatility is unjudged, so it counts as core: a step toward a distributed monolith",
+      "fix": "co-locate the shared functionality, or replace the duplicated knowledge with a published event or a contract",
+      "evidence": [
+        "strength functional (candidate), distance 9 (locality system, owner boundary true, deploy boundary true, async false), volatility unjudged, balance 1",
+        "algorithm.same-pattern candidate: the regular expression \"^[A-Z]{3}-[0-9]+$\" is written in 2 packages",
+        "algorithm.same-layout candidate: the time layout \"2006-01-02\" is written in 2 packages",
+        "algorithm.same-algorithm candidate: 2 packages call crypto/sha256",
+        "algorithm.clone candidate: 2 functions in 2 packages have the same body shape as example.com/cx/billing.Total"
+      ],
+      "site": {
+        "file": "billing/invoice.go",
+        "line": 16,
+        "package": "example.com/cx/billing"
+      }
+    }
+  ],
+  "rejected": [],
+  "judgements": [
+    {
+      "criterion": "balance/b8a015bc0a8d61d4",
+      "question": "Is this Balanced Coupling candidate real?",
+      "answers": [
+        "confirmed",
+        "rejected"
+      ],
+      "evidence": [
+        "strength functional (candidate), distance 9 (locality system, owner boundary true, deploy boundary true, async false), volatility unjudged, balance 1",
+        "algorithm.same-pattern candidate: the regular expression \"^[A-Z]{3}-[0-9]+$\" is written in 2 packages",
+        "algorithm.same-layout candidate: the time layout \"2006-01-02\" is written in 2 packages",
+        "algorithm.same-algorithm candidate: 2 packages call crypto/sha256",
+        "algorithm.clone candidate: 2 functions in 2 packages have the same body shape as example.com/cx/billing.Total"
+      ],
+      "evidenceHash": "8707bca34afbfd108fecfa7f15193848d4895f179d4d8e57b0d13758bc6083f2",
+      "status": "pending"
+    },
+    {
+      "criterion": "bounded-context/audit",
+      "question": "Is this subsystem a bounded context, with a model of its own?",
+      "answers": [
+        "no",
+        "yes"
+      ],
+      "evidence": [
+        "packages: example.com/cx/audit",
+        "downstream subsystems: 0"
+      ],
+      "evidenceHash": "1aa38f8033fb28c459ac5732a7ec9b912f92a4c9b467e6d1ff95769903739c4a",
+      "status": "pending"
+    },
+    {
+      "criterion": "bounded-context/auth",
+      "question": "Is this subsystem a bounded context, with a model of its own?",
+      "answers": [
+        "no",
+        "yes"
+      ],
+      "evidence": [
+        "packages: example.com/cx/auth",
+        "downstream subsystems: 3"
+      ],
+      "evidenceHash": "82e36d83e0d850a69748e5421543867f71f96466da13bff7330606f7c9e323c6",
+      "status": "pending"
+    },
+    {
+      "criterion": "bounded-context/billing",
+      "question": "Is this subsystem a bounded context, with a model of its own?",
+      "answers": [
+        "no",
+        "yes"
+      ],
+      "evidence": [
+        "packages: example.com/cx/billing, example.com/cx/cmd/client",
+        "downstream subsystems: 0"
+      ],
+      "evidenceHash": "e19c33f7a2972757b1187beaa5e09afdb70962c9ddbb21d459e7859e7d00c5b6",
+      "status": "pending"
+    },
+    {
+      "criterion": "bounded-context/state",
+      "question": "Is this subsystem a bounded context, with a model of its own?",
+      "answers": [
+        "no",
+        "yes"
+      ],
+      "evidence": [
+        "packages: example.com/cx/state",
+        "downstream subsystems: 0"
+      ],
+      "evidenceHash": "942de81792fdc4468ca28f774a73ada6dc694b522085b1f93436b47916e2b65b",
+      "status": "pending"
+    },
+    {
+      "criterion": "bounded-context/web",
+      "question": "Is this subsystem a bounded context, with a model of its own?",
+      "answers": [
+        "no",
+        "yes"
+      ],
+      "evidence": [
+        "packages: example.com/cx/cmd/server, example.com/cx/web",
+        "downstream subsystems: 1"
+      ],
+      "evidenceHash": "c20869eebfa553af9a8568fc4d9f99ec71e73bc8e48a0f29a7a33a45740a8e79",
+      "status": "pending"
+    },
+    {
+      "criterion": "contract-type/example.com/cx/auth.Credentials",
+      "question": "Is this exported type part of the domain model or an integration contract?",
+      "answers": [
+        "contract",
+        "model"
+      ],
+      "evidence": [
+        "type example.com/cx/auth.Credentials (struct) in package example.com/cx/auth",
+        "fields: User, Password"
+      ],
+      "evidenceHash": "a2e463e22847b3c5533b1b95f5020977847976e97c48e913572ebe0e832ae205",
+      "status": "pending"
+    },
+    {
+      "criterion": "contract-type/example.com/cx/auth.Role",
+      "question": "Is this exported type part of the domain model or an integration contract?",
+      "answers": [
+        "contract",
+        "model"
+      ],
+      "evidence": [
+        "type example.com/cx/auth.Role (other) in package example.com/cx/auth"
+      ],
+      "evidenceHash": "f096dfb36c09357313994617759faa54d74d81faa338ec1c878213762711c098",
+      "status": "pending"
+    },
+    {
+      "criterion": "contract-type/example.com/cx/auth.Secret",
+      "question": "Is this exported type part of the domain model or an integration contract?",
+      "answers": [
+        "contract",
+        "model"
+      ],
+      "evidence": [
+        "type example.com/cx/auth.Secret (struct) in package example.com/cx/auth",
+        "fields: token"
+      ],
+      "evidenceHash": "b15115ec641110cb0fc86a53dc0e34a22a7332cc710953f5d859bdcd841ce844",
+      "status": "pending"
+    },
+    {
+      "criterion": "subdomain/audit",
+      "question": "Is this subsystem a core, supporting or generic subdomain of the business?",
+      "answers": [
+        "core",
+        "generic",
+        "supporting"
+      ],
+      "evidence": [
+        "packages: example.com/cx/audit",
+        "downstream subsystems: 0"
+      ],
+      "evidenceHash": "4541d94176135d17d2861336201c7e6ad58faa40a30315848ece524312acff9d",
+      "status": "pending"
+    },
+    {
+      "criterion": "subdomain/auth",
+      "question": "Is this subsystem a core, supporting or generic subdomain of the business?",
+      "answers": [
+        "core",
+        "generic",
+        "supporting"
+      ],
+      "evidence": [
+        "packages: example.com/cx/auth",
+        "downstream subsystems: 3"
+      ],
+      "evidenceHash": "e079d2329ef475c0771f05e436c10d6e20c563a427a7186e245f2a30f76d77be",
+      "status": "pending"
+    },
+    {
+      "criterion": "subdomain/billing",
+      "question": "Is this subsystem a core, supporting or generic subdomain of the business?",
+      "answers": [
+        "core",
+        "generic",
+        "supporting"
+      ],
+      "evidence": [
+        "packages: example.com/cx/billing, example.com/cx/cmd/client",
+        "downstream subsystems: 0"
+      ],
+      "evidenceHash": "a91079ed51996b5e0cb2155d6b16abd461f2b86fecdbfc90d6ab6f94b0d1bea3",
+      "status": "pending"
+    },
+    {
+      "criterion": "subdomain/state",
+      "question": "Is this subsystem a core, supporting or generic subdomain of the business?",
+      "answers": [
+        "core",
+        "generic",
+        "supporting"
+      ],
+      "evidence": [
+        "packages: example.com/cx/state",
+        "downstream subsystems: 0"
+      ],
+      "evidenceHash": "243ac8e8e774bfdf4f86bd51b5e1d626866acc3ecc487692fe80f09d15bc4bc2",
+      "status": "pending"
+    },
+    {
+      "criterion": "subdomain/web",
+      "question": "Is this subsystem a core, supporting or generic subdomain of the business?",
+      "answers": [
+        "core",
+        "generic",
+        "supporting"
+      ],
+      "evidence": [
+        "packages: example.com/cx/cmd/server, example.com/cx/web",
+        "downstream subsystems: 1"
+      ],
+      "evidenceHash": "d30aabe9d8834f5000f445b2a9ea30dacf129e0a1256ba02df32a961f413fd8b",
+      "status": "pending"
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "integration-levels",
+      "text": "Intrusive: an import of a package outside the upstream's declared interface, a go:linkname into it, or an unsafe.Pointer conversion of its type. Functional: connascence of algorithm, execution, timing, value or identity spanning the pair, including clones. Model: a reference exposing an upstream type whose role is not contract. Contract: every other reference. A subsystem without a declared interface gives no intrusive evidence by import.",
+      "source": "connascence.md §9.2"
+    },
+    {
+      "id": "binary-cuts",
+      "text": "High strength is functional or intrusive. High distance is an ordinal of 7 or more: a module, owner or deploy boundary, or approved asynchronous integration. A subsystem boundary within one team and one binary is medium distance, 4, as DDD calls a bounded context.",
+      "source": "connascence.md §9.5"
+    },
+    {
+      "id": "ordinals",
+      "text": "Strength ordinals contract 1, model 3, functional 8, duplicated code 9, intrusive 10; volatility supporting or generic 3, core or unjudged 10; balance = max(|S−D|, 10−V)+1. archfit's ordinals and formula, not checked against the book; the score is reported, never gated.",
+      "source": "connascence.md §9.5; archfit docs/guide/concepts.md"
+    },
+    {
+      "id": "volatility",
+      "text": "Volatility is the upstream subsystem's subdomain from an approved verdict; an unjudged subsystem counts as core. Churn is evidence for the verdict, and supports two diagnostics: 20 or more commits on a supporting or generic subsystem, and none on a core one.",
+      "source": "connascence.md §9.4"
+    },
+    {
+      "id": "owners",
+      "text": "A subsystem's owner is the model's, or else the union of the owners CODEOWNERS gives its packages' files, with GitHub's last-match rule. Git authorship is never an owner.",
+      "source": "connascence.md §9.3"
+    },
+    {
+      "id": "deploy-units",
+      "text": "A binary is a main package in scope and everything it imports. Two packages no binary holds together lie across a deploy boundary; only couplings without an import, such as clones or shared values, can cross one.",
+      "source": "connascence.md §9.3"
+    },
+    {
+      "id": "integration-patterns",
+      "text": "Shared kernel, partnership and conformist share a model on purpose; customer-supplier comes from Learning Domain-Driven Design, not coupling.dev.",
+      "source": "connascence.md §9.7"
+    },
+    {
+      "id": "exposure",
+      "text": "A package with 10 or more importers and an intrusive, or factual functional, upstream dependency is a finding.",
+      "source": "connascence.md §9.6"
+    }
+  ]
+}

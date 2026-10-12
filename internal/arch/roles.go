@@ -38,6 +38,17 @@ func (s *subject) roles() map[string]int {
 	return roles
 }
 
+// TypeRoles maps each type of p that plays one of m's roles to the role's
+// name (MMI 3.1); a type that plays none is left out.
+func TypeRoles(p *Program, m *Model) map[string]string {
+	s := &subject{p: p, m: m}
+	out := map[string]string{}
+	for t, r := range s.roles() {
+		out[t] = m.Roles[r].Name
+	}
+	return out
+}
+
 // roleOf returns the role t plays: the role its directive names, or else the
 // first role it matches by embedding, interface, suffix or package, in that
 // order. A directive naming no declared role matches nothing; the
@@ -73,7 +84,7 @@ func marks(rl *Role, t *Type, m Marker) bool {
 	case MarkerSuffix:
 		return rl.Suffix != "" && strings.HasSuffix(t.Name, rl.Suffix)
 	case MarkerPackage:
-		return matchesAny(rl.Packages, t.Package)
+		return MatchesAny(rl.Packages, t.Package)
 	case MarkerDirective:
 		return t.Directive == rl.Name
 	default:
@@ -100,9 +111,12 @@ func roleRule(s *subject) ruleResult {
 		}
 		r.violations++
 		from, to := s.m.Roles[rf].Name, s.m.Roles[rt].Name
-		f := newFinding(RuleRoleOrder, SeverityError, ref.From, ref.To)
+		f := NewFinding(
+			FindingID{Rule: RuleRoleOrder, Subject: ref.From, Object: ref.To},
+			SeverityError,
+		)
 		f.instance = "roles"
-		f.Location = spanAt(ref.Pos)
+		f.Location = SpanAt(ref.Pos)
 		f.Criterion = "3.2"
 		f.Message = fmt.Sprintf(
 			"%s (%s) refers to %s (%s), against the role order",
@@ -128,7 +142,10 @@ func unknownRoleRule(s *subject) []Finding {
 			slices.ContainsFunc(s.m.Roles, func(rl Role) bool { return rl.Name == t.Directive }) {
 			continue
 		}
-		f := newFinding(RuleUnknownRole, SeverityWarning, t.ID, t.Directive)
+		f := NewFinding(
+			FindingID{Rule: RuleUnknownRole, Subject: t.ID, Object: t.Directive},
+			SeverityWarning,
+		)
 		f.Criterion = "3.3"
 		f.Location = &t.Span
 		f.Message = fmt.Sprintf(

@@ -1,0 +1,6 @@
+# Fixture owners: billing and web belong to different teams; the client
+# binary is still owned by the platform team, so billing's owners differ.
+*              @cx/platform
+/billing/      @cx/money
+/web/          @cx/frontend
+/cmd/server/   @cx/frontend

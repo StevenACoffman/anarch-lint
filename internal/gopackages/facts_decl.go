@@ -1,0 +1,195 @@
+package gopackages
+
+import (
+	"go/ast"
+	"go/token"
+	"go/types"
+	"strings"
+
+	"github.com/StevenACoffman/anarch-lint/internal/arch"
+)
+
+// minHashedStatements is the smallest body whose shape is hashed for clone
+// detection: shorter bodies coincide too often to mean anything.
+const minHashedStatements = 10
+
+// funcFacts records a function's signature, its nil, nil returns, a guard on
+// a receiver field, and the facts of its body; it sets fn.BodyHash.
+func (s *factSink) funcFacts(fc *fileContext, d *ast.FuncDecl, fn *arch.Func) {
+	w := s.walker(fc, fn.ID, fn.Receiver)
+	if d.Recv != nil && len(d.Recv.List) == 1 && len(d.Recv.List[0].Names) == 1 {
+		w.recv = fc.pkg.TypesInfo.Defs[d.Recv.List[0].Names[0]]
+	}
+	obj, ok := fc.pkg.TypesInfo.Defs[d.Name].(*types.Func)
+	if !ok {
+		return
+	}
+	s.facts.Signatures = append(s.facts.Signatures, signatureOf(obj, w.site(d.Pos())))
+	if d.Body == nil {
+		return
+	}
+	info := fc.pkg.TypesInfo
+	if returnsNillableAndError(obj.Signature()) {
+		for _, pos := range nilNilReturns(info, d.Body) {
+			s.facts.NilNils = append(s.facts.NilNils, arch.NilNil{Site: w.site(pos)})
+		}
+	}
+	if field, pos := guardField(info, w.recv, d.Body); field != "" {
+		s.facts.Guards = append(s.facts.Guards, arch.FieldAccess{
+			Type: w.typ, Field: field, Method: w.fn, Site: w.site(pos),
+		})
+	}
+	if fn.Statements >= minHashedStatements {
+		fn.BodyHash = bodyHash(d.Body)
+	}
+	w.walk(d)
+}
+
+// typeFacts records the facts of a type declaration, and the signature of
+// each method an interface type declares, so its contract can be judged by
+// the types it mentions (connascence.md §9.2).
+func (s *factSink) typeFacts(fc *fileContext, ts *ast.TypeSpec, id string) {
+	w := s.walker(fc, "", id)
+	w.walk(ts.Type)
+	tn, ok := fc.pkg.TypesInfo.Defs[ts.Name].(*types.TypeName)
+	if !ok {
+		return
+	}
+	iface, ok := tn.Type().Underlying().(*types.Interface)
+	if !ok {
+		return
+	}
+	for i := range iface.NumExplicitMethods() {
+		m := iface.ExplicitMethod(i)
+		sig := signatureOf(m, w.site(m.Pos()))
+		sig.Func = id + "." + m.Name()
+		s.facts.Signatures = append(s.facts.Signatures, sig)
+	}
+}
+
+// valueFacts records a package-level var or const declaration: its
+// constants, and the uses in its initializers.
+func (s *factSink) valueFacts(fc *fileContext, d *ast.GenDecl) {
+	w := s.walker(fc, "", "")
+	for _, spec := range d.Specs {
+		vs, ok := spec.(*ast.ValueSpec)
+		if !ok {
+			continue
+		}
+		if d.Tok == token.CONST {
+			s.constants(fc, vs, w)
+		}
+		for _, v := range vs.Values {
+			w.walk(v)
+		}
+		if vs.Type != nil {
+			w.walk(vs.Type)
+		}
+	}
+}
+
+// constants records the constants one spec declares.
+func (s *factSink) constants(fc *fileContext, vs *ast.ValueSpec, w *factWalker) {
+	for i, name := range vs.Names {
+		c, ok := fc.pkg.TypesInfo.Defs[name].(*types.Const)
+		if !ok || name.Name == "_" {
+			continue
+		}
+		alias := false
+		if i < len(vs.Values) {
+			alias = namesConst(fc.pkg.TypesInfo, vs.Values[i])
+		}
+		s.facts.Constants = append(s.facts.Constants, arch.Constant{
+			ID:       objectID(c, ""),
+			Type:     types.TypeString(c.Type(), nil),
+			Value:    c.Val().ExactString(),
+			Exported: c.Exported(),
+			Alias:    alias,
+			Site:     w.site(name.Pos()),
+		})
+	}
+}
+
+// stdlibCall records calls to the standard library's algorithm, time, lock
+// and reflect functions.
+func (w *factWalker) stdlibCall(fn *types.Func, c *ast.CallExpr) {
+	path := fn.Pkg().Path()
+	if strings.Contains(strings.Split(path, "/")[0], ".") {
+		return
+	}
+	site := w.site(c.Pos())
+	facts := w.facts
+	switch path {
+	case "time":
+		if fn.Signature().Recv() == nil {
+			facts.TimeCalls = append(
+				facts.TimeCalls,
+				arch.TimeCall{Callee: fn.FullName(), Site: site},
+			)
+		}
+	case "sync":
+		w.lockCall(fn, c, site)
+	case "reflect":
+		w.reflectCall(fn, c, site)
+	default:
+		if algo := algorithmOf(path, fn.Signature().Recv()); algo != "" {
+			facts.AlgoCalls = append(facts.AlgoCalls, arch.AlgoCall{Algorithm: algo, Site: site})
+		}
+	}
+}
+
+// lockCall records a mutex method call with its receiver expression.
+func (w *factWalker) lockCall(fn *types.Func, c *ast.CallExpr, site arch.Site) {
+	sel, ok := ast.Unparen(c.Fun).(*ast.SelectorExpr)
+	if !ok || !isLockMethod(fn.Name()) {
+		return
+	}
+	w.facts.LockCalls = append(w.facts.LockCalls, arch.LockCall{
+		Expr:     types.ExprString(sel.X),
+		Method:   fn.Name(),
+		Deferred: w.deferred[c],
+		Site:     site,
+	})
+}
+
+// reflectCall records a reflect lookup by name, with the name when constant.
+func (w *factWalker) reflectCall(fn *types.Func, c *ast.CallExpr, site arch.Site) {
+	if fn.Name() != "FieldByName" && fn.Name() != "MethodByName" {
+		return
+	}
+	name := ""
+	if len(c.Args) == 1 {
+		name, _ = stringConst(w.info(), c.Args[0])
+	}
+	w.facts.ReflectByNames = append(w.facts.ReflectByNames, arch.ReflectByName{
+		Method: fn.FullName(), Name: name, Site: site,
+	})
+}
+
+// sortFacts returns the facts with every slice sorted by site, then by the rest of the fact, so
+// that equal facts are the only ones whose order is arbitrary.
+func (s *factSink) sortFacts() arch.Facts {
+	f := &s.facts
+	for _, u := range s.uses {
+		f.Uses = append(f.Uses, *u)
+	}
+	sortBySite(f.Uses, func(u arch.Use) arch.Site { return u.Site })
+	sortBySite(f.Signatures, func(s arch.Signature) arch.Site { return s.Site })
+	sortBySite(f.ConstExprs, func(c arch.ConstExpr) arch.Site { return c.Site })
+	sortBySite(f.Constants, func(c arch.Constant) arch.Site { return c.Site })
+	sortBySite(f.NilNils, func(n arch.NilNil) arch.Site { return n.Site })
+	sortBySite(f.UnkeyedLits, func(u arch.UnkeyedLit) arch.Site { return u.Site })
+	sortBySite(f.ConstIndexes, func(c arch.ConstIndex) arch.Site { return c.Site })
+	sortBySite(f.Switches, func(s arch.Switch) arch.Site { return s.Site })
+	sortBySite(f.GlobalUses, func(g arch.GlobalUse) arch.Site { return g.Site })
+	sortBySite(f.PointerEqs, func(p arch.PointerEq) arch.Site { return p.Site })
+	sortBySite(f.AlgoCalls, func(a arch.AlgoCall) arch.Site { return a.Site })
+	sortBySite(f.TimeCalls, func(t arch.TimeCall) arch.Site { return t.Site })
+	sortBySite(f.Guards, func(g arch.FieldAccess) arch.Site { return g.Site })
+	sortBySite(f.FieldWrites, func(g arch.FieldAccess) arch.Site { return g.Site })
+	sortBySite(f.LockCalls, func(l arch.LockCall) arch.Site { return l.Site })
+	sortBySite(f.Linknames, func(l arch.Linkname) arch.Site { return l.Site })
+	sortBySite(f.UnsafeConvs, func(u arch.UnsafeConv) arch.Site { return u.Site })
+	sortBySite(f.ReflectByNames, func(r arch.ReflectByName) arch.Site { return r.Site })
+	return *f
+}

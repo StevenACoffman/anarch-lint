@@ -15,7 +15,10 @@ func subsystemCycleRule(s *subject) []Finding {
 	for _, grp := range s.g.Subsystems.CycleGroups() {
 		cuts, _ := minimumCut(s.g.Subsystems.subgraph(grp))
 		subject := strings.Join(grp, " ↔ ")
-		f := newFinding(RuleSubsystemCycle, SeverityError, subject, "")
+		f := NewFinding(
+			FindingID{Rule: RuleSubsystemCycle, Subject: subject, Object: ""},
+			SeverityError,
+		)
 		f.Criterion = "2.1.2"
 		f.Message = fmt.Sprintf("subsystems %s form a cycle", subject)
 		var steps []string
@@ -26,7 +29,7 @@ func subsystemCycleRule(s *subject) []Finding {
 					imp.From, imp.To, imp.Pos.File, imp.Pos.Line))
 			}
 			if f.Location == nil && len(imps) > 0 {
-				f.Location = spanAt(imps[0].Pos)
+				f.Location = SpanAt(imps[0].Pos)
 			}
 			steps = append(
 				steps,
@@ -53,7 +56,10 @@ func typeCycleRule(s *subject, limit int) []Finding {
 			continue
 		}
 		cuts, exact := minimumCut(s.g.Types.subgraph(grp))
-		f := newFinding(RuleTypeCycleTooLarge, SeverityError, grp[0], strconv.Itoa(len(grp)))
+		f := NewFinding(
+			FindingID{Rule: RuleTypeCycleTooLarge, Subject: grp[0], Object: strconv.Itoa(len(grp))},
+			SeverityError,
+		)
 		f.Criterion = "2.2.3"
 		f.Message = fmt.Sprintf(
 			"%d types form one cycle group, above the limit of %d",
@@ -64,7 +70,7 @@ func typeCycleRule(s *subject, limit int) []Finding {
 		for _, cut := range cuts {
 			r := refs[[2]string{cut.From, cut.To}]
 			if f.Location == nil {
-				f.Location = spanAt(r.Pos)
+				f.Location = SpanAt(r.Pos)
 			}
 			steps = append(steps, fmt.Sprintf("%s → %s (%s, %s:%d)",
 				cut.From, cut.To, plural(cut.Weight, "use"), r.Pos.File, r.Pos.Line))
@@ -88,7 +94,10 @@ func sizeRules(s *subject, t Thresholds, cohesion map[string]int) []Finding {
 	for i := range s.p.Funcs {
 		fn := &s.p.Funcs[i]
 		if fn.Lines > t.LargeFuncLines {
-			f := newFinding(RuleLargeFunc, SeverityWarning, fn.ID, "")
+			f := NewFinding(
+				FindingID{Rule: RuleLargeFunc, Subject: fn.ID, Object: ""},
+				SeverityWarning,
+			)
 			f.Criterion, f.Location = "1.3.2", &fn.Span
 			f.Message = fmt.Sprintf(
 				"%s has %d lines of code, above %d",
@@ -100,7 +109,10 @@ func sizeRules(s *subject, t Thresholds, cohesion map[string]int) []Finding {
 			fs = append(fs, f)
 		}
 		if cc := variantOf(fn.Complexity, t.ComplexityVariant); cc > t.HighComplexity {
-			f := newFinding(RuleComplexFunc, SeverityWarning, fn.ID, "")
+			f := NewFinding(
+				FindingID{Rule: RuleComplexFunc, Subject: fn.ID, Object: ""},
+				SeverityWarning,
+			)
 			f.Criterion, f.Location = "1.3.4", &fn.Span
 			f.Message = fmt.Sprintf("%s has %s cyclomatic complexity %d, above %d",
 				fn.ID, t.ComplexityVariant, cc, t.HighComplexity)
@@ -116,7 +128,10 @@ func sizeRules(s *subject, t Thresholds, cohesion map[string]int) []Finding {
 		if typ.Lines <= t.LargeTypeLines {
 			continue
 		}
-		f := newFinding(RuleLargeType, SeverityWarning, typ.ID, "")
+		f := NewFinding(
+			FindingID{Rule: RuleLargeType, Subject: typ.ID, Object: ""},
+			SeverityWarning,
+		)
 		f.Criterion, f.Location = "1.3.1", &typ.Span
 		f.Message = fmt.Sprintf("%s has %d lines of code with its methods, above %d",
 			typ.ID, typ.Lines, t.LargeTypeLines)
@@ -140,7 +155,10 @@ func lengthAndDepthRules(s *subject, t Thresholds) []Finding {
 		if file.Lines <= t.LargeFileLines {
 			continue
 		}
-		f := newFinding(RuleLargeFile, SeverityWarning, file.Path, "")
+		f := NewFinding(
+			FindingID{Rule: RuleLargeFile, Subject: file.Path, Object: ""},
+			SeverityWarning,
+		)
 		f.Location = &Span{File: file.Path, Start: 1, End: 1}
 		f.Message = fmt.Sprintf(
 			"%s has %d lines of code, above %d",
@@ -156,7 +174,10 @@ func lengthAndDepthRules(s *subject, t Thresholds) []Finding {
 		if fn.MaxNesting <= t.MaxNesting {
 			continue
 		}
-		f := newFinding(RuleDeepNesting, SeverityWarning, fn.ID, "")
+		f := NewFinding(
+			FindingID{Rule: RuleDeepNesting, Subject: fn.ID, Object: ""},
+			SeverityWarning,
+		)
 		f.Location = &fn.Span
 		f.Message = fmt.Sprintf(
 			"%s nests %d levels deep, above %d",

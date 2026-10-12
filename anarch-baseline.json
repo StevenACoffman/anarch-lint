@@ -1,11 +1,11 @@
 {
   "schema": "anarch-lint.baseline.v1",
-  "modelHash": "1ca8ee7bbd18949670617708b3870f4572826c6b2a33ccefdeefd0229b2c32ca",
+  "modelHash": "5ba1ec65f2d0da83b1be078003348a0b2aaf4f831e7ad9b154221667ffa7a174",
   "findings": [],
   "metrics": [
     {
       "name": "mmi.low",
-      "value": 5.46,
+      "value": 5.42,
       "higherIsBetter": true
     },
     {
@@ -20,7 +20,7 @@
     },
     {
       "name": "types.relativeCyclicity",
-      "value": 0.025974,
+      "value": 0.012987,
       "higherIsBetter": false
     },
     {
@@ -36,6 +36,16 @@
     {
       "name": "subsystems.sdi",
       "value": 0,
+      "higherIsBetter": false
+    },
+    {
+      "name": "connascence.degree/2e56da989f7f011f",
+      "value": 2,
+      "higherIsBetter": false
+    },
+    {
+      "name": "connascence.degree/d4f0fd399941f29b",
+      "value": 2,
       "higherIsBetter": false
     }
   ]

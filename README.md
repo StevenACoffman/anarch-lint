@@ -12,14 +12,17 @@ dissertation on architectural complexity.
 - **Actionable.** Every finding names its location and its evidence, and
   gives a fix. For a cycle, that's the smallest set of imports or references
   to cut.
-- **Honest about judgement.** The criteria that need a reviewer are
-  *judgement slots*, never scores, and never gate.
+- **Honest about judgement.** What needs a reviewer is a *judgement slot*,
+  never a score. A slot never gates by itself; only an approved verdict can
+  turn a candidate into a finding.
 
 ## Install and Run
 
 ```sh
 go install github.com/StevenACoffman/anarch-lint@latest
 anarch-lint analyze                  # report every measure, finding and slot
+anarch-lint connascence              # report connascence: kinds, strength, degree, locality
+anarch-lint balance --since-rev main # report Balanced Coupling for every subsystem pair
 anarch-lint baseline                 # record the accepted state
 anarch-lint check                    # gate against it
 anarch-lint check --new-from-rev main
@@ -28,13 +31,14 @@ just corpus                          # the acceptance tests on cloned codebases
 
 The shared flags come before the subcommand:
 
-| Flag           | Meaning                                                              |
-| -------------- | -------------------------------------------------------------------- |
-| `-C`, `--dir`  | The directory to analyze. Reported paths are relative to it.         |
-| `--model`      | The model file. The default is `anarch.json` in `--dir`, if present. |
-| `--judgements` | Verdicts for the judgement slots.                                    |
-| `--tags`       | A build tag (repeatable).                                            |
-| `--format`     | `text` or `json`.                                                    |
+| Flag           | Meaning                                                                                                                                 |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `-C`, `--dir`  | The directory to analyze. Reported paths are relative to it.                                                                            |
+| `--model`      | The model file. The default is `anarch.json` in `--dir`, if present.                                                                    |
+| `--judgements` | Verdicts for the judgement slots.                                                                                                       |
+| `--codeowners` | The CODEOWNERS file, matched relative to `--dir`. The default is the first of `.github/CODEOWNERS`, `CODEOWNERS` and `docs/CODEOWNERS`. |
+| `--tags`       | A build tag (repeatable).                                                                                                               |
+| `--format`     | `text` or `json`.                                                                                                                       |
 
 Exit status:
 
@@ -67,6 +71,24 @@ Exit status:
 - **Architecture rules** declared in the model, among them layers,
   subsystems and their interfaces, pattern roles, forbidden imports and
   cycle limits.
+- **Connascence** (`connascence`): every instance of the nine kinds of
+  connascence.io, from name to identity, and of contranascence. Each has a
+  strength, a degree (how many entities must change together) and a locality
+  (the nearest container of every site, from a function to several modules).
+  Facts gate; candidates, which may be coincidence, gate only once a reviewer
+  confirms them. A fact stronger than the model allows at its locality is a
+  finding.
+- **Balanced Coupling** (`balance`): Vlad Khononov's model for every ordered
+  pair of subsystems. Each pair has an integration strength (intrusive,
+  functional, model or contract), a distance (module, CODEOWNERS or model
+  owner, and deploy boundaries, and confirmed asynchronous integration), and
+  the upstream's volatility, a judged subdomain with churn as evidence. Tight
+  coupling on facts is a finding. The report also weighs each package's
+  coupling by strength.
+
+The definitions behind the last two are in `connascence.md`. The balance
+score uses archfit's ordinals and formula, which nobody has checked against
+the book, so the report shows the score and the gate ignores it.
 
 ## The Model File
 
@@ -99,15 +121,21 @@ with the reason. They are never scored as zero.
 Beyond subsystems, layers and forbidden imports, a model can declare the
 following.
 
-| Key                             | What it does                                                                                                                                                                                                                   |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `subsystemOrder`                | Orders subsystems from top to bottom, for criterion 2.1.2.                                                                                                                                                                     |
-| `roles`                         | Pattern roles, ordered from top to bottom. A type plays a role by an `//arch:role NAME` comment, by embedding a marker type (`embeds`), by implementing an interface (`implements`), by a name `suffix`, or by its `packages`. |
-| `isolations`                    | `{"from": "example.com/app/$*/...", "mayImport": ["example.com/app/$1/..."]}` keeps every top-level area to itself. `$*` captures one path segment, `$**` several, and `$1` to `$9` refer back to them.                        |
-| `forbiddenImports[].transitive` | Also forbids reaching the package through other packages. The finding shows the import path, and names the one package every path passes through when there is one.                                                            |
-| `forbiddenImports[].injected`   | Also forbids receiving a value of a forbidden package's type through an interface parameter: a dependency that only exists at run time.                                                                                        |
-| `gates`                         | `minCoverage` and `minCompliance` floors, in percent. `check` fails below either, whatever the baseline says.                                                                                                                  |
-| `thresholds`                    | The size, complexity and nesting limits. Every one has a default, recorded among the report's assumptions.                                                                                                                     |
+| Key                             | What it does                                                                                                                                                                                                                                                                 |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `subsystemOrder`                | Orders subsystems from top to bottom, for criterion 2.1.2.                                                                                                                                                                                                                   |
+| `roles`                         | Pattern roles, ordered from top to bottom. A type plays a role by an `//arch:role NAME` comment, by embedding a marker type (`embeds`), by implementing an interface (`implements`), by a name `suffix`, or by its `packages`.                                               |
+| `isolations`                    | `{"from": "example.com/app/$*/...", "mayImport": ["example.com/app/$1/..."]}` keeps every top-level area to itself. `$*` captures one path segment, `$**` several, and `$1` to `$9` refer back to them.                                                                      |
+| `forbiddenImports[].transitive` | Also forbids reaching the package through other packages. The finding shows the import path, and names the one package every path passes through when there is one.                                                                                                          |
+| `forbiddenImports[].injected`   | Also forbids receiving a value of a forbidden package's type through an interface parameter: a dependency that only exists at run time.                                                                                                                                      |
+| `gates`                         | `minCoverage` and `minCompliance` floors, in percent. `check` fails below either, whatever the baseline says.                                                                                                                                                                |
+| `thresholds`                    | The size, complexity and nesting limits. Every one has a default, recorded among the report's assumptions.                                                                                                                                                                   |
+| `connascence`                   | `{"maxStrength": {"package": 9, "subsystem": 5, "system": 3, "external": 2}, "maxDegree": {"system": 20}}`: the strongest kind (1 name to 9 identity) and the largest degree each locality allows. Setting either opts the connascence findings into `baseline` and `check`. |
+| `balance`                       | `{"gate": true, "messaging": ["github.com/nats-io/nats.go/..."]}`: `gate` opts the Balanced Coupling findings into `baseline` and `check`; `messaging` names message-bus clients, whose importers get an asynchrony slot.                                                    |
+| `subsystems[].owner`            | The team that owns a subsystem, for the owner boundary. It takes precedence over CODEOWNERS.                                                                                                                                                                                 |
+
+Adding or changing any section changes the model's hash, so record a new
+baseline afterwards.
 
 ## Waivers
 
@@ -137,23 +165,55 @@ slot carries:
 - the deterministic evidence a reviewer should weigh;
 - a hash of that evidence.
 
+The connascence and balance commands add slots named `family/subject`,
+answered with one of the slot's `answers` instead of a score:
+
+| Family                | Asks                                                | Answers                                                                                                                          |
+| --------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `connascence`         | Must the candidate's places change together?        | `confirmed`, `rejected`                                                                                                          |
+| `balance`             | Is the Balanced Coupling candidate real?            | `confirmed`, `rejected`                                                                                                          |
+| `subdomain`           | Is the subsystem core, supporting or generic?       | `core`, `supporting`, `generic`                                                                                                  |
+| `bounded-context`     | Is the subsystem a bounded context?                 | `yes`, `no`                                                                                                                      |
+| `integration-pattern` | Which DDD integration pattern does the pair follow? | `shared-kernel`, `partnership`, `conformist`, `customer-supplier`, `anti-corruption-layer`, `open-host-service`, `separate-ways` |
+| `contract-type`       | Is the exported type a model type or a contract?    | `model`, `contract`                                                                                                              |
+| `async`               | Does the package integrate asynchronously?          | `async`, `sync`                                                                                                                  |
+
+```json
+{"version": 1, "verdicts": [
+  {"criterion": "subdomain/billing", "answer": "supporting", "provenance": "human",
+   "rationale": "an off-the-shelf invoicing flow", "evidenceHash": "…", "approved": true}
+]}
+```
+
 anarch-lint applies a verdict, from a human or an LLM, only when someone
 approved it and its hash matches the current evidence. When the code changes
-the evidence, the verdict goes stale and needs a fresh review. Slots never
-gate.
+the evidence, the verdict goes stale and needs a fresh review. A slot never
+gates by itself:
+
+- an MMI verdict narrows the MMI interval;
+- a confirmed candidate becomes a finding, and a rejected one drops out;
+- a supporting or generic subdomain suppresses tight coupling to it, as its
+  low volatility balances the coupling;
+- a shared kernel, partnership or conformist pattern suppresses a leaked
+  model.
 
 ## Design
 
 anarch-lint is a functional core with an imperative shell.
 
 - `internal/arch` is pure: it does no I/O, reads no clock and uses no
-  third-party code. The repository's own model enforces that.
+  third-party code. It holds the vocabulary every measure shares.
+- `internal/connascence` and `internal/balance` are pure measures over
+  `arch`'s facts. Neither imports the other or any adapter; `cmd` passes the
+  connascence instances to `balance`. The repository's own model enforces
+  this.
 - The adapters wrap one dependency each:
   - `internal/gopackages`: `golang.org/x/tools/go/packages`;
   - `internal/git`: the `git` command line;
+  - `internal/codeowners`: GitHub's CODEOWNERS format;
   - `internal/text`: `text/tabwriter`.
 - `cmd` wires the adapters together.
 
 The definitions behind every measure, the survey of other tools, and the
-implementation plan are in three companion documents: `mmi.md`,
-`mmi-ref-plan.md` and `mmi-plan.md`.
+implementation plan are in four companion documents: `mmi.md`,
+`mmi-ref-plan.md`, `mmi-plan.md` and `connascence.md`.

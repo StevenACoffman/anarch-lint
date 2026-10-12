@@ -14,3 +14,10 @@ Carola
 O'Reilly
 cyclicity
 cyclomatic
+[Cc]onnascence
+[Cc]ontranascence
+asynchrony
+archfit('s)?
+upstream's
+codeowners
+CODEOWNERS

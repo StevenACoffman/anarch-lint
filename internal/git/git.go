@@ -1,5 +1,6 @@
-// Package git reads the lines a change touched, by running the git command
-// line tool. It is the only package that runs git.
+// Package git reads the lines a change touched and the commits that changed
+// each file, by running the git command line tool. It is the only package
+// that runs git.
 //
 // The parser it uses is written here rather than borrowed: revgrep answers
 // only point queries and has known parsing faults, and golangci-lint's diff
@@ -28,11 +29,8 @@ import (
 // diff does not show. Deleted lines touch nothing: no code remains there.
 func ChangedLines(ctx context.Context, dir, rev string) (arch.ChangedLines, error) {
 	const op = "git.ChangedLines"
-	if _, err := exec.LookPath("git"); err != nil {
-		return nil, &arch.Error{
-			Op:  op,
-			Err: &arch.Error{Code: arch.ENOTFOUND, Message: "git is not on PATH"},
-		}
+	if err := gitOnPath(); err != nil {
+		return nil, &arch.Error{Op: op, Err: err}
 	}
 	// --end-of-options keeps a revision such as "--output=x" from being read
 	// as an option: rev comes from the command line.
@@ -138,6 +136,14 @@ func merge(ranges []arch.LineRange) []arch.LineRange {
 		out = append(out, r)
 	}
 	return out
+}
+
+// gitOnPath reports ENOTFOUND when no git binary is on PATH.
+func gitOnPath() error {
+	if _, err := exec.LookPath("git"); err != nil {
+		return &arch.Error{Code: arch.ENOTFOUND, Message: "git is not on PATH"}
+	}
+	return nil
 }
 
 // run runs git with args in dir and returns its standard output. A failure is

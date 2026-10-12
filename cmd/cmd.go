@@ -19,8 +19,10 @@ import (
 
 	// climax:imports
 	"github.com/StevenACoffman/anarch-lint/cmd/analyze"
+	"github.com/StevenACoffman/anarch-lint/cmd/balance"
 	"github.com/StevenACoffman/anarch-lint/cmd/baseline"
 	"github.com/StevenACoffman/anarch-lint/cmd/check"
+	"github.com/StevenACoffman/anarch-lint/cmd/connascence"
 	"github.com/StevenACoffman/anarch-lint/cmd/root"
 	"github.com/StevenACoffman/anarch-lint/cmd/version"
 )
@@ -44,6 +46,8 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	// register new commands here
 
 	analyze.New(r)
+	connascence.New(r)
+	balance.New(r)
 	baseline.New(r)
 	check.New(r)
 	if err := r.Command.Parse(args, ff.WithEnvVarPrefix("ANARCH_LINT")); err != nil {

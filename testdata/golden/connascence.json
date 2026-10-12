@@ -1,0 +1,1204 @@
+{
+  "schema": "anarch-lint.connascence.v1",
+  "inputs": {
+    "tool": "anarch-lint devel",
+    "goVersion": "GOVERSION",
+    "tags": [],
+    "patterns": [
+      "./..."
+    ],
+    "modelHash": "5ced60b0ed00dc8be754060dce8101c13cd45414d6810bef94e0542c3099b08b",
+    "thresholds": {
+      "largeTypeLines": 400,
+      "largeFuncLines": 60,
+      "largePackageTypes": 40,
+      "highComplexity": 15,
+      "complexityVariant": "modified",
+      "maxTypeCycleGroup": 5,
+      "largeFileLines": 800,
+      "maxNesting": 4
+    }
+  },
+  "summary": [
+    {
+      "kind": "contranascence",
+      "locality": "file",
+      "facts": 1,
+      "candidates": 0,
+      "degree": 1
+    },
+    {
+      "kind": "name",
+      "locality": "system",
+      "facts": 7,
+      "candidates": 0,
+      "degree": 16
+    },
+    {
+      "kind": "type",
+      "locality": "system",
+      "facts": 3,
+      "candidates": 0,
+      "degree": 7
+    },
+    {
+      "kind": "meaning",
+      "locality": "function",
+      "facts": 1,
+      "candidates": 1,
+      "degree": 2
+    },
+    {
+      "kind": "meaning",
+      "locality": "system",
+      "facts": 1,
+      "candidates": 0,
+      "degree": 3
+    },
+    {
+      "kind": "position",
+      "locality": "function",
+      "facts": 2,
+      "candidates": 1,
+      "degree": 3
+    },
+    {
+      "kind": "position",
+      "locality": "system",
+      "facts": 1,
+      "candidates": 0,
+      "degree": 2
+    },
+    {
+      "kind": "algorithm",
+      "locality": "system",
+      "facts": 0,
+      "candidates": 4,
+      "degree": 8
+    },
+    {
+      "kind": "execution",
+      "locality": "type",
+      "facts": 0,
+      "candidates": 3,
+      "degree": 6
+    },
+    {
+      "kind": "timing",
+      "locality": "function",
+      "facts": 0,
+      "candidates": 1,
+      "degree": 1
+    },
+    {
+      "kind": "value",
+      "locality": "system",
+      "facts": 1,
+      "candidates": 1,
+      "degree": 4
+    },
+    {
+      "kind": "identity",
+      "locality": "system",
+      "facts": 1,
+      "candidates": 0,
+      "degree": 2
+    }
+  ],
+  "instances": [
+    {
+      "fingerprint": "46b21392681dd76e",
+      "kind": "contranascence",
+      "strength": 0,
+      "detector": "contranascence.enum-collision",
+      "subject": "example.com/cx/auth.Level = 2",
+      "object": "example.com/cx/auth.Level",
+      "basis": "fact",
+      "locality": "file",
+      "degree": 1,
+      "siteCount": 2,
+      "sites": [
+        {
+          "file": "auth/role.go",
+          "line": 25,
+          "package": "example.com/cx/auth"
+        },
+        {
+          "file": "auth/role.go",
+          "line": 26,
+          "package": "example.com/cx/auth"
+        }
+      ],
+      "message": "Mid, High share the value 2 of example.com/cx/auth.Level",
+      "fix": "derive the values from one place, with iota, so that a collision cannot be written"
+    },
+    {
+      "fingerprint": "b99a82813369f4fc",
+      "kind": "name",
+      "strength": 1,
+      "detector": "name.cross-subsystem",
+      "subject": "example.com/cx/auth.Credentials",
+      "object": "example.com/cx/auth.Credentials",
+      "basis": "fact",
+      "locality": "system",
+      "degree": 2,
+      "siteCount": 2,
+      "sites": [
+        {
+          "file": "auth/role.go",
+          "line": 44,
+          "package": "example.com/cx/auth",
+          "type": "example.com/cx/auth.Credentials"
+        },
+        {
+          "file": "billing/invoice.go",
+          "line": 62,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Login"
+        }
+      ],
+      "message": "2 places in 2 packages refer to example.com/cx/auth.Credentials by name",
+      "fix": "connascence of name is the weakest kind; keep Credentials stable, and reach it only through its subsystem's interface"
+    },
+    {
+      "fingerprint": "827b00d077efeaa9",
+      "kind": "name",
+      "strength": 1,
+      "detector": "name.cross-subsystem",
+      "subject": "example.com/cx/auth.Role",
+      "object": "example.com/cx/auth.Role",
+      "basis": "fact",
+      "locality": "system",
+      "degree": 3,
+      "siteCount": 8,
+      "sites": [
+        {
+          "file": "auth/role.go",
+          "line": 8,
+          "package": "example.com/cx/auth",
+          "type": "example.com/cx/auth.Role"
+        },
+        {
+          "file": "auth/role.go",
+          "line": 13,
+          "package": "example.com/cx/auth"
+        },
+        {
+          "file": "auth/role.go",
+          "line": 50,
+          "package": "example.com/cx/auth",
+          "func": "example.com/cx/auth.Check"
+        },
+        {
+          "file": "billing/invoice.go",
+          "line": 20,
+          "package": "example.com/cx/billing",
+          "type": "example.com/cx/billing.Invoice"
+        },
+        {
+          "file": "billing/invoice.go",
+          "line": 30,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Describe"
+        },
+        {
+          "file": "web/admin.go",
+          "line": 17,
+          "package": "example.com/cx/web",
+          "func": "example.com/cx/web.Admin"
+        },
+        {
+          "file": "web/admin.go",
+          "line": 20,
+          "package": "example.com/cx/web",
+          "func": "example.com/cx/web.Allowed"
+        },
+        {
+          "file": "web/admin.go",
+          "line": 36,
+          "package": "example.com/cx/web",
+          "func": "example.com/cx/web.Steal"
+        }
+      ],
+      "message": "8 places in 3 packages refer to example.com/cx/auth.Role by name",
+      "fix": "connascence of name is the weakest kind; keep Role stable, and reach it only through its subsystem's interface"
+    },
+    {
+      "fingerprint": "8a964992d03191cd",
+      "kind": "name",
+      "strength": 1,
+      "detector": "name.cross-subsystem",
+      "subject": "example.com/cx/auth.RoleAdmin",
+      "object": "example.com/cx/auth.RoleAdmin",
+      "basis": "fact",
+      "locality": "system",
+      "degree": 3,
+      "siteCount": 4,
+      "sites": [
+        {
+          "file": "auth/role.go",
+          "line": 13,
+          "package": "example.com/cx/auth"
+        },
+        {
+          "file": "auth/role.go",
+          "line": 50,
+          "package": "example.com/cx/auth",
+          "func": "example.com/cx/auth.Check"
+        },
+        {
+          "file": "billing/invoice.go",
+          "line": 32,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Describe"
+        },
+        {
+          "file": "web/admin.go",
+          "line": 20,
+          "package": "example.com/cx/web",
+          "func": "example.com/cx/web.Allowed"
+        }
+      ],
+      "message": "4 places in 3 packages refer to example.com/cx/auth.RoleAdmin by name",
+      "fix": "connascence of name is the weakest kind; keep RoleAdmin stable, and reach it only through its subsystem's interface"
+    },
+    {
+      "fingerprint": "2d3fc82e1c17ec48",
+      "kind": "name",
+      "strength": 1,
+      "detector": "name.cross-subsystem",
+      "subject": "example.com/cx/auth.RoleUser",
+      "object": "example.com/cx/auth.RoleUser",
+      "basis": "fact",
+      "locality": "system",
+      "degree": 2,
+      "siteCount": 3,
+      "sites": [
+        {
+          "file": "auth/role.go",
+          "line": 14,
+          "package": "example.com/cx/auth"
+        },
+        {
+          "file": "auth/role.go",
+          "line": 16,
+          "package": "example.com/cx/auth"
+        },
+        {
+          "file": "billing/invoice.go",
+          "line": 34,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Describe"
+        }
+      ],
+      "message": "3 places in 2 packages refer to example.com/cx/auth.RoleUser by name",
+      "fix": "connascence of name is the weakest kind; keep RoleUser stable, and reach it only through its subsystem's interface"
+    },
+    {
+      "fingerprint": "a1d37cd21a61de1b",
+      "kind": "name",
+      "strength": 1,
+      "detector": "name.cross-subsystem",
+      "subject": "example.com/cx/auth.Secret",
+      "object": "example.com/cx/auth.Secret",
+      "basis": "fact",
+      "locality": "system",
+      "degree": 2,
+      "siteCount": 2,
+      "sites": [
+        {
+          "file": "auth/role.go",
+          "line": 36,
+          "package": "example.com/cx/auth",
+          "type": "example.com/cx/auth.Secret"
+        },
+        {
+          "file": "web/admin.go",
+          "line": 26,
+          "package": "example.com/cx/web",
+          "func": "example.com/cx/web.Peek"
+        }
+      ],
+      "message": "2 places in 2 packages refer to example.com/cx/auth.Secret by name",
+      "fix": "connascence of name is the weakest kind; keep Secret stable, and reach it only through its subsystem's interface"
+    },
+    {
+      "fingerprint": "8b282f079ce4960a",
+      "kind": "name",
+      "strength": 1,
+      "detector": "name.cross-subsystem",
+      "subject": "example.com/cx/auth.Sessions",
+      "object": "example.com/cx/auth.Sessions",
+      "basis": "fact",
+      "locality": "system",
+      "degree": 2,
+      "siteCount": 2,
+      "sites": [
+        {
+          "file": "billing/invoice.go",
+          "line": 63,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Login"
+        },
+        {
+          "file": "web/admin.go",
+          "line": 23,
+          "package": "example.com/cx/web",
+          "func": "example.com/cx/web.Reset"
+        }
+      ],
+      "message": "2 places in 2 packages refer to example.com/cx/auth.Sessions by name",
+      "fix": "connascence of name is the weakest kind; keep Sessions stable, and reach it only through its subsystem's interface"
+    },
+    {
+      "fingerprint": "568ee1abd822167f",
+      "kind": "name",
+      "strength": 1,
+      "detector": "name.cross-subsystem",
+      "subject": "example.com/cx/auth.Version",
+      "object": "example.com/cx/auth.Version",
+      "basis": "fact",
+      "locality": "system",
+      "degree": 2,
+      "siteCount": 2,
+      "sites": [
+        {
+          "file": "audit/audit.go",
+          "line": 8,
+          "package": "example.com/cx/audit",
+          "func": "example.com/cx/audit.Record"
+        },
+        {
+          "file": "auth/role.go",
+          "line": 72,
+          "package": "example.com/cx/auth",
+          "func": "example.com/cx/auth.Version"
+        }
+      ],
+      "message": "2 places in 2 packages refer to example.com/cx/auth.Version by name",
+      "fix": "connascence of name is the weakest kind; keep Version stable, and reach it only through its subsystem's interface"
+    },
+    {
+      "fingerprint": "79f11fe0e402ea18",
+      "kind": "type",
+      "strength": 2,
+      "detector": "type.cross-package",
+      "subject": "example.com/cx/auth.Credentials",
+      "object": "example.com/cx/auth.Credentials",
+      "basis": "fact",
+      "locality": "system",
+      "degree": 2,
+      "siteCount": 2,
+      "sites": [
+        {
+          "file": "auth/role.go",
+          "line": 44,
+          "package": "example.com/cx/auth",
+          "type": "example.com/cx/auth.Credentials"
+        },
+        {
+          "file": "billing/invoice.go",
+          "line": 62,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Login"
+        }
+      ],
+      "message": "example.com/cx/auth.Credentials appears in the signatures or fields of 1 place in other packages",
+      "fix": "a domain type crossing a boundary is connascence of type, which is desirable; keep the type small and stable, or cross the boundary with a contract type"
+    },
+    {
+      "fingerprint": "1cb0cde70a35aa4d",
+      "kind": "type",
+      "strength": 2,
+      "detector": "type.cross-package",
+      "subject": "example.com/cx/auth.Role",
+      "object": "example.com/cx/auth.Role",
+      "basis": "fact",
+      "locality": "system",
+      "degree": 3,
+      "siteCount": 6,
+      "sites": [
+        {
+          "file": "auth/role.go",
+          "line": 8,
+          "package": "example.com/cx/auth",
+          "type": "example.com/cx/auth.Role"
+        },
+        {
+          "file": "billing/invoice.go",
+          "line": 20,
+          "package": "example.com/cx/billing",
+          "type": "example.com/cx/billing.Invoice"
+        },
+        {
+          "file": "billing/invoice.go",
+          "line": 30,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Describe"
+        },
+        {
+          "file": "web/admin.go",
+          "line": 17,
+          "package": "example.com/cx/web",
+          "func": "example.com/cx/web.Admin"
+        },
+        {
+          "file": "web/admin.go",
+          "line": 20,
+          "package": "example.com/cx/web",
+          "func": "example.com/cx/web.Allowed"
+        },
+        {
+          "file": "web/admin.go",
+          "line": 36,
+          "package": "example.com/cx/web",
+          "func": "example.com/cx/web.Steal"
+        }
+      ],
+      "message": "example.com/cx/auth.Role appears in the signatures or fields of 5 places in other packages",
+      "fix": "a domain type crossing a boundary is connascence of type, which is desirable; keep the type small and stable, or cross the boundary with a contract type"
+    },
+    {
+      "fingerprint": "7b7c5fdc8c95cf15",
+      "kind": "type",
+      "strength": 2,
+      "detector": "type.cross-package",
+      "subject": "example.com/cx/auth.Secret",
+      "object": "example.com/cx/auth.Secret",
+      "basis": "fact",
+      "locality": "system",
+      "degree": 2,
+      "siteCount": 2,
+      "sites": [
+        {
+          "file": "auth/role.go",
+          "line": 36,
+          "package": "example.com/cx/auth",
+          "type": "example.com/cx/auth.Secret"
+        },
+        {
+          "file": "web/admin.go",
+          "line": 26,
+          "package": "example.com/cx/web",
+          "func": "example.com/cx/web.Peek"
+        }
+      ],
+      "message": "example.com/cx/auth.Secret appears in the signatures or fields of 1 place in other packages",
+      "fix": "a domain type crossing a boundary is connascence of type, which is desirable; keep the type small and stable, or cross the boundary with a contract type"
+    },
+    {
+      "fingerprint": "3116536c88cf48f9",
+      "kind": "meaning",
+      "strength": 3,
+      "detector": "meaning.shadowed-constant",
+      "subject": "example.com/cx/auth.RoleAdmin",
+      "object": "example.com/cx/auth.RoleAdmin",
+      "basis": "fact",
+      "locality": "system",
+      "degree": 3,
+      "siteCount": 5,
+      "sites": [
+        {
+          "file": "auth/role.go",
+          "line": 13,
+          "package": "example.com/cx/auth"
+        },
+        {
+          "file": "billing/invoice.go",
+          "line": 26,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Approve"
+        },
+        {
+          "file": "cmd/server/main.go",
+          "line": 10,
+          "package": "example.com/cx/cmd/server",
+          "func": "example.com/cx/cmd/server.main"
+        },
+        {
+          "file": "web/admin.go",
+          "line": 17,
+          "package": "example.com/cx/web",
+          "func": "example.com/cx/web.Admin"
+        },
+        {
+          "file": "web/admin.go",
+          "line": 36,
+          "package": "example.com/cx/web",
+          "func": "example.com/cx/web.Steal"
+        }
+      ],
+      "message": "example.com/cx/auth declares RoleAdmin = \"admin\"; 4 places write the literal instead",
+      "fix": "use auth.RoleAdmin, so that connascence of meaning becomes connascence of name"
+    },
+    {
+      "fingerprint": "636e728cd4b93aee",
+      "kind": "meaning",
+      "strength": 3,
+      "detector": "meaning.nil-nil",
+      "subject": "example.com/cx/billing.Find",
+      "object": "example.com/cx/billing.Find",
+      "basis": "fact",
+      "locality": "function",
+      "degree": 1,
+      "siteCount": 1,
+      "sites": [
+        {
+          "file": "billing/invoice.go",
+          "line": 56,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Find"
+        }
+      ],
+      "message": "example.com/cx/billing.Find returns nil, nil on 1 path",
+      "fix": "return a not-found error instead of nil, nil, so a nil error always means a value"
+    },
+    {
+      "fingerprint": "8635da162ffa75ad",
+      "kind": "position",
+      "strength": 4,
+      "detector": "position.unkeyed-literal",
+      "subject": "example.com/cx/auth.Credentials",
+      "object": "example.com/cx/auth.Credentials",
+      "basis": "fact",
+      "locality": "system",
+      "degree": 2,
+      "siteCount": 2,
+      "sites": [
+        {
+          "file": "auth/role.go",
+          "line": 44,
+          "package": "example.com/cx/auth",
+          "type": "example.com/cx/auth.Credentials"
+        },
+        {
+          "file": "billing/invoice.go",
+          "line": 64,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Login"
+        }
+      ],
+      "message": "1 literal of example.com/cx/auth.Credentials lists its fields by position",
+      "fix": "name the fields in the literal, which replaces connascence of position with connascence of name"
+    },
+    {
+      "fingerprint": "3a452f1f5dd8970a",
+      "kind": "position",
+      "strength": 4,
+      "detector": "position.long-parameter-list",
+      "subject": "example.com/cx/billing.Send",
+      "object": "example.com/cx/billing.Send",
+      "basis": "fact",
+      "locality": "function",
+      "degree": 1,
+      "siteCount": 1,
+      "sites": [
+        {
+          "file": "billing/invoice.go",
+          "line": 41,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Send"
+        }
+      ],
+      "message": "example.com/cx/billing.Send takes 5 parameters",
+      "fix": "pass an options struct with named fields, so callers agree on names instead of an order"
+    },
+    {
+      "fingerprint": "655ed07f90fc8b79",
+      "kind": "position",
+      "strength": 4,
+      "detector": "position.same-type-results",
+      "subject": "example.com/cx/billing.Split",
+      "object": "example.com/cx/billing.Split",
+      "basis": "fact",
+      "locality": "function",
+      "degree": 1,
+      "siteCount": 1,
+      "sites": [
+        {
+          "file": "billing/invoice.go",
+          "line": 48,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Split"
+        }
+      ],
+      "message": "example.com/cx/billing.Split returns several results of type string",
+      "fix": "return a named struct, so callers select results by name"
+    },
+    {
+      "fingerprint": "8e6d3b3c8352b279",
+      "kind": "value",
+      "strength": 8,
+      "detector": "value.foreign-switch",
+      "subject": "example.com/cx/auth.Role",
+      "object": "example.com/cx/auth.Role",
+      "basis": "fact",
+      "locality": "system",
+      "degree": 2,
+      "siteCount": 4,
+      "sites": [
+        {
+          "file": "auth/role.go",
+          "line": 13,
+          "package": "example.com/cx/auth"
+        },
+        {
+          "file": "auth/role.go",
+          "line": 14,
+          "package": "example.com/cx/auth"
+        },
+        {
+          "file": "auth/role.go",
+          "line": 16,
+          "package": "example.com/cx/auth"
+        },
+        {
+          "file": "billing/invoice.go",
+          "line": 31,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Describe"
+        }
+      ],
+      "message": "1 switch outside its package enumerates example.com/cx/auth.Role without a default",
+      "fix": "move the behaviour into a method on the type, or a table in its package, so a new value is added in one place"
+    },
+    {
+      "fingerprint": "15930a342d24dd74",
+      "kind": "identity",
+      "strength": 9,
+      "detector": "identity.shared-variable",
+      "subject": "example.com/cx/auth.Sessions",
+      "object": "example.com/cx/auth.Sessions",
+      "basis": "fact",
+      "locality": "system",
+      "degree": 2,
+      "siteCount": 2,
+      "sites": [
+        {
+          "file": "billing/invoice.go",
+          "line": 63,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Login"
+        },
+        {
+          "file": "web/admin.go",
+          "line": 23,
+          "package": "example.com/cx/web",
+          "func": "example.com/cx/web.Reset"
+        }
+      ],
+      "message": "2 packages use the package variable example.com/cx/auth.Sessions",
+      "fix": "pass the shared value in explicitly instead of reaching for a package variable"
+    }
+  ],
+  "candidates": [
+    {
+      "fingerprint": "b1236343126f63c5",
+      "kind": "value",
+      "strength": 8,
+      "detector": "value.equal-constants",
+      "subject": "8080 (untyped int)",
+      "basis": "candidate",
+      "confidence": "high",
+      "locality": "system",
+      "degree": 2,
+      "siteCount": 2,
+      "sites": [
+        {
+          "file": "auth/role.go",
+          "line": 30,
+          "package": "example.com/cx/auth"
+        },
+        {
+          "file": "billing/invoice.go",
+          "line": 14,
+          "package": "example.com/cx/billing"
+        }
+      ],
+      "message": "2 packages declare constants of type untyped int equal to 8080",
+      "fix": "declare the value once and refer to it from both packages"
+    },
+    {
+      "fingerprint": "b46b00ba87456c3b",
+      "kind": "timing",
+      "strength": 7,
+      "detector": "timing.wait",
+      "subject": "example.com/cx/state.Wait",
+      "basis": "candidate",
+      "confidence": "low",
+      "locality": "function",
+      "degree": 1,
+      "siteCount": 1,
+      "sites": [
+        {
+          "file": "state/email.go",
+          "line": 39,
+          "package": "example.com/cx/state",
+          "func": "example.com/cx/state.Wait"
+        }
+      ],
+      "message": "example.com/cx/state.Wait waits on elapsed time with time.Sleep",
+      "fix": "synchronize on an event, a channel or context cancellation, instead of a duration"
+    },
+    {
+      "fingerprint": "278b472348f2e7aa",
+      "kind": "execution",
+      "strength": 6,
+      "detector": "execution.guarded-field",
+      "subject": "example.com/cx/state.Email.sent",
+      "object": "example.com/cx/state.Email",
+      "basis": "candidate",
+      "confidence": "low",
+      "locality": "type",
+      "degree": 2,
+      "siteCount": 2,
+      "sites": [
+        {
+          "file": "state/email.go",
+          "line": 17,
+          "package": "example.com/cx/state",
+          "func": "example.com/cx/state.Email.SetSubject",
+          "type": "example.com/cx/state.Email"
+        },
+        {
+          "file": "state/email.go",
+          "line": 26,
+          "package": "example.com/cx/state",
+          "func": "example.com/cx/state.Email.Send",
+          "type": "example.com/cx/state.Email"
+        }
+      ],
+      "message": "example.com/cx/state.Email.SetSubject refuses to run once Email.sent is set by another method",
+      "fix": "return a ready value from a constructor, or a type whose methods are only reachable in the valid order"
+    },
+    {
+      "fingerprint": "3e03038eab244068",
+      "kind": "execution",
+      "strength": 6,
+      "detector": "execution.unpaired-lock",
+      "subject": "example.com/cx/auth.Store.Get: s.mu.Lock",
+      "object": "example.com/cx/auth.Store",
+      "basis": "candidate",
+      "confidence": "low",
+      "locality": "type",
+      "degree": 2,
+      "siteCount": 2,
+      "sites": [
+        {
+          "file": "auth/role.go",
+          "line": 61,
+          "package": "example.com/cx/auth",
+          "func": "example.com/cx/auth.Store.Put",
+          "type": "example.com/cx/auth.Store"
+        },
+        {
+          "file": "auth/role.go",
+          "line": 67,
+          "package": "example.com/cx/auth",
+          "func": "example.com/cx/auth.Store.Get",
+          "type": "example.com/cx/auth.Store"
+        }
+      ],
+      "message": "example.com/cx/auth.Store.Get calls s.mu.Lock without Unlock",
+      "fix": "call defer s.mu.Unlock() right after the Lock"
+    },
+    {
+      "fingerprint": "9411ff24cfd65cce",
+      "kind": "execution",
+      "strength": 6,
+      "detector": "execution.lifecycle",
+      "subject": "example.com/cx/state.Conn Open/Close",
+      "object": "example.com/cx/state.Conn",
+      "basis": "candidate",
+      "confidence": "low",
+      "locality": "type",
+      "degree": 2,
+      "siteCount": 2,
+      "sites": [
+        {
+          "file": "state/email.go",
+          "line": 33,
+          "package": "example.com/cx/state",
+          "func": "example.com/cx/state.Conn.Open",
+          "type": "example.com/cx/state.Conn"
+        },
+        {
+          "file": "state/email.go",
+          "line": 36,
+          "package": "example.com/cx/state",
+          "func": "example.com/cx/state.Conn.Close",
+          "type": "example.com/cx/state.Conn"
+        }
+      ],
+      "message": "callers of example.com/cx/state.Conn must call Open before Close",
+      "fix": "return the opened value from a constructor and close it with a defer at the same site"
+    },
+    {
+      "fingerprint": "39785623994321c5",
+      "kind": "algorithm",
+      "strength": 5,
+      "detector": "algorithm.same-algorithm",
+      "subject": "crypto/sha256",
+      "basis": "candidate",
+      "confidence": "low",
+      "locality": "system",
+      "degree": 2,
+      "siteCount": 2,
+      "sites": [
+        {
+          "file": "billing/invoice.go",
+          "line": 74,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Sum"
+        },
+        {
+          "file": "web/admin.go",
+          "line": 45,
+          "package": "example.com/cx/web",
+          "func": "example.com/cx/web.Sum"
+        }
+      ],
+      "message": "2 packages call crypto/sha256",
+      "fix": "let one function own the algorithm and call it from both sides"
+    },
+    {
+      "fingerprint": "776fd7466e2e9acd",
+      "kind": "algorithm",
+      "strength": 5,
+      "detector": "algorithm.clone",
+      "subject": "example.com/cx/billing.Total",
+      "basis": "candidate",
+      "confidence": "low",
+      "locality": "system",
+      "degree": 2,
+      "siteCount": 2,
+      "sites": [
+        {
+          "file": "billing/invoice.go",
+          "line": 77,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Total"
+        },
+        {
+          "file": "web/admin.go",
+          "line": 48,
+          "package": "example.com/cx/web",
+          "func": "example.com/cx/web.Tally"
+        }
+      ],
+      "message": "2 functions in 2 packages have the same body shape as example.com/cx/billing.Total",
+      "fix": "keep one copy and call it, or confirm that the copies may evolve apart"
+    },
+    {
+      "fingerprint": "bf0cd162e8c9fb86",
+      "kind": "algorithm",
+      "strength": 5,
+      "detector": "algorithm.same-pattern",
+      "subject": "\"^[A-Z]{3}-[0-9]+$\"",
+      "basis": "candidate",
+      "confidence": "high",
+      "locality": "system",
+      "degree": 2,
+      "siteCount": 2,
+      "sites": [
+        {
+          "file": "billing/invoice.go",
+          "line": 16,
+          "package": "example.com/cx/billing"
+        },
+        {
+          "file": "web/admin.go",
+          "line": 14,
+          "package": "example.com/cx/web"
+        }
+      ],
+      "message": "the regular expression \"^[A-Z]{3}-[0-9]+$\" is written in 2 packages",
+      "fix": "compile the pattern once, in one function both sides call"
+    },
+    {
+      "fingerprint": "e164877bf8defd80",
+      "kind": "algorithm",
+      "strength": 5,
+      "detector": "algorithm.same-layout",
+      "subject": "\"2006-01-02\"",
+      "basis": "candidate",
+      "confidence": "high",
+      "locality": "system",
+      "degree": 2,
+      "siteCount": 2,
+      "sites": [
+        {
+          "file": "billing/invoice.go",
+          "line": 71,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Due"
+        },
+        {
+          "file": "web/admin.go",
+          "line": 42,
+          "package": "example.com/cx/web",
+          "func": "example.com/cx/web.Due"
+        }
+      ],
+      "message": "the time layout \"2006-01-02\" is written in 2 packages",
+      "fix": "name the layout once, or format and parse through one function"
+    },
+    {
+      "fingerprint": "fc76cc5ee7553731",
+      "kind": "position",
+      "strength": 4,
+      "detector": "position.constant-index",
+      "subject": "strings.Split",
+      "object": "strings.Split",
+      "basis": "candidate",
+      "confidence": "low",
+      "locality": "function",
+      "degree": 1,
+      "siteCount": 1,
+      "sites": [
+        {
+          "file": "billing/invoice.go",
+          "line": 50,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Split"
+        }
+      ],
+      "message": "the result of strings.Split is read by position, at indexes 0, 1",
+      "fix": "turn the positions into a struct with named fields where the value is produced"
+    },
+    {
+      "fingerprint": "2bcf62021dc1d4dd",
+      "kind": "meaning",
+      "strength": 3,
+      "detector": "meaning.primitive-parameters",
+      "subject": "example.com/cx/billing.Send",
+      "object": "example.com/cx/billing.Send",
+      "basis": "candidate",
+      "confidence": "low",
+      "locality": "function",
+      "degree": 1,
+      "siteCount": 1,
+      "sites": [
+        {
+          "file": "billing/invoice.go",
+          "line": 41,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Send"
+        }
+      ],
+      "message": "example.com/cx/billing.Send takes a bool parameter and 4 adjacent string parameters",
+      "fix": "replace a flag argument with two functions or a named option, and adjacent values of one basic type with domain types or an options struct"
+    }
+  ],
+  "rejected": [],
+  "findings": [
+    {
+      "fingerprint": "15930a342d24dd74",
+      "rule": "connascence-identity",
+      "severity": "error",
+      "subject": "example.com/cx/auth.Sessions",
+      "object": "identity.shared-variable",
+      "location": {
+        "file": "billing/invoice.go",
+        "start": 63,
+        "end": 63
+      },
+      "message": "2 packages use the package variable example.com/cx/auth.Sessions",
+      "fix": "pass the shared value in explicitly instead of reaching for a package variable",
+      "evidence": [
+        "strength 9 (identity), locality system, degree 2: above maxStrength.system 3",
+        "site: billing/invoice.go:63 (example.com/cx/billing.Login)",
+        "site: web/admin.go:23 (example.com/cx/web.Reset)"
+      ]
+    },
+    {
+      "fingerprint": "8635da162ffa75ad",
+      "rule": "connascence-position",
+      "severity": "error",
+      "subject": "example.com/cx/auth.Credentials",
+      "object": "position.unkeyed-literal",
+      "location": {
+        "file": "auth/role.go",
+        "start": 44,
+        "end": 44
+      },
+      "message": "1 literal of example.com/cx/auth.Credentials lists its fields by position",
+      "fix": "name the fields in the literal, which replaces connascence of position with connascence of name",
+      "evidence": [
+        "strength 4 (position), locality system, degree 2: above maxStrength.system 3",
+        "site: auth/role.go:44 (example.com/cx/auth.Credentials)",
+        "site: billing/invoice.go:64 (example.com/cx/billing.Login)"
+      ]
+    },
+    {
+      "fingerprint": "8e6d3b3c8352b279",
+      "rule": "connascence-value",
+      "severity": "error",
+      "subject": "example.com/cx/auth.Role",
+      "object": "value.foreign-switch",
+      "location": {
+        "file": "auth/role.go",
+        "start": 13,
+        "end": 13
+      },
+      "message": "1 switch outside its package enumerates example.com/cx/auth.Role without a default",
+      "fix": "move the behaviour into a method on the type, or a table in its package, so a new value is added in one place",
+      "evidence": [
+        "strength 8 (value), locality system, degree 2: above maxStrength.system 3",
+        "site: auth/role.go:13",
+        "site: auth/role.go:14",
+        "site: auth/role.go:16",
+        "site: billing/invoice.go:31 (example.com/cx/billing.Describe)"
+      ]
+    }
+  ],
+  "judgements": [
+    {
+      "criterion": "connascence/e164877bf8defd80",
+      "question": "Must these places change together, so that the candidate is connascence?",
+      "answers": [
+        "confirmed",
+        "rejected"
+      ],
+      "evidence": [
+        "the time layout \"2006-01-02\" is written in 2 packages",
+        "basis: candidate, confidence high",
+        "strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3",
+        "site: billing/invoice.go:71 (example.com/cx/billing.Due)",
+        "site: web/admin.go:42 (example.com/cx/web.Due)"
+      ],
+      "evidenceHash": "f0f33388e756c5b6968d7c1370e4a80e280bdbc0607d5438645c82819cc5f725",
+      "status": "pending"
+    },
+    {
+      "criterion": "connascence/bf0cd162e8c9fb86",
+      "question": "Must these places change together, so that the candidate is connascence?",
+      "answers": [
+        "confirmed",
+        "rejected"
+      ],
+      "evidence": [
+        "the regular expression \"^[A-Z]{3}-[0-9]+$\" is written in 2 packages",
+        "basis: candidate, confidence high",
+        "strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3",
+        "site: billing/invoice.go:16",
+        "site: web/admin.go:14"
+      ],
+      "evidenceHash": "eff70f499987ee817c31afbbf072f9adffa7936ba007cef161e0cbb51895a69a",
+      "status": "pending"
+    },
+    {
+      "criterion": "connascence/39785623994321c5",
+      "question": "Must these places change together, so that the candidate is connascence?",
+      "answers": [
+        "confirmed",
+        "rejected"
+      ],
+      "evidence": [
+        "2 packages call crypto/sha256",
+        "basis: candidate, confidence low",
+        "strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3",
+        "site: billing/invoice.go:74 (example.com/cx/billing.Sum)",
+        "site: web/admin.go:45 (example.com/cx/web.Sum)"
+      ],
+      "evidenceHash": "2c2881761cf50cab053091a2eb37dc2b6eb7457dfe3b90d963bd69ebf7af11f2",
+      "status": "pending"
+    },
+    {
+      "criterion": "connascence/776fd7466e2e9acd",
+      "question": "Must these places change together, so that the candidate is connascence?",
+      "answers": [
+        "confirmed",
+        "rejected"
+      ],
+      "evidence": [
+        "2 functions in 2 packages have the same body shape as example.com/cx/billing.Total",
+        "basis: candidate, confidence low",
+        "strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3",
+        "site: billing/invoice.go:77 (example.com/cx/billing.Total)",
+        "site: web/admin.go:48 (example.com/cx/web.Tally)"
+      ],
+      "evidenceHash": "81934f0053caf651e32c0e1ec1e4530d4dbcd2e616b448d411dd3a13828a2264",
+      "status": "pending"
+    },
+    {
+      "criterion": "connascence/b1236343126f63c5",
+      "question": "Must these places change together, so that the candidate is connascence?",
+      "answers": [
+        "confirmed",
+        "rejected"
+      ],
+      "evidence": [
+        "2 packages declare constants of type untyped int equal to 8080",
+        "basis: candidate, confidence high",
+        "strength 8 (value), locality system, degree 2: above maxStrength.system 3",
+        "site: auth/role.go:30",
+        "site: billing/invoice.go:14"
+      ],
+      "evidenceHash": "5f6bcd9c538031019cfec332b974df8025e5947a338f7acec11fb409854566b4",
+      "status": "pending"
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "strength-order",
+      "text": "Strengths follow connascence.io: name 1, type 2, meaning 3, position 4, algorithm 5, execution 6, timing 7, value 8, identity 9. coupling.dev ranks position above algorithm; only a maxStrength limit of 4 would decide differently.",
+      "source": "connascence.md §1.1, §9.1"
+    },
+    {
+      "id": "default-limits",
+      "text": "maxStrength defaults to 9 up to the package, 5 across subsystems, 3 across a module and 2 beyond it; no degree limit applies unless the model sets one. Borrowed guidance from connascence.io's locality principle, not a formula.",
+      "source": "connascence.md §1.4"
+    },
+    {
+      "id": "locality",
+      "text": "arch.Locality is the first of function, type, file, package, subsystem, system (one Go module) and external that holds every site; degree counts the distinct entities one level below it.",
+      "source": "connascence.md §1.2, §1.3"
+    },
+    {
+      "id": "degree-ratchet",
+      "text": "check ratchets the degree of each fact of meaning or stronger at a subsystem boundary or beyond; the degree of name and type may grow, as ordinary use of an exported name does.",
+      "source": "connascence.md §2.1, §6"
+    },
+    {
+      "id": "facts-and-candidates",
+      "text": "Facts gate; candidates never do until an approved verdict confirms them, and an approved rejection sets them aside until their evidence changes.",
+      "source": "connascence.md §5"
+    },
+    {
+      "id": "excluded-values",
+      "text": "The values 0, 1, -1 and \"\" carry no meaning of their own and are left out of the value detectors; arguments to fmt, errors, log, log/slog and testing are messages and are left out too.",
+      "source": "connascence.md §2.3"
+    },
+    {
+      "id": "parameter-threshold",
+      "text": "A parameter list of 4 or more is connascence of position; runs of two or more adjacent parameters of one basic type are candidates of meaning.",
+      "source": "connascence.md §2.3, §2.4"
+    },
+    {
+      "id": "lifecycle-pairs",
+      "text": "Lifecycle pairs are Open/Close, Start/Stop, Connect/Disconnect and Begin/Commit.",
+      "source": "connascence.md §3.1"
+    },
+    {
+      "id": "registrations",
+      "text": "Registration functions are net/http's Handle and HandleFunc and the flag package's definitions, keyed by their route or flag name; two calls may use different instances, so collisions are candidates.",
+      "source": "connascence.md §3.5"
+    },
+    {
+      "id": "read-only-variables",
+      "text": "An exported variable that no function writes, such as a sentinel error, is connascence of identity only as a candidate: it behaves as a constant.",
+      "source": "connascence.md §3.4"
+    },
+    {
+      "id": "clones",
+      "text": "Clones are function bodies of 10 or more statements with the same shape once names and literal values are removed; a rule re-implemented in different code is missed.",
+      "source": "connascence.md §2.5, §9.2"
+    },
+    {
+      "id": "site-cap",
+      "text": "An instance lists its first 20 sites in sorted order; siteCount gives the total.",
+      "source": "connascence.md §6"
+    }
+  ]
+}

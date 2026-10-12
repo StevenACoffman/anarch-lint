@@ -34,7 +34,7 @@ func transitiveForbiddenRule(s *subject) []Finding {
 func (s *subject) forbiddenTargets(fi *ForbiddenImport) []string {
 	var targets []string
 	for _, imp := range s.p.Imports {
-		if matchesAny(fi.Imports, imp.To) {
+		if MatchesAny(fi.Imports, imp.To) {
 			targets = append(targets, imp.To)
 		}
 	}
@@ -48,7 +48,7 @@ func (s *subject) reachFindings(fi *ForbiddenImport, instance, forbidden string)
 	reach := s.withSink(forbidden)
 	var fs []Finding
 	for _, pkg := range packagePaths(s.p) {
-		if !matchesAny(fi.From, pkg) || s.importsDirectly(pkg, forbidden) {
+		if !MatchesAny(fi.From, pkg) || s.importsDirectly(pkg, forbidden) {
 			continue
 		}
 		path := reach.shortestPath(pkg, forbiddenSink)
@@ -56,7 +56,10 @@ func (s *subject) reachFindings(fi *ForbiddenImport, instance, forbidden string)
 			continue
 		}
 		path = append(path[:len(path)-1], forbidden)
-		f := newFinding(RuleForbiddenImport, SeverityError, pkg, forbidden)
+		f := NewFinding(
+			FindingID{Rule: RuleForbiddenImport, Subject: pkg, Object: forbidden},
+			SeverityError,
+		)
 		f.instance = instance
 		f.Criterion = "3.4"
 		f.Message = fmt.Sprintf("%s reaches %s through %d other packages: %s",
@@ -64,7 +67,7 @@ func (s *subject) reachFindings(fi *ForbiddenImport, instance, forbidden string)
 		f.Evidence = []string{"import path: " + strings.Join(path, " → ")}
 		f.Fix = reachFix(reach.Dominators(pkg)[forbiddenSink], pkg, forbidden)
 		if imp, ok := s.firstImport(pkg, path[1]); ok {
-			f.Location = spanAt(imp.Pos)
+			f.Location = SpanAt(imp.Pos)
 		}
 		fs = append(fs, f)
 	}
@@ -122,18 +125,25 @@ func hiddenDependencyRule(s *subject) []Finding {
 		concretePkg := s.g.PackageOf[inj.Concrete]
 		for i := range s.m.ForbiddenImports {
 			fi := &s.m.ForbiddenImports[i]
-			if !fi.Injected || !matchesAny(fi.From, inj.CalleePackage) ||
-				!matchesAny(fi.Imports, concretePkg) {
+			if !fi.Injected || !MatchesAny(fi.From, inj.CalleePackage) ||
+				!MatchesAny(fi.Imports, concretePkg) {
 				continue
 			}
-			f := newFinding(RuleHiddenDependency, SeverityError, inj.CalleePackage, inj.Concrete)
+			f := NewFinding(
+				FindingID{
+					Rule:    RuleHiddenDependency,
+					Subject: inj.CalleePackage,
+					Object:  inj.Concrete,
+				},
+				SeverityError,
+			)
 			if seen[f.Fingerprint] {
 				break
 			}
 			seen[f.Fingerprint] = true
 			f.instance = instanceName("forbiddenImports", i)
 			f.Criterion = "3.4"
-			f.Location = spanAt(inj.Pos)
+			f.Location = SpanAt(inj.Pos)
 			f.Message = fmt.Sprintf(
 				"%s receives a %s through an interface, a run-time dependency on %s: %s",
 				inj.CalleePackage,

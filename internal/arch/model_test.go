@@ -49,6 +49,26 @@ func TestDecodeModel(t *testing.T) {
 			input:   `{"version": 1, "thresholds": {"largeFuncLines": -1}}`,
 			message: "model: threshold largeFuncLines is negative",
 		},
+		"connascence limits": {
+			input: `{"version": 1, "connascence": {"maxStrength": {"system": 3},
+				"maxDegree": {"system": 20}}, "balance": {"messaging": ["x/..."]}}`,
+		},
+		"unknown locality": {
+			input:   `{"version": 1, "connascence": {"maxStrength": {"galaxy": 3}}}`,
+			message: `model: "galaxy" is not a locality`,
+		},
+		"strength above 9": {
+			input:   `{"version": 1, "connascence": {"maxStrength": {"package": 10}}}`,
+			message: "model: connascence maxStrength package 10 is outside 1–9",
+		},
+		"degree below 1": {
+			input:   `{"version": 1, "connascence": {"maxDegree": {"system": 0}}}`,
+			message: "model: connascence maxDegree system 0 is below 1",
+		},
+		"empty messaging pattern": {
+			input:   `{"version": 1, "balance": {"messaging": [""]}}`,
+			message: "model: balance messaging has an empty pattern",
+		},
 		"unknown variant": {
 			input:   `{"version": 1, "thresholds": {"complexityVariant": "fancy"}}`,
 			message: `model: complexityVariant "fancy" is not plain, modified or extended`,
@@ -128,4 +148,57 @@ func FuzzDecodeModel(f *testing.F) {
 			t.Fatalf("round trip changed the model")
 		}
 	})
+}
+
+// The new sections must not disturb existing baselines, and a map's insertion
+// order must not reach the hash.
+func TestModelHashOfSections(t *testing.T) {
+	t.Parallel()
+	plain := arch.Model{Version: 1}
+	empty := arch.Model{Version: 1, Connascence: arch.ConnascenceLimits{}}
+	equals(t, plain.Hash(), empty.Hash())
+
+	a := arch.Model{
+		Version:     1,
+		Connascence: arch.ConnascenceLimits{MaxStrength: map[arch.Locality]int{}},
+	}
+	a.Connascence.MaxStrength[arch.LocalitySystem] = 3
+	a.Connascence.MaxStrength[arch.LocalityPackage] = 9
+	b := arch.Model{
+		Version:     1,
+		Connascence: arch.ConnascenceLimits{MaxStrength: map[arch.Locality]int{}},
+	}
+	b.Connascence.MaxStrength[arch.LocalityPackage] = 9
+	b.Connascence.MaxStrength[arch.LocalitySystem] = 3
+	equals(t, a.Hash(), b.Hash())
+	assert(t, a.Hash() != plain.Hash(), "a connascence section changes the hash")
+
+	var buf bytes.Buffer
+	ok(t, arch.WriteJSON(&buf, &a))
+	assert(t, strings.Contains(buf.String(), `"maxStrength": {
+      "package": 9,
+      "system": 3
+    }`), "localities encode by name, sorted: "+buf.String())
+}
+
+func TestConnascenceLimitDefaults(t *testing.T) {
+	t.Parallel()
+	var none arch.ConnascenceLimits
+	cases := map[arch.Locality]int{
+		arch.LocalityFunction:  9,
+		arch.LocalityPackage:   9,
+		arch.LocalitySubsystem: 5,
+		arch.LocalitySystem:    3,
+		arch.LocalityExternal:  2,
+	}
+	for l, want := range cases {
+		t.Run(l.String(), func(t *testing.T) {
+			t.Parallel()
+			equals(t, want, none.StrengthLimit(l))
+		})
+	}
+	set := arch.ConnascenceLimits{MaxStrength: map[arch.Locality]int{arch.LocalitySystem: 1}}
+	equals(t, 1, set.StrengthLimit(arch.LocalitySystem))
+	_, limited := none.DegreeLimit(arch.LocalitySystem)
+	equals(t, false, limited)
 }

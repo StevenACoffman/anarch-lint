@@ -3,6 +3,8 @@ package arch_test
 import (
 	"reflect"
 	"testing"
+
+	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
 
 // assert fails the test with msg when condition is false.
@@ -27,4 +29,10 @@ func ok(t *testing.T, err error) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
+}
+
+// gateInput is a report's part of the gate.
+func gateInput(r *arch.Report) *arch.GateInput {
+	in := r.GateInput()
+	return &in
 }

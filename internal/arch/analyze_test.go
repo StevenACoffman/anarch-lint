@@ -11,7 +11,14 @@ import (
 // analyze analyzes the fixture program under m.
 func analyze(m *arch.Model, verdicts ...arch.Verdict) arch.Report {
 	p := fixtureProgram()
-	return arch.Analyze(&p, m, verdicts, &arch.Inputs{Tool: "test", Patterns: []string{"./..."}})
+	return arch.Analyze(
+		&arch.Input{
+			Program:  p,
+			Model:    *m,
+			Verdicts: verdicts,
+			Inputs:   arch.Inputs{Tool: "test", Patterns: []string{"./..."}},
+		},
+	)
 }
 
 func findingsOf(r *arch.Report, rule string) []arch.Finding {
@@ -300,7 +307,35 @@ func TestDecodeJudgements(t *testing.T) {
 		},
 		"not a judgement criterion": {
 			input:   `{"version": 1, "verdicts": [{"criterion": "2.2.1", "score": 1, "provenance": "human"}]}`,
-			message: `judgements: criterion "2.2.1" is not a judgement criterion`,
+			message: "judgements: criterion 2.2.1: not a judgement criterion or slot family",
+		},
+		"valid family answer": {
+			input: `{"version": 1, "verdicts": [{"criterion": "subdomain/billing",
+				"answer": "core", "provenance": "human"}]}`,
+		},
+		"unknown family": {
+			input:   `{"version": 1, "verdicts": [{"criterion": "mood/billing", "answer": "x", "provenance": "human"}]}`,
+			message: "judgements: criterion mood/billing: not a judgement criterion or slot family",
+		},
+		"family without subject": {
+			input:   `{"version": 1, "verdicts": [{"criterion": "subdomain/", "answer": "core", "provenance": "human"}]}`,
+			message: "judgements: criterion subdomain/: not a judgement criterion or slot family",
+		},
+		"answer not in family": {
+			input: `{"version": 1, "verdicts": [{"criterion": "subdomain/billing",
+				"answer": "boring", "provenance": "human"}]}`,
+			message: `judgements: criterion subdomain/billing: answer "boring" is not one of ` +
+				"core, generic, supporting",
+		},
+		"score on a family": {
+			input: `{"version": 1, "verdicts": [{"criterion": "subdomain/billing",
+				"answer": "core", "score": 3, "provenance": "human"}]}`,
+			message: "judgements: criterion subdomain/billing: a slot family takes an answer, not a score",
+		},
+		"answer on an MMI criterion": {
+			input: `{"version": 1, "verdicts": [{"criterion": "3.3", "score": 3,
+				"answer": "core", "provenance": "human"}]}`,
+			message: "judgements: criterion 3.3: an MMI criterion takes a score, not an answer",
 		},
 		"unknown provenance": {
 			input:   `{"version": 1, "verdicts": [{"criterion": "3.3", "score": 1, "provenance": "oracle"}]}`,
@@ -370,7 +405,7 @@ func TestRoleMarkers(t *testing.T) {
 		{Name: "entity", Embeds: []string{pkg + ".Entity"}},
 		{Name: "store", Implements: []string{pkg + ".Repo"}},
 	}}
-	r := arch.Analyze(&p, &m, nil, &arch.Inputs{})
+	r := arch.Analyze(&arch.Input{Program: p, Model: m})
 
 	unknown := findingsOf(&r, arch.RuleUnknownRole)
 	equals(t, 1, len(unknown))
@@ -477,7 +512,7 @@ func TestHiddenDependency(t *testing.T) {
 					Injected: tc.injected,
 				},
 			}}
-			r := arch.Analyze(&p, &m, nil, &arch.Inputs{})
+			r := arch.Analyze(&arch.Input{Program: p, Model: m})
 			fs := findingsOf(&r, arch.RuleHiddenDependency)
 			equals(t, tc.count, len(fs)) // two calls, one dependency: one finding
 			if tc.count > 0 {

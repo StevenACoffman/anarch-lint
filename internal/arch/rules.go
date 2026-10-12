@@ -31,7 +31,10 @@ func assignmentRules(s *subject) []Finding {
 			return
 		}
 		for _, pkg := range a.Unassigned {
-			f := newFinding(RuleUnassignedPackage, SeverityWarning, pkg, kind)
+			f := NewFinding(
+				FindingID{Rule: RuleUnassignedPackage, Subject: pkg, Object: kind},
+				SeverityWarning,
+			)
 			f.Message = fmt.Sprintf("package %s belongs to no %s", pkg, kind)
 			f.Fix = fmt.Sprintf(
 				"add a pattern matching %s to a %s in the model, or move the package",
@@ -41,13 +44,19 @@ func assignmentRules(s *subject) []Finding {
 			fs = append(fs, f)
 		}
 		for _, pkg := range a.Ambiguous {
-			f := newFinding(RuleAmbiguousPackage, SeverityError, pkg, kind)
+			f := NewFinding(
+				FindingID{Rule: RuleAmbiguousPackage, Subject: pkg, Object: kind},
+				SeverityError,
+			)
 			f.Message = fmt.Sprintf("two %ss match package %s equally specifically", kind, pkg)
 			f.Fix = "make one pattern more specific, for example an exact path instead of /..."
 			fs = append(fs, f)
 		}
 		for _, pat := range a.Stale {
-			f := newFinding(RuleStalePattern, SeverityWarning, pat, kind)
+			f := NewFinding(
+				FindingID{Rule: RuleStalePattern, Subject: pat, Object: kind},
+				SeverityWarning,
+			)
 			f.Message = fmt.Sprintf("%s pattern %s matches no package", kind, pat)
 			f.Fix = "remove or correct the pattern: the model no longer describes the code"
 			fs = append(fs, f)
@@ -76,9 +85,9 @@ func orderRule(
 			continue
 		}
 		r.violations++
-		f := newFinding(rule, SeverityError, imp.From, imp.To)
+		f := NewFinding(FindingID{Rule: rule, Subject: imp.From, Object: imp.To}, SeverityError)
 		f.instance = instance
-		f.Location = spanAt(imp.Pos)
+		f.Location = SpanAt(imp.Pos)
 		f.Criterion = criterion
 		f.Message = fmt.Sprintf(
 			"%s (%s) imports %s (%s), which sits above it",
@@ -143,7 +152,10 @@ func interfaceRule(s *subject) ruleResult {
 	for _, sub := range s.m.Subsystems {
 		iface[sub.Name] = sub.Interface
 		if len(sub.Interface) == 0 {
-			f := newFinding(RuleSubsystemWithoutIface, SeverityWarning, sub.Name, "")
+			f := NewFinding(
+				FindingID{Rule: RuleSubsystemWithoutIface, Subject: sub.Name, Object: ""},
+				SeverityWarning,
+			)
 			f.Criterion = "1.2.2"
 			f.Message = fmt.Sprintf("subsystem %s declares no interface package", sub.Name)
 			f.Fix = "list the packages other subsystems may import as its interface; " +
@@ -158,13 +170,16 @@ func interfaceRule(s *subject) ruleResult {
 			continue
 		}
 		r.candidates++
-		if matchesAny(iface[to], imp.To) {
+		if MatchesAny(iface[to], imp.To) {
 			continue
 		}
 		r.violations++
-		f := newFinding(RuleInterfaceBypass, SeverityError, imp.From, imp.To)
+		f := NewFinding(
+			FindingID{Rule: RuleInterfaceBypass, Subject: imp.From, Object: imp.To},
+			SeverityError,
+		)
 		f.instance = "interfaces"
-		f.Location = spanAt(imp.Pos)
+		f.Location = SpanAt(imp.Pos)
 		f.Criterion = "1.2.1"
 		f.Message = fmt.Sprintf("%s imports %s, which is not an interface package of subsystem %s",
 			imp.From, imp.To, to)
@@ -196,13 +211,16 @@ func forbiddenRule(s *subject) ruleResult {
 	for _, imp := range s.p.Imports {
 		for i := range s.m.ForbiddenImports {
 			fi := &s.m.ForbiddenImports[i]
-			if !matchesAny(fi.From, imp.From) || !matchesAny(fi.Imports, imp.To) {
+			if !MatchesAny(fi.From, imp.From) || !MatchesAny(fi.Imports, imp.To) {
 				continue
 			}
 			r.violations++
-			f := newFinding(RuleForbiddenImport, SeverityError, imp.From, imp.To)
+			f := NewFinding(
+				FindingID{Rule: RuleForbiddenImport, Subject: imp.From, Object: imp.To},
+				SeverityError,
+			)
 			f.instance = instanceName("forbiddenImports", i)
-			f.Location = spanAt(imp.Pos)
+			f.Location = SpanAt(imp.Pos)
 			f.Criterion = "3.4"
 			f.Message = fmt.Sprintf("%s imports %s: %s", imp.From, imp.To, fi.Reason)
 			f.Fix = fmt.Sprintf("move the use of %s into an adapter package and depend on an "+
@@ -230,9 +248,12 @@ func isolationRule(s *subject) []Finding {
 			for i, pat := range iso.MayImport {
 				allowed[i] = substitute(pat, captures)
 			}
-			f := newFinding(RuleIsolation, SeverityError, imp.From, imp.To)
+			f := NewFinding(
+				FindingID{Rule: RuleIsolation, Subject: imp.From, Object: imp.To},
+				SeverityError,
+			)
 			f.instance = instanceName("isolations", j)
-			f.Location = spanAt(imp.Pos)
+			f.Location = SpanAt(imp.Pos)
 			f.Message = fmt.Sprintf("%s imports %s: %s", imp.From, imp.To, iso.Reason)
 			f.Fix = fmt.Sprintf("%s may import only %s; move the shared code there, or depend on "+
 				"an interface declared in %s", imp.From, strings.Join(allowed, ", "), imp.From)
@@ -263,8 +284,8 @@ func (s *subject) inScopeImports() []Import {
 	return imps
 }
 
-// matchesAny reports whether any of the patterns matches path.
-func matchesAny(patterns []string, path string) bool {
+// MatchesAny reports whether any of the patterns matches path.
+func MatchesAny(patterns []string, path string) bool {
 	return slices.ContainsFunc(patterns, func(p string) bool {
 		_, ok := matchPattern(p, path)
 		return ok

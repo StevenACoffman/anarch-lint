@@ -62,13 +62,14 @@ type Assumption struct {
 	Source string `json:"source"`
 }
 
-// Analyze measures p under the target architecture m, filling judgement slots
-// from verdicts. It is a pure function: the same arguments always give the
-// same report, and none of them is modified. *in is copied into the report
-// with the model hash and the thresholds in force.
+// Analyze measures in's program under its target architecture, filling the
+// judgement slots from its verdicts. It is a pure function: the same input
+// always gives the same report, and the input is not modified. The inputs are
+// copied into the report with the model hash and the thresholds in force.
 //
-// Requires: p is sorted, as [Program] documents.
-func Analyze(p *Program, m *Model, verdicts []Verdict, in *Inputs) Report {
+// Requires: in.Program is sorted, as [Program] documents.
+func Analyze(input *Input) Report {
+	p, m, verdicts, in := &input.Program, &input.Model, input.Verdicts, &input.Inputs
 	g := BuildGraphs(p, m)
 	s := &subject{p: p, m: m, g: &g}
 	limits := m.Limits()
@@ -79,7 +80,7 @@ func Analyze(p *Program, m *Model, verdicts []Verdict, in *Inputs) Report {
 
 	sizes := sizesOf(p, &g, limits)
 	ordering := g.Ordering()
-	cohesion := cohesionOf(p)
+	cohesion := CohesionOf(p)
 	results := ruleResults{
 		layers:         layerRule(s),
 		subsystemOrder: subsystemOrderRule(s),
@@ -142,7 +143,7 @@ func collectFindings(
 	fs = append(fs, typeCycleRule(s, limits.MaxTypeCycleGroup)...)
 	fs = append(fs, sizeRules(s, limits, lcom)...)
 	fs = append(fs, lengthAndDepthRules(s, limits)...)
-	sortFindings(fs)
+	SortFindings(fs)
 	return fs
 }
 
@@ -152,11 +153,11 @@ func judgementSlots(
 	s *subject, z *Sizes, cohesion []Cohesion, findings []Finding, verdicts []Verdict,
 ) []JudgementSlot {
 	return []JudgementSlot{
-		newSlot("1.1.5", responsibilityEvidence(s, z, cohesion), verdicts),
-		newSlot("1.1.6", mappingEvidence(s), verdicts),
-		newSlot("1.2.2", interfaceEvidence(s, findings), verdicts),
-		newSlot("3.3", roleEvidence(s), verdicts),
-		newSlot("3.4", separationEvidence(s, findings), verdicts),
+		NewSlot("1.1.5", responsibilityEvidence(s, z, cohesion), verdicts),
+		NewSlot("1.1.6", mappingEvidence(s), verdicts),
+		NewSlot("1.2.2", interfaceEvidence(s, findings), verdicts),
+		NewSlot("3.3", roleEvidence(s), verdicts),
+		NewSlot("3.4", separationEvidence(s, findings), verdicts),
 	}
 }
 

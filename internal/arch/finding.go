@@ -67,26 +67,35 @@ type Finding struct {
 	instance string
 }
 
-// newFinding returns a finding with its fingerprint set.
-func newFinding(rule string, sev Severity, subject, object string) Finding {
-	sum := sha256.Sum256([]byte(rule + "\x00" + subject + "\x00" + object))
+// FindingID is what identifies a finding: the rule it violates, what
+// violates it, and what it violates it against, when there is something.
+type FindingID struct {
+	Rule    string
+	Subject string
+	Object  string
+}
+
+// NewFinding returns a finding with its fingerprint set. The fingerprint
+// hashes the ID, never a line number, so moving code keeps it.
+func NewFinding(id FindingID, sev Severity) Finding {
+	sum := sha256.Sum256([]byte(id.Rule + "\x00" + id.Subject + "\x00" + id.Object))
 	return Finding{
 		Fingerprint: hex.EncodeToString(sum[:fingerprintBytes]),
-		Rule:        rule,
+		Rule:        id.Rule,
 		Severity:    sev,
-		Subject:     subject,
-		Object:      object,
+		Subject:     id.Subject,
+		Object:      id.Object,
 	}
 }
 
-// spanAt returns the one-line span of a position.
-func spanAt(p Position) *Span {
+// SpanAt returns the one-line span of a position.
+func SpanAt(p Position) *Span {
 	return &Span{File: p.File, Start: p.Line, End: p.Line}
 }
 
-// sortFindings orders findings by rule, subject, object and fingerprint, a
+// SortFindings orders findings by rule, subject, object and fingerprint, a
 // total order because the fingerprint hashes the other three.
-func sortFindings(fs []Finding) {
+func SortFindings(fs []Finding) {
 	slices.SortFunc(fs, func(a, b Finding) int {
 		return cmp.Or(
 			cmp.Compare(a.Rule, b.Rule),
