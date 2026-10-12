@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=https://modelith.sh/schema/domain-model/v1.json
+#
+# The cx fixture's domain model: one case of each conformance rule that the
+# fixture's types can show. Ambiguity needs two types of one name, which the
+# fixture lacks; internal/fitness's unit tests cover it.
+kind: DomainModel
+version: v1
+enums:
+  Level:
+    values: # Top has no constant: domain-enum-drift
+      - name: Low
+      - name: Mid
+      - name: High
+      - name: Top
+  Currency: # no type: domain-enum-missing
+    values:
+      - name: usd
+entities:
+  Role:
+    definition: What a user may do.
+  Invoice:
+    definition: A bill to a `Role`.
+    relationships: # Invoice.Role refers to it: conforms
+      - entity: Role
+        cardinality: "n:1"
+  Credentials: # plays the contract role: domain-contract-entity
+    definition: How a user proves who they are.
+    relationships: # neither type refers to the other: domain-relationship-missing
+      - entity: Role
+        cardinality: "n:1"
+  Session: # no type: domain-entity-missing
+    definition: A signed-in user's visit.
+  Ledger: # mapped to a type that does not exist: domain-type-unmapped
+    definition: Where invoices are recorded.

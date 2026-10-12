@@ -24,6 +24,7 @@ const (
 type judge struct {
 	p        *arch.Program
 	slots    *slotBook
+	domains  *domainIndex
 	severity arch.Severity
 }
 
@@ -147,6 +148,7 @@ func (j *judge) bothBoundedContexts(p *Pair) bool {
 func (j *judge) sharesModelOnPurpose(p *Pair) bool {
 	ev := append([]string{fmt.Sprintf("%s depends on %s at the model level", p.From, p.To)},
 		p.Evidence...)
+	ev = append(ev, j.domains.integrationEvidence(p.From, p.To)...)
 	switch j.slots.ask("integration-pattern/"+p.From+"->"+p.To, ev) {
 	case "shared-kernel", "partnership", "conformist":
 		return true

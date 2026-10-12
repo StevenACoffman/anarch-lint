@@ -1,0 +1,650 @@
+{
+  "$defs": {
+    "BalanceSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "gate": {
+          "type": "boolean"
+        },
+        "messaging": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "CallRule": {
+      "additionalProperties": false,
+      "properties": {
+        "callees": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "from": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "only": {
+          "type": "boolean"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "callees"
+      ],
+      "type": "object"
+    },
+    "ConnascenceLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "maxDegree": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "propertyNames": {
+            "enum": [
+              "function",
+              "type",
+              "file",
+              "package",
+              "subsystem",
+              "system",
+              "external"
+            ]
+          },
+          "type": "object"
+        },
+        "maxStrength": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "propertyNames": {
+            "enum": [
+              "function",
+              "type",
+              "file",
+              "package",
+              "subsystem",
+              "system",
+              "external"
+            ]
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "Dependents": {
+      "additionalProperties": false,
+      "properties": {
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "onlyFrom": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "packages": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "packages"
+      ],
+      "type": "object"
+    },
+    "DomainRule": {
+      "additionalProperties": false,
+      "properties": {
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "path": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "subsystem": {
+          "type": "string"
+        },
+        "types": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    },
+    "Fitness": {
+      "additionalProperties": false,
+      "properties": {
+        "calls": {
+          "items": {
+            "$ref": "#/$defs/CallRule"
+          },
+          "type": "array"
+        },
+        "dependents": {
+          "items": {
+            "$ref": "#/$defs/Dependents"
+          },
+          "type": "array"
+        },
+        "domains": {
+          "items": {
+            "$ref": "#/$defs/DomainRule"
+          },
+          "type": "array"
+        },
+        "interfacesOnly": {
+          "items": {
+            "$ref": "#/$defs/InterfacesOnly"
+          },
+          "type": "array"
+        },
+        "layerAccess": {
+          "items": {
+            "$ref": "#/$defs/LayerAccess"
+          },
+          "type": "array"
+        },
+        "onion": {
+          "$ref": "#/$defs/Onion"
+        },
+        "requireAssigned": {
+          "type": "boolean"
+        },
+        "slices": {
+          "items": {
+            "$ref": "#/$defs/Slices"
+          },
+          "type": "array"
+        },
+        "strictLayers": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "ForbiddenImport": {
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "imports": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "injected": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "transitive": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "from",
+        "imports",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "Gates": {
+      "additionalProperties": false,
+      "properties": {
+        "minCompliance": {
+          "type": "number"
+        },
+        "minCoverage": {
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "InterfacesOnly": {
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "to": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ],
+      "type": "object"
+    },
+    "Isolation": {
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "mayImport": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "from",
+        "mayImport",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "Layer": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "packages": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "packages"
+      ],
+      "type": "object"
+    },
+    "LayerAccess": {
+      "additionalProperties": false,
+      "properties": {
+        "consideringAll": {
+          "type": "boolean"
+        },
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
+        "layer": {
+          "type": "string"
+        },
+        "mayNotAccessAny": {
+          "type": "boolean"
+        },
+        "mayNotBeAccessedByAny": {
+          "type": "boolean"
+        },
+        "mayOnlyAccess": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "mayOnlyBeAccessedBy": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "layer"
+      ],
+      "type": "object"
+    },
+    "Onion": {
+      "additionalProperties": false,
+      "properties": {
+        "adapters": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "object"
+        },
+        "applicationServices": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "domainModels": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "domainServices": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "Role": {
+      "additionalProperties": false,
+      "properties": {
+        "embeds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "implements": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "packages": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "suffix": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "Slices": {
+      "additionalProperties": false,
+      "properties": {
+        "freeOfCycles": {
+          "type": "boolean"
+        },
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "notDependOnEachOther": {
+          "type": "boolean"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "pattern": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "pattern"
+      ],
+      "type": "object"
+    },
+    "Subsystem": {
+      "additionalProperties": false,
+      "properties": {
+        "interface": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "packages": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "packages"
+      ],
+      "type": "object"
+    },
+    "Thresholds": {
+      "additionalProperties": false,
+      "properties": {
+        "complexityVariant": {
+          "enum": [
+            "plain",
+            "modified",
+            "extended"
+          ],
+          "type": "string"
+        },
+        "highComplexity": {
+          "type": "integer"
+        },
+        "largeFileLines": {
+          "type": "integer"
+        },
+        "largeFuncLines": {
+          "type": "integer"
+        },
+        "largePackageTypes": {
+          "type": "integer"
+        },
+        "largeTypeLines": {
+          "type": "integer"
+        },
+        "maxNesting": {
+          "type": "integer"
+        },
+        "maxTypeCycleGroup": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://github.com/StevenACoffman/anarch-lint/schema/anarch.v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "balance": {
+      "$ref": "#/$defs/BalanceSettings"
+    },
+    "connascence": {
+      "$ref": "#/$defs/ConnascenceLimits"
+    },
+    "fitness": {
+      "$ref": "#/$defs/Fitness"
+    },
+    "forbiddenImports": {
+      "items": {
+        "$ref": "#/$defs/ForbiddenImport"
+      },
+      "type": "array"
+    },
+    "gates": {
+      "$ref": "#/$defs/Gates"
+    },
+    "isolations": {
+      "items": {
+        "$ref": "#/$defs/Isolation"
+      },
+      "type": "array"
+    },
+    "layers": {
+      "items": {
+        "$ref": "#/$defs/Layer"
+      },
+      "type": "array"
+    },
+    "roles": {
+      "items": {
+        "$ref": "#/$defs/Role"
+      },
+      "type": "array"
+    },
+    "subsystemOrder": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "subsystems": {
+      "items": {
+        "$ref": "#/$defs/Subsystem"
+      },
+      "type": "array"
+    },
+    "thresholds": {
+      "$ref": "#/$defs/Thresholds"
+    },
+    "version": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version"
+  ],
+  "title": "anarch-lint model",
+  "type": "object"
+}

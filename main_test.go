@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -18,6 +19,9 @@ const fixture = "testdata/fx"
 
 // connascenceFixture is the connascence and Balanced Coupling fixture module.
 const connascenceFixture = "testdata/cx"
+
+// fitnessModel is the fitness rules' model of the connascence fixture.
+const fitnessModel = "testdata/cx/fitness.json"
 
 var (
 	update = flag.Bool("update", false, "rewrite the golden files in testdata/golden")
@@ -198,6 +202,121 @@ func TestGateIncludesConnascenceAndBalance(t *testing.T) {
 	code, out, _ := runCLI(t, "-C", connascenceFixture, "check", "--baseline", empty)
 	if code != 3 || !strings.Contains(out, "tight-coupling-intrusive") {
 		t.Fatalf("check against an empty baseline: exit %d\n%s", code, out)
+	}
+}
+
+func TestSchemaGolden(t *testing.T) {
+	t.Parallel()
+	code, out, errOut := runCLI(t, "schema")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	golden(t, "schema.json", out)
+}
+
+func TestFitnessGolden(t *testing.T) {
+	t.Parallel()
+	cases := map[string]struct {
+		args []string
+		file string
+	}{
+		"text": {
+			args: []string{"-C", connascenceFixture, "--model", fitnessModel, "fitness"},
+			file: "fitness.txt",
+		},
+		"json": {
+			args: []string{
+				"-C",
+				connascenceFixture,
+				"--model",
+				fitnessModel,
+				"--format=json",
+				"fitness",
+			},
+			file: "fitness.json",
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			code, out, errOut := runCLI(t, tc.args...)
+			if code != 0 {
+				t.Fatalf("exit %d: %s", code, errOut)
+			}
+			golden(t, tc.file, out)
+		})
+	}
+}
+
+func TestFitnessIsByteIdentical(t *testing.T) {
+	t.Parallel()
+	args := []string{"-C", connascenceFixture, "--model", fitnessModel, "--format=json", "fitness"}
+	_, first, _ := runCLI(t, args...)
+	_, second, _ := runCLI(t, args...)
+	if first != second {
+		t.Fatal("two runs over the same inputs produced different output")
+	}
+}
+
+// With a fitness section, check gates its findings, and baseline --shrink
+// removes only what was fixed.
+func TestFitnessGateAndShrink(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	accepted := filepath.Join(dir, "accepted.json")
+	run := func(args ...string) (int, string) {
+		t.Helper()
+		code, out, _ := runCLI(
+			t,
+			append([]string{"-C", connascenceFixture, "--model", fitnessModel}, args...)...)
+		return code, out
+	}
+	if code, out := run("baseline", "--out", accepted); code != 0 {
+		t.Fatalf("baseline: exit %d\n%s", code, out)
+	}
+	if code, out := run("check", "--baseline", accepted); code != 0 {
+		t.Fatalf("check against its own baseline: exit %d\n%s", code, out)
+	}
+
+	// A baseline that also accepts a finding the code no longer has: check
+	// passes and says the baseline can shrink; --shrink removes the entry.
+	src, err := os.ReadFile(accepted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b map[string]any
+	if err := json.Unmarshal(src, &b); err != nil {
+		t.Fatal(err)
+	}
+	findings, _ := b["findings"].([]any)
+	before := len(findings)
+	b["findings"] = append(findings, map[string]any{
+		"fingerprint": "00000000000000ff", "rule": "forbidden-call", "severity": "error",
+		"subject": "gone", "object": "gone",
+	})
+	stale, err := json.Marshal(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(accepted, stale, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, out := run("check", "--baseline", accepted)
+	if code != 0 || !strings.Contains(out, "the baseline can shrink: 1 fixed findings") {
+		t.Fatalf("check with a stale entry: exit %d\n%s", code, out)
+	}
+	if code, out := run("baseline", "--out", accepted, "--shrink"); code != 0 {
+		t.Fatalf("baseline --shrink: exit %d\n%s", code, out)
+	}
+	src, err = os.ReadFile(accepted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(src, &b); err != nil {
+		t.Fatal(err)
+	}
+	if after, _ := b["findings"].([]any); len(after) != before {
+		t.Fatalf("shrunk baseline has %d findings, want %d", len(after), before)
 	}
 }
 
@@ -391,6 +510,113 @@ func TestCorpusGoDDD(t *testing.T) {
 	for _, pkg := range []string{rest, rest + "/dto/request"} {
 		if !leaks[pkg] {
 			t.Errorf("the domain leak in %s was not found; found %v", pkg, leaks)
+		}
+	}
+}
+
+func TestRenderCheck(t *testing.T) {
+	t.Parallel()
+	out := filepath.Join(t.TempDir(), "anarch.md")
+	args := []string{"-C", connascenceFixture, "--model", fitnessModel, "render", "--out", out}
+	if code, _, errOut := runCLI(t, append(args, "--check")...); code != 3 {
+		t.Fatalf("check of a missing file: exit %d, want 3: %s", code, errOut)
+	}
+	if code, _, errOut := runCLI(t, args...); code != 0 {
+		t.Fatalf("render: exit %d: %s", code, errOut)
+	}
+	if code, _, errOut := runCLI(t, append(args, "--check")...); code != 0 {
+		t.Fatalf("check of a fresh rendering: exit %d: %s", code, errOut)
+	}
+	if err := os.WriteFile(out, []byte("# edited by hand\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if code, _, errOut := runCLI(t, append(args, "--check")...); code != 3 {
+		t.Fatalf("check of a drifted file: exit %d, want 3: %s", code, errOut)
+	}
+}
+
+// docs/adr/0001: every decision record after the first is pinned by a test
+// named after it.
+func TestEveryDecisionRecordIsPinned(t *testing.T) {
+	t.Parallel()
+	records, err := filepath.Glob(filepath.Join("docs", "adr", "[0-9][0-9][0-9][0-9]-*.md"))
+	if err != nil || len(records) == 0 {
+		t.Fatalf("no decision records: %v", err)
+	}
+	var tests strings.Builder
+	repo := os.DirFS(".")
+	err = fs.WalkDir(repo, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, "_test.go") {
+			return err
+		}
+		src, err := fs.ReadFile(repo, path)
+		tests.Write(src)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, record := range records {
+		n := filepath.Base(record)[:4]
+		if n != "0001" && !strings.Contains(tests.String(), "func TestADR_"+n+"_") {
+			t.Errorf("%s has no TestADR_%s_ test", record, n)
+		}
+	}
+}
+
+func TestRenderGolden(t *testing.T) {
+	t.Parallel()
+	out := filepath.Join(t.TempDir(), "anarch.md")
+	code, _, errOut := runCLI(t,
+		"-C", connascenceFixture, "--model", fitnessModel, "render", "--out", out)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	src, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	golden(t, "render.md", string(src))
+}
+
+// TestCorpusSkillet runs domain-model conformance on skillet's own model
+// with no type mappings, and expects the four drifts mmi-plan.md §10.0 found
+// by hand.
+func TestCorpusSkillet(t *testing.T) {
+	t.Parallel()
+	if *corpus == "" {
+		t.Skip("set -corpus to the directory holding a clone of skillet")
+	}
+	model, err := filepath.Abs(filepath.Join("testdata", "corpus", "skillet.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, out, errOut := runCLI(t, "-C", filepath.Join(*corpus, "skillet"), "--model", model,
+		"--format=json", "fitness", "./...")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	var r struct {
+		Findings []struct {
+			Rule    string `json:"rule"`
+			Subject string `json:"subject"`
+		} `json:"findings"`
+	}
+	if err := json.Unmarshal([]byte(out), &r); err != nil {
+		t.Fatal(err)
+	}
+	found := map[string]bool{}
+	for _, f := range r.Findings {
+		found[f.Rule+" "+f.Subject] = true
+	}
+	for _, want := range []string{
+		"domain-entity-missing skillet.modelith.yaml:Prompt",
+		"domain-entity-ambiguous skillet.modelith.yaml:Skill",
+		"domain-entity-missing skillet.modelith.yaml:Proof",
+		"domain-enum-missing skillet.modelith.yaml:RuleSeverity",
+	} {
+		if !found[want] {
+			t.Errorf("expected %s; found %v", want, found)
 		}
 	}
 }

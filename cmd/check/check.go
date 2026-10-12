@@ -92,7 +92,7 @@ func (cfg *Config) exec(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("check: %w", err)
 	}
-	baseline, err := cfg.readBaseline()
+	baseline, err := cfg.ReadBaseline(cfg.BaselinePath)
 	if err != nil {
 		return fmt.Errorf("check: %w", err)
 	}
@@ -148,28 +148,4 @@ func (cfg *Config) gateOptions(changed arch.ChangedLines) (*arch.GateOptions, er
 		return nil, &arch.Error{Op: op + " --today", Err: err}
 	}
 	return opts, nil
-}
-
-// readBaseline reads the baseline file, which must exist.
-func (cfg *Config) readBaseline() (arch.Baseline, error) {
-	const op = "check.readBaseline"
-	path := cfg.BaselinePath
-	if path == "" {
-		path = filepath.Join(cfg.Dir, root.DefaultBaseline)
-	}
-	src, err := root.ReadFile(path)
-	if arch.ErrorCode(err) == arch.ENOTFOUND {
-		return arch.Baseline{}, &arch.Error{Op: op, Err: &arch.Error{
-			Code:    arch.ENOTFOUND,
-			Message: fmt.Sprintf("no baseline at %s; run baseline first", path),
-		}}
-	}
-	if err != nil {
-		return arch.Baseline{}, &arch.Error{Op: op, Err: err}
-	}
-	b, err := arch.DecodeBaseline(bytes.NewReader(src))
-	if err != nil {
-		return arch.Baseline{}, &arch.Error{Op: op + " " + path, Err: err}
-	}
-	return b, nil
 }

@@ -121,7 +121,7 @@ func repeatedTypes(refs []arch.TypeRef) []string {
 func constIndexDetector(s *subject) []arch.Connascence {
 	var out []arch.Connascence
 	for _, g := range grouped(s.p.Facts.ConstIndexes, func(c arch.ConstIndex) (string, bool) {
-		return c.Origin, packageOfFullName(c.Origin) != c.Site.Package
+		return c.Origin, arch.FuncPackage(c.Origin) != c.Site.Package
 	}) {
 		sites := make([]arch.Site, len(g))
 		indexes := map[string]bool{}

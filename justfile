@@ -24,9 +24,11 @@ build:
 run *args:
     go run . {{args}}
 
-# Measure this repository with its own model (anarch.json), the self-check
+# Measure this repository with its own model (anarch.json), the self-check, and confirm
+# anarch.md still renders from it
 self-check:
     go run . check
+    go run . render --check
 
 # Run this only after deciding the self-check's new state is acceptable: the baseline is what
 # check compares against, so refreshing it accepts every current finding and metric.
@@ -45,7 +47,7 @@ test:
 # The corpus tests analyze real codebases cloned outside this repository; they skip unless
 # -corpus names the directory that holds the clones.
 #
-# Run the acceptance tests against the cloned test corpora (go-ddd)
+# Run the acceptance tests against the cloned test corpora (go-ddd, skillet)
 corpus dir="~/Documents/git":
     go test -count=1 -run 'TestCorpus' -corpus {{dir}} -v .
 
@@ -96,7 +98,7 @@ climax-lint:
 # Lint the prose in Markdown
 vale:
     vale sync
-    vale README.md TODO.md
+    vale README.md TODO.md plugin/skills/*/SKILL.md docs/adr/*.md
 
 # Verify go.mod/go.sum are tidy (CI runs this; a dirty tree fails the build)
 tidy-check:

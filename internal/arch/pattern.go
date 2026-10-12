@@ -28,14 +28,14 @@ const (
 // when the pattern has no wildcard at all, so an exact pattern beats a "/..."
 // pattern of the same root, and a longer literal beats a shorter one.
 func matchPattern(pattern, path string) (score int, ok bool) {
-	score, _, ok = matchCaptures(pattern, path)
+	score, _, ok = MatchCaptures(pattern, path)
 	return score, ok
 }
 
-// matchCaptures is matchPattern that also returns the captures of "$*" and
+// MatchCaptures is matchPattern that also returns the captures of "$*" and
 // "$**", in order. Where "$**" could capture several ways, it takes the
 // shortest capture that lets the rest match, so the result is deterministic.
-func matchCaptures(pattern, path string) (score int, captures []string, ok bool) {
+func MatchCaptures(pattern, path string) (score int, captures []string, ok bool) {
 	root, rest := strings.CutSuffix(pattern, tokenRest)
 	pat, segs := strings.Split(root, "/"), strings.Split(path, "/")
 	captures, ok = matchSegments(pat, segs, rest, nil)

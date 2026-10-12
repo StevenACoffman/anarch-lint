@@ -49,6 +49,9 @@ func TestDecodeModel(t *testing.T) {
 			input:   `{"version": 1, "thresholds": {"largeFuncLines": -1}}`,
 			message: "model: threshold largeFuncLines is negative",
 		},
+		"a $schema key": {
+			input: `{"$schema": "https://github.com/StevenACoffman/anarch-lint/schema/anarch.v1.json", "version": 1}`,
+		},
 		"connascence limits": {
 			input: `{"version": 1, "connascence": {"maxStrength": {"system": 3},
 				"maxDegree": {"system": 20}}, "balance": {"messaging": ["x/..."]}}`,
@@ -68,6 +71,37 @@ func TestDecodeModel(t *testing.T) {
 		"empty messaging pattern": {
 			input:   `{"version": 1, "balance": {"messaging": [""]}}`,
 			message: "model: balance messaging has an empty pattern",
+		},
+		"fitness rules": {
+			input: `{"version": 1, "layers": [{"name": "a"}, {"name": "b"}],
+				"fitness": {"strictLayers": true, "layerAccess": [{"layer": "a", "mayOnlyAccess": ["b"]}],
+				"slices": [{"pattern": "x/$*/...", "freeOfCycles": true}],
+				"calls": [{"from": ["x/..."], "callees": ["time.Now"], "gate": "warn"}]}}`,
+		},
+		"fitness unknown layer": {
+			input:   `{"version": 1, "fitness": {"layerAccess": [{"layer": "z"}]}}`,
+			message: `model: fitness layerAccess names unknown layer "z"`,
+		},
+		"fitness unknown gate": {
+			input:   `{"version": 1, "fitness": {"calls": [{"from": ["x"], "callees": ["f"], "gate": "maybe"}]}}`,
+			message: `model: fitness gate "maybe" is not fail, warn or off`,
+		},
+		"fitness slice without capture": {
+			input:   `{"version": 1, "fitness": {"slices": [{"pattern": "x/..."}]}}`,
+			message: `model: fitness slices pattern "x/..." captures nothing; use $* or $**`,
+		},
+		"fitness duplicate name": {
+			input: `{"version": 1, "fitness": {"calls": [{"name": "c", "from": ["x"], "callees": ["f"]}],
+				"interfacesOnly": [{"name": "c", "from": ["x"], "to": ["y"]}]}}`,
+			message: `model: fitness rule "c" is declared twice`,
+		},
+		"fitness calls without from": {
+			input:   `{"version": 1, "fitness": {"calls": [{"name": "c", "callees": ["f"]}]}}`,
+			message: `model: fitness calls rule "c" needs callees, and from unless only is set`,
+		},
+		"fitness strict layers with one layer": {
+			input:   `{"version": 1, "layers": [{"name": "a"}], "fitness": {"strictLayers": true}}`,
+			message: "model: fitness strictLayers needs at least two layers",
 		},
 		"unknown variant": {
 			input:   `{"version": 1, "thresholds": {"complexityVariant": "fancy"}}`,
@@ -155,7 +189,7 @@ func FuzzDecodeModel(f *testing.F) {
 func TestModelHashOfSections(t *testing.T) {
 	t.Parallel()
 	plain := arch.Model{Version: 1}
-	empty := arch.Model{Version: 1, Connascence: arch.ConnascenceLimits{}}
+	empty := arch.Model{Version: 1, Connascence: arch.ConnascenceLimits{}, Fitness: arch.Fitness{}}
 	equals(t, plain.Hash(), empty.Hash())
 
 	a := arch.Model{

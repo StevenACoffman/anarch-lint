@@ -22,10 +22,14 @@ type factSink struct {
 	inScope map[string]bool
 	facts   arch.Facts
 	uses    useTable
+	calls   callTable
 }
 
 // useTable aggregates the Use facts per object and referring declaration.
 type useTable map[useKey]*arch.Use
+
+// callTable aggregates the Call facts per callee and calling declaration.
+type callTable map[useKey]*arch.Call
 
 // factWalker extracts the connascence facts of one declaration
 // (connascence.md §4). It is created per declaration, so its maps describe
@@ -33,6 +37,7 @@ type useTable map[useKey]*arch.Use
 type factWalker struct {
 	facts   *arch.Facts
 	uses    useTable
+	calls   callTable
 	inScope map[string]bool
 	fc      *fileContext
 	// fn and typ are the enclosing function and type IDs every site carries.
@@ -54,6 +59,7 @@ func (s *factSink) walker(fc *fileContext, fn, typ string) *factWalker {
 	return &factWalker{
 		facts:    &s.facts,
 		uses:     s.uses,
+		calls:    s.calls,
 		inScope:  s.inScope,
 		fc:       fc,
 		fn:       fn,
@@ -66,7 +72,7 @@ func (s *factSink) walker(fc *fileContext, fn, typ string) *factWalker {
 }
 
 func newFactSink(inScope map[string]bool) *factSink {
-	return &factSink{inScope: inScope, uses: useTable{}}
+	return &factSink{inScope: inScope, uses: useTable{}, calls: callTable{}}
 }
 
 // addUse adds one reference, folding it into an earlier reference of the
@@ -82,6 +88,21 @@ func (t useTable) add(u *arch.Use) {
 		return
 	}
 	stored := *u
+	t[key] = &stored
+}
+
+// add adds one call, folding it into an earlier call of the same callee from
+// the same declaration.
+func (t callTable) add(c *arch.Call) {
+	key := useKey{object: c.Callee, fn: c.Site.Func, typ: c.Site.Type, pkg: c.Site.Package}
+	if prev, ok := t[key]; ok {
+		prev.Count++
+		if compareSites(c.Site, prev.Site) < 0 {
+			prev.Site = c.Site
+		}
+		return
+	}
+	stored := *c
 	t[key] = &stored
 }
 
@@ -345,6 +366,7 @@ func (w *factWalker) call(c *ast.CallExpr) {
 		return
 	}
 	name := fn.FullName()
+	w.calls.add(&arch.Call{Callee: name, Count: 1, Site: w.site(c.Pos())})
 	for i, a := range c.Args {
 		w.constExpr(a, arch.ContextArgument, name, i)
 	}

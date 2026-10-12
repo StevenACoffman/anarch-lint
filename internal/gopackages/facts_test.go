@@ -216,3 +216,15 @@ func TestLoadWithoutFacts(t *testing.T) {
 		equals(t, "", fn.BodyHash)
 	}
 }
+
+func TestLoadFactsCalls(t *testing.T) {
+	t.Parallel()
+	p := loadFacts(t)
+	calls := map[string]int{}
+	for _, c := range p.Facts.Calls {
+		calls[c.Callee+" from "+c.Site.Func] = c.Count
+	}
+	equals(t, 1, calls["time.Sleep from example.com/cx/state.Wait"])
+	equals(t, 1, calls["example.com/cx/auth.Version from example.com/cx/audit.Record"])
+	equals(t, 1, calls["(*regexp.Regexp).MatchString from example.com/cx/billing.Valid"])
+}

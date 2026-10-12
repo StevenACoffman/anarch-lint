@@ -1,5 +1,7 @@
 package arch
 
+import "strings"
+
 // Object kinds of a [Use].
 const (
 	ObjectType   ObjectKind = "type"
@@ -60,6 +62,7 @@ type Facts struct {
 	Linknames      []Linkname      `json:"linknames"`
 	UnsafeConvs    []UnsafeConv    `json:"unsafeConvs"`
 	ReflectByNames []ReflectByName `json:"reflectByNames"`
+	Calls          []Call          `json:"calls"`
 }
 
 // Use is one function's references to one declared in-scope object that is
@@ -76,6 +79,17 @@ type Use struct {
 	Owner string `json:"owner,omitempty"`
 	Count int    `json:"count"`
 	Site  Site   `json:"site"`
+}
+
+// Call is one function's calls of one function or method, in scope or not,
+// for the fitness rules on calls. Count is the number of calls; Site is the
+// first of them.
+type Call struct {
+	// Callee is the called function's full name: "time.Now",
+	// "(*os.File).Write".
+	Callee string `json:"callee"`
+	Count  int    `json:"count"`
+	Site   Site   `json:"site"`
 }
 
 // TypeRef is a type as it appears in a signature.
@@ -248,4 +262,18 @@ type Churn struct {
 	// Commits maps a file, relative to the analysis root, to the sorted
 	// hashes of the commits in the range that changed it.
 	Commits map[string][]string `json:"commits"`
+}
+
+// FuncPackage returns the package of a function's full name, as go/types
+// spells it: "strings.Split", "(*net/http.ServeMux).Handle",
+// "(time.Time).Format".
+func FuncPackage(name string) string {
+	name = strings.TrimPrefix(strings.TrimPrefix(name, "("), "*")
+	if i := strings.Index(name, ")"); i >= 0 {
+		name = name[:i]
+	}
+	if i := strings.LastIndex(name, "."); i > strings.LastIndex(name, "/") {
+		return name[:i]
+	}
+	return name
 }

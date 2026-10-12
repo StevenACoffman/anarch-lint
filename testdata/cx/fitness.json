@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "subsystems": [
+    {"name": "auth", "packages": ["example.com/cx/auth"], "interface": ["example.com/cx/auth"]},
+    {"name": "billing", "packages": ["example.com/cx/billing", "example.com/cx/cmd/client"]},
+    {"name": "web", "packages": ["example.com/cx/web", "example.com/cx/cmd/server"]},
+    {"name": "state", "packages": ["example.com/cx/state"]},
+    {"name": "audit", "packages": ["example.com/cx/audit"]}
+  ],
+  "layers": [
+    {"name": "app", "packages": ["example.com/cx/cmd/..."]},
+    {"name": "feature", "packages": ["example.com/cx/billing", "example.com/cx/web", "example.com/cx/audit"]},
+    {"name": "core", "packages": ["example.com/cx/auth", "example.com/cx/state"]}
+  ],
+  "roles": [
+    {"name": "contract", "suffix": "Credentials"}
+  ],
+  "forbiddenImports": [
+    {"from": ["example.com/cx/..."], "imports": ["net/http"], "reason": "no HTTP in the fixture"}
+  ],
+  "fitness": {
+    "requireAssigned": true,
+    "strictLayers": true,
+    "layerAccess": [
+      {"name": "core-from-features", "layer": "core", "mayOnlyBeAccessedBy": ["feature"],
+       "reason": "binaries reach the core through a feature"}
+    ],
+    "onion": {
+      "domainModels": ["example.com/cx/auth"],
+      "applicationServices": ["example.com/cx/billing", "example.com/cx/web", "example.com/cx/audit"],
+      "adapters": {"client": ["example.com/cx/cmd/client"], "server": ["example.com/cx/cmd/server"]}
+    },
+    "slices": [
+      {"name": "areas", "pattern": "example.com/cx/$*", "freeOfCycles": true}
+    ],
+    "dependents": [
+      {"name": "auth-for-billing", "packages": ["example.com/cx/auth"], "onlyFrom": ["example.com/cx/billing"],
+       "gate": "warn", "reason": "only billing should know roles"},
+      {"name": "nothing-yet", "packages": ["example.com/cx/payments/..."]},
+      {"name": "maybe-later", "packages": ["example.com/cx/payments/..."], "optional": true}
+    ],
+    "calls": [
+      {"name": "no-clock-in-features", "from": ["example.com/cx/billing", "example.com/cx/web"],
+       "callees": ["time.*"], "reason": "inject a clock"},
+      {"name": "patterns-in-billing", "from": ["example.com/cx/billing"],
+       "callees": ["regexp.MustCompile"], "only": true}
+    ],
+    "interfacesOnly": [
+      {"name": "web-ports", "from": ["example.com/cx/web"], "to": ["example.com/cx/auth"]}
+    ],
+    "domains": [
+      {"name": "cx-model", "path": "cx.modelith.yaml",
+       "types": {"Ledger": "example.com/cx/billing.Ledger"},
+       "reason": "the code speaks the fixture's domain model"}
+    ]
+  }
+}

@@ -55,7 +55,8 @@ func (s *subject) volatility(ev []evidence) []SubsystemVolatility {
 		if answer := s.slots.ask("subdomain/"+sub.Name, evidence); answer != "" {
 			v.Subdomain = answer
 		}
-		v.BoundedContext = s.slots.ask("bounded-context/"+sub.Name, evidence)
+		v.BoundedContext = s.slots.ask("bounded-context/"+sub.Name,
+			append(evidence, s.domains.contextEvidence(sub.Name)...))
 		out = append(out, v)
 	}
 	return out

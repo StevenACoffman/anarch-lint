@@ -1,0 +1,554 @@
+{
+  "schema": "anarch-lint.fitness.v1",
+  "inputs": {
+    "tool": "anarch-lint devel",
+    "goVersion": "GOVERSION",
+    "tags": [],
+    "patterns": [
+      "./..."
+    ],
+    "modelHash": "431b952e8edef93c3db94e6404d457b10f8a71067d9bb15ededba85ab40d30a5",
+    "thresholds": {
+      "largeTypeLines": 400,
+      "largeFuncLines": 60,
+      "largePackageTypes": 40,
+      "highComplexity": 15,
+      "complexityVariant": "modified",
+      "maxTypeCycleGroup": 5,
+      "largeFileLines": 800,
+      "maxNesting": 4
+    }
+  },
+  "rules": [
+    {
+      "name": "strictLayers",
+      "kind": "strictLayers",
+      "gate": "fail",
+      "matched": 7,
+      "violations": 0,
+      "status": "passed"
+    },
+    {
+      "name": "core-from-features",
+      "kind": "layerAccess",
+      "reason": "binaries reach the core through a feature",
+      "gate": "fail",
+      "matched": 2,
+      "violations": 0,
+      "status": "passed"
+    },
+    {
+      "name": "onion[0]",
+      "kind": "onion",
+      "gate": "fail",
+      "matched": 6,
+      "violations": 0,
+      "status": "passed"
+    },
+    {
+      "name": "auth-for-billing",
+      "kind": "dependents",
+      "reason": "only billing should know roles",
+      "gate": "warn",
+      "matched": 2,
+      "violations": 2,
+      "status": "failed"
+    },
+    {
+      "name": "nothing-yet",
+      "kind": "dependents",
+      "gate": "fail",
+      "matched": 0,
+      "violations": 0,
+      "status": "empty"
+    },
+    {
+      "name": "maybe-later",
+      "kind": "dependents",
+      "gate": "fail",
+      "optional": true,
+      "matched": 0,
+      "violations": 0,
+      "status": "passed"
+    },
+    {
+      "name": "areas",
+      "kind": "slices",
+      "gate": "fail",
+      "matched": 5,
+      "violations": 0,
+      "status": "passed"
+    },
+    {
+      "name": "no-clock-in-features",
+      "kind": "calls",
+      "reason": "inject a clock",
+      "gate": "fail",
+      "matched": 2,
+      "violations": 2,
+      "status": "failed"
+    },
+    {
+      "name": "patterns-in-billing",
+      "kind": "calls",
+      "gate": "fail",
+      "matched": 2,
+      "violations": 1,
+      "status": "failed"
+    },
+    {
+      "name": "web-ports",
+      "kind": "interfacesOnly",
+      "gate": "fail",
+      "matched": 1,
+      "violations": 4,
+      "status": "failed"
+    },
+    {
+      "name": "requireAssigned",
+      "kind": "requireAssigned",
+      "gate": "fail",
+      "matched": 7,
+      "violations": 0,
+      "status": "passed"
+    },
+    {
+      "name": "cx-model",
+      "kind": "domains",
+      "reason": "the code speaks the fixture's domain model",
+      "gate": "fail",
+      "matched": 7,
+      "violations": 6,
+      "status": "failed"
+    }
+  ],
+  "findings": [
+    {
+      "fingerprint": "efb3f55185a1ab07",
+      "rule": "call-restriction",
+      "severity": "error",
+      "subject": "example.com/cx/web",
+      "object": "patterns-in-billing: regexp.MustCompile",
+      "location": {
+        "file": "web/admin.go",
+        "start": 14,
+        "end": 14
+      },
+      "message": "example.com/cx/web calls regexp.MustCompile",
+      "fix": "take what the call provides as a parameter, so the caller no longer needs it"
+    },
+    {
+      "fingerprint": "77d8444e49f6b9cb",
+      "rule": "dependent-restriction",
+      "severity": "warning",
+      "subject": "example.com/cx/audit",
+      "object": "auth-for-billing: example.com/cx/auth",
+      "location": {
+        "file": "audit/audit.go",
+        "start": 5,
+        "end": 5
+      },
+      "message": "example.com/cx/audit imports example.com/cx/auth: only example.com/cx/billing may import it: only billing should know roles",
+      "fix": "reach the package through one of the packages the rule allows"
+    },
+    {
+      "fingerprint": "b0f77377edb794f7",
+      "rule": "dependent-restriction",
+      "severity": "warning",
+      "subject": "example.com/cx/web",
+      "object": "auth-for-billing: example.com/cx/auth",
+      "location": {
+        "file": "web/admin.go",
+        "start": 11,
+        "end": 11
+      },
+      "message": "example.com/cx/web imports example.com/cx/auth: only example.com/cx/billing may import it: only billing should know roles",
+      "fix": "reach the package through one of the packages the rule allows"
+    },
+    {
+      "fingerprint": "729d440704ee4900",
+      "rule": "domain-contract-entity",
+      "severity": "error",
+      "subject": "cx.modelith.yaml:Credentials",
+      "object": "example.com/cx/auth.Credentials",
+      "message": "example.com/cx/auth.Credentials expresses entity Credentials, yet plays the contract role: the code speaks the fixture's domain model",
+      "fix": "keep the entity type in the model and give the contract its own type, or drop the role"
+    },
+    {
+      "fingerprint": "52da04cc24a4166b",
+      "rule": "domain-entity-missing",
+      "severity": "error",
+      "subject": "cx.modelith.yaml:Session",
+      "message": "domain model cx.modelith.yaml declares entity Session, and no type expresses it: the code speaks the fixture's domain model",
+      "fix": "name a type after the entity, map it in the rule's types, or remove the entity from the model"
+    },
+    {
+      "fingerprint": "70d715da68763f90",
+      "rule": "domain-enum-drift",
+      "severity": "error",
+      "subject": "cx.modelith.yaml:Level",
+      "object": "example.com/cx/auth.Level",
+      "message": "enum Level and example.com/cx/auth.Level disagree on 1 value: the code speaks the fixture's domain model",
+      "fix": "make the model's values and the type's constants the same set",
+      "evidence": [
+        "in the model only: Top"
+      ]
+    },
+    {
+      "fingerprint": "28a57f48eba03e9f",
+      "rule": "domain-enum-missing",
+      "severity": "error",
+      "subject": "cx.modelith.yaml:Currency",
+      "message": "domain model cx.modelith.yaml declares enum Currency, and no type expresses it: the code speaks the fixture's domain model",
+      "fix": "name a type after the enum, or map it in the rule's types"
+    },
+    {
+      "fingerprint": "0e28405b533253af",
+      "rule": "domain-relationship-missing",
+      "severity": "error",
+      "subject": "cx.modelith.yaml:Credentials",
+      "object": "Role",
+      "message": "the model relates Credentials to Role, but example.com/cx/auth.Credentials and example.com/cx/auth.Role never refer to each other: the code speaks the fixture's domain model",
+      "fix": "add the reference the relationship needs, or correct the model"
+    },
+    {
+      "fingerprint": "6e7533e9b647bfa8",
+      "rule": "domain-type-unmapped",
+      "severity": "error",
+      "subject": "cx.modelith.yaml:Ledger",
+      "object": "example.com/cx/billing.Ledger",
+      "message": "cx-model maps Ledger to example.com/cx/billing.Ledger, which is no type of the program: the code speaks the fixture's domain model",
+      "fix": "correct the type ID, or remove the mapping if the concept has no type yet"
+    },
+    {
+      "fingerprint": "5b06a88b357d5966",
+      "rule": "empty-selector",
+      "severity": "error",
+      "subject": "forbiddenImports[0]",
+      "object": "imports",
+      "message": "the imports of forbiddenImports[0] match nothing, so the rule checks nothing",
+      "fix": "correct the patterns, or remove the rule"
+    },
+    {
+      "fingerprint": "b10aeaa78580e4ea",
+      "rule": "empty-selector",
+      "severity": "error",
+      "subject": "nothing-yet",
+      "message": "fitness rule nothing-yet (dependents) matches nothing",
+      "fix": "correct the rule's patterns, or set optional if it may match nothing"
+    },
+    {
+      "fingerprint": "4fd690880baf5f6a",
+      "rule": "forbidden-call",
+      "severity": "error",
+      "subject": "example.com/cx/billing.Due",
+      "object": "no-clock-in-features: time.Parse",
+      "location": {
+        "file": "billing/invoice.go",
+        "start": 71,
+        "end": 71
+      },
+      "message": "example.com/cx/billing.Due calls time.Parse: inject a clock",
+      "fix": "take what the call provides as a parameter, so the caller no longer needs it"
+    },
+    {
+      "fingerprint": "01d3b70d75f42695",
+      "rule": "forbidden-call",
+      "severity": "error",
+      "subject": "example.com/cx/web.Due",
+      "object": "no-clock-in-features: time.Parse",
+      "location": {
+        "file": "web/admin.go",
+        "start": 42,
+        "end": 42
+      },
+      "message": "example.com/cx/web.Due calls time.Parse: inject a clock",
+      "fix": "take what the call provides as a parameter, so the caller no longer needs it"
+    },
+    {
+      "fingerprint": "7610a1f9891d484e",
+      "rule": "interfaces-only",
+      "severity": "error",
+      "subject": "example.com/cx/web.Admin",
+      "object": "web-ports: example.com/cx/auth.Role",
+      "location": {
+        "file": "web/admin.go",
+        "start": 17,
+        "end": 17
+      },
+      "message": "example.com/cx/web.Admin uses example.com/cx/auth.Role, a defined type, where only interfaces are allowed",
+      "fix": "depend on an interface the package exports, or declare one where it is used"
+    },
+    {
+      "fingerprint": "9d577c6448617867",
+      "rule": "interfaces-only",
+      "severity": "error",
+      "subject": "example.com/cx/web.Allowed",
+      "object": "web-ports: example.com/cx/auth.Role",
+      "location": {
+        "file": "web/admin.go",
+        "start": 20,
+        "end": 20
+      },
+      "message": "example.com/cx/web.Allowed uses example.com/cx/auth.Role, a defined type, where only interfaces are allowed",
+      "fix": "depend on an interface the package exports, or declare one where it is used"
+    },
+    {
+      "fingerprint": "f947ea6088f6735b",
+      "rule": "interfaces-only",
+      "severity": "error",
+      "subject": "example.com/cx/web.Peek",
+      "object": "web-ports: example.com/cx/auth.Secret",
+      "location": {
+        "file": "web/admin.go",
+        "start": 26,
+        "end": 26
+      },
+      "message": "example.com/cx/web.Peek uses example.com/cx/auth.Secret, a struct, where only interfaces are allowed",
+      "fix": "depend on an interface the package exports, or declare one where it is used"
+    },
+    {
+      "fingerprint": "9005a328a418944b",
+      "rule": "interfaces-only",
+      "severity": "error",
+      "subject": "example.com/cx/web.Steal",
+      "object": "web-ports: example.com/cx/auth.Role",
+      "location": {
+        "file": "web/admin.go",
+        "start": 36,
+        "end": 36
+      },
+      "message": "example.com/cx/web.Steal uses example.com/cx/auth.Role, a defined type, where only interfaces are allowed",
+      "fix": "depend on an interface the package exports, or declare one where it is used"
+    },
+    {
+      "fingerprint": "db33818f5a008eb3",
+      "rule": "rule-without-reason",
+      "severity": "warning",
+      "subject": "areas",
+      "message": "fitness rule areas (slices) gives no reason",
+      "fix": "add a reason saying what the rule protects and why"
+    },
+    {
+      "fingerprint": "13e8e4b0fc21eff9",
+      "rule": "rule-without-reason",
+      "severity": "warning",
+      "subject": "maybe-later",
+      "message": "fitness rule maybe-later (dependents) gives no reason",
+      "fix": "add a reason saying what the rule protects and why"
+    },
+    {
+      "fingerprint": "9c6899e5b6614b5e",
+      "rule": "rule-without-reason",
+      "severity": "warning",
+      "subject": "nothing-yet",
+      "message": "fitness rule nothing-yet (dependents) gives no reason",
+      "fix": "add a reason saying what the rule protects and why"
+    },
+    {
+      "fingerprint": "6fec5a483e047e94",
+      "rule": "rule-without-reason",
+      "severity": "warning",
+      "subject": "onion[0]",
+      "message": "fitness rule onion[0] (onion) gives no reason",
+      "fix": "add a reason saying what the rule protects and why"
+    },
+    {
+      "fingerprint": "0e6aea37c0ef5e54",
+      "rule": "rule-without-reason",
+      "severity": "warning",
+      "subject": "patterns-in-billing",
+      "message": "fitness rule patterns-in-billing (calls) gives no reason",
+      "fix": "add a reason saying what the rule protects and why"
+    },
+    {
+      "fingerprint": "3afee2e6260dbd77",
+      "rule": "rule-without-reason",
+      "severity": "warning",
+      "subject": "web-ports",
+      "message": "fitness rule web-ports (interfacesOnly) gives no reason",
+      "fix": "add a reason saying what the rule protects and why"
+    }
+  ],
+  "lakos": [
+    {
+      "level": "types",
+      "nodes": 8,
+      "ccd": 9,
+      "acd": 1.125,
+      "racd": 0.140625,
+      "nccd": 0.428571
+    },
+    {
+      "level": "packages",
+      "nodes": 7,
+      "ccd": 14,
+      "acd": 2,
+      "racd": 0.285714,
+      "nccd": 0.823529
+    },
+    {
+      "level": "subsystems",
+      "nodes": 5,
+      "ccd": 8,
+      "acd": 1.6,
+      "racd": 0.32,
+      "nccd": 0.727273
+    }
+  ],
+  "visibility": {
+    "packages": [
+      {
+        "package": "example.com/cx/audit",
+        "elements": 1,
+        "visible": 1,
+        "rv": 1
+      },
+      {
+        "package": "example.com/cx/auth",
+        "elements": 7,
+        "visible": 7,
+        "rv": 1
+      },
+      {
+        "package": "example.com/cx/billing",
+        "elements": 11,
+        "visible": 11,
+        "rv": 1
+      },
+      {
+        "package": "example.com/cx/cmd/client",
+        "elements": 1,
+        "visible": 0,
+        "rv": 0
+      },
+      {
+        "package": "example.com/cx/cmd/server",
+        "elements": 1,
+        "visible": 0,
+        "rv": 0
+      },
+      {
+        "package": "example.com/cx/state",
+        "elements": 4,
+        "visible": 4,
+        "rv": 1
+      },
+      {
+        "package": "example.com/cx/web",
+        "elements": 9,
+        "visible": 9,
+        "rv": 1
+      }
+    ],
+    "arv": 0.714286,
+    "grv": 0.941176
+  },
+  "componentDependencyMetrics": [
+    {
+      "package": "example.com/cx/audit",
+      "ca": 0,
+      "ce": 1,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "example.com/cx/auth",
+      "ca": 3,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "normalizedDistance": 1
+    },
+    {
+      "package": "example.com/cx/billing",
+      "ca": 1,
+      "ce": 1,
+      "instability": 0.5,
+      "abstractness": 0,
+      "normalizedDistance": 0.5
+    },
+    {
+      "package": "example.com/cx/cmd/client",
+      "ca": 0,
+      "ce": 1,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "example.com/cx/cmd/server",
+      "ca": 0,
+      "ce": 1,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "example.com/cx/state",
+      "ca": 0,
+      "ce": 0,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "example.com/cx/web",
+      "ca": 1,
+      "ce": 1,
+      "instability": 0.5,
+      "abstractness": 0,
+      "normalizedDistance": 0.5
+    }
+  ],
+  "cycles": [
+    {
+      "level": "types",
+      "cycles": [],
+      "truncated": false
+    },
+    {
+      "level": "subsystems",
+      "cycles": [],
+      "truncated": false
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "nccd",
+      "text": "NCCD is CCD ÷ Σᵢ₌₁ⁿ (⌊log₂ i⌋ + 1), the CCD of a balanced binary tree of the same size, as ArchUnit's LakosMetrics computes it; RACD is analyze's propagation cost.",
+      "source": "TODO.md, Ideas from ArchUnit: Metrics"
+    },
+    {
+      "id": "visibility",
+      "text": "An element is a package-level type or a function that is not a method; it is visible when exported. An internal package stays visible to its parent's tree, which one module mostly is.",
+      "source": "TODO.md, Ideas from ArchUnit: Metrics (Dowalil)"
+    },
+    {
+      "id": "component-dependency",
+      "text": "Unlike analyze's Martin metrics, abstractness counts exported types only and an isolated package has instability 1, as ArchUnit's ComponentDependencyMetrics has it.",
+      "source": "TODO.md, Ideas from ArchUnit: Metrics"
+    },
+    {
+      "id": "cycles",
+      "text": "Elementary cycles by Johnson's algorithm, starts and arcs in sorted order, at most 100 per graph and 20 imports per edge. Go forbids import cycles between packages, so only the type and subsystem graphs have them.",
+      "source": "TODO.md, Ideas from ArchUnit: Cycles"
+    },
+    {
+      "id": "empty-rules",
+      "text": "A fitness rule whose subject selectors match nothing is a finding unless optional, as ArchUnit's failOnEmptyShould defaults to true; so is a forbidden import, isolation or role whose patterns match nothing.",
+      "source": "TODO.md, Ideas from ArchUnit: Rules That Match Nothing"
+    },
+    {
+      "id": "layers",
+      "text": "Layer access counts imports between two layered packages, and with consideringAll also imports of in-scope packages without a layer. strictLayers reports imports that skip a layer; imports upward are analyze's layer-order findings.",
+      "source": "TODO.md, Ideas from ArchUnit: Layer Access"
+    },
+    {
+      "id": "onion",
+      "text": "A package belongs to the innermost onion ring that matches it, adapters tried in name order; packages in no ring are not checked.",
+      "source": "TODO.md, Ideas from ArchUnit: Layer Access"
+    }
+  ]
+}

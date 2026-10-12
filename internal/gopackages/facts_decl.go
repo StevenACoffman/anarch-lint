@@ -173,6 +173,10 @@ func (s *factSink) sortFacts() arch.Facts {
 	for _, u := range s.uses {
 		f.Uses = append(f.Uses, *u)
 	}
+	for _, c := range s.calls {
+		f.Calls = append(f.Calls, *c)
+	}
+	sortBySite(f.Calls, func(c arch.Call) arch.Site { return c.Site })
 	sortBySite(f.Uses, func(u arch.Use) arch.Site { return u.Site })
 	sortBySite(f.Signatures, func(s arch.Signature) arch.Site { return s.Site })
 	sortBySite(f.ConstExprs, func(c arch.ConstExpr) arch.Site { return c.Site })

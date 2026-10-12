@@ -55,6 +55,8 @@ type classifier struct {
 	consts map[string]*arch.Constant
 	types  map[string]*arch.Type
 	slots  *slotBook
+	// entities maps each type that expresses a domain-model entity to it.
+	entities map[string]string
 	// connascence is every instance the connascence measure found; those
 	// whose fingerprint is in rejected are left out.
 	connascence []arch.Connascence
@@ -210,16 +212,28 @@ func (k *classifier) signatureTypes(fn string) []string {
 }
 
 // isModelType reports a type of the upstream subsystem that is part of its
-// model: not a contract by role or by verdict, and not an interface whose
-// methods expose only contract types. A type it cannot see is no model type.
+// model: an entity of a domain model, or else not a contract by role or by
+// verdict, and not an interface whose methods expose only contract types. A
+// type it cannot see is no model type.
 func (k *classifier) isModelType(typ, upstream string) bool {
 	t, ok := k.types[typ]
-	if !ok || k.subsystemOf(t.Package) != upstream || k.isContract(typ) {
+	if !ok || k.subsystemOf(t.Package) != upstream {
 		return false
 	}
-	if t.Kind != arch.KindInterface {
+	// A type a domain model names is part of that model, so no reviewer is
+	// asked whether it is a contract.
+	if _, entity := k.entities[typ]; entity {
 		return true
 	}
+	if k.isContract(typ) {
+		return false
+	}
+	return t.Kind != arch.KindInterface || k.exposesModel(typ, upstream)
+}
+
+// exposesModel reports an interface whose method signatures name a model
+// type of upstream other than itself.
+func (k *classifier) exposesModel(typ, upstream string) bool {
 	prefix := typ + "."
 	for id := range k.sigs {
 		if !strings.HasPrefix(id, prefix) {

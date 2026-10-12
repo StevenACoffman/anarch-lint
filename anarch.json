@@ -3,14 +3,18 @@
   "subsystems": [
     {"name": "cli", "packages": ["github.com/StevenACoffman/anarch-lint", "github.com/StevenACoffman/anarch-lint/cmd/..."],
      "interface": ["github.com/StevenACoffman/anarch-lint/cmd/root"]},
-    {"name": "presentation", "packages": ["github.com/StevenACoffman/anarch-lint/internal/text"],
-     "interface": ["github.com/StevenACoffman/anarch-lint/internal/text"]},
+    {"name": "presentation", "packages": ["github.com/StevenACoffman/anarch-lint/internal/text", "github.com/StevenACoffman/anarch-lint/internal/schema"],
+     "interface": ["github.com/StevenACoffman/anarch-lint/internal/text", "github.com/StevenACoffman/anarch-lint/internal/schema"]},
     {"name": "loading", "packages": ["github.com/StevenACoffman/anarch-lint/internal/gopackages"],
      "interface": ["github.com/StevenACoffman/anarch-lint/internal/gopackages"]},
     {"name": "vcs", "packages": ["github.com/StevenACoffman/anarch-lint/internal/git"],
      "interface": ["github.com/StevenACoffman/anarch-lint/internal/git"]},
+    {"name": "domain-models", "packages": ["github.com/StevenACoffman/anarch-lint/internal/modelith"],
+     "interface": ["github.com/StevenACoffman/anarch-lint/internal/modelith"]},
     {"name": "ownership", "packages": ["github.com/StevenACoffman/anarch-lint/internal/codeowners"],
      "interface": ["github.com/StevenACoffman/anarch-lint/internal/codeowners"]},
+    {"name": "fitness", "packages": ["github.com/StevenACoffman/anarch-lint/internal/fitness"],
+     "interface": ["github.com/StevenACoffman/anarch-lint/internal/fitness"]},
     {"name": "balance", "packages": ["github.com/StevenACoffman/anarch-lint/internal/balance"],
      "interface": ["github.com/StevenACoffman/anarch-lint/internal/balance"]},
     {"name": "connascence", "packages": ["github.com/StevenACoffman/anarch-lint/internal/connascence"],
@@ -18,15 +22,16 @@
     {"name": "domain", "packages": ["github.com/StevenACoffman/anarch-lint/internal/arch"],
      "interface": ["github.com/StevenACoffman/anarch-lint/internal/arch"]}
   ],
-  "subsystemOrder": ["cli", "presentation", "loading", "vcs", "ownership", "balance", "connascence", "domain"],
+  "subsystemOrder": ["cli", "presentation", "loading", "vcs", "domain-models", "ownership", "fitness", "balance", "connascence", "domain"],
   "layers": [
     {"name": "command", "packages": ["github.com/StevenACoffman/anarch-lint", "github.com/StevenACoffman/anarch-lint/cmd/..."]},
-    {"name": "adapter", "packages": ["github.com/StevenACoffman/anarch-lint/internal/text",
+    {"name": "adapter", "packages": ["github.com/StevenACoffman/anarch-lint/internal/text", "github.com/StevenACoffman/anarch-lint/internal/schema",
       "github.com/StevenACoffman/anarch-lint/internal/gopackages", "github.com/StevenACoffman/anarch-lint/internal/git",
-      "github.com/StevenACoffman/anarch-lint/internal/codeowners"]},
+      "github.com/StevenACoffman/anarch-lint/internal/codeowners", "github.com/StevenACoffman/anarch-lint/internal/modelith"]},
     {"name": "domain", "packages": ["github.com/StevenACoffman/anarch-lint/internal/arch",
       "github.com/StevenACoffman/anarch-lint/internal/connascence",
-      "github.com/StevenACoffman/anarch-lint/internal/balance"]}
+      "github.com/StevenACoffman/anarch-lint/internal/balance",
+      "github.com/StevenACoffman/anarch-lint/internal/fitness"]}
   ],
   "isolations": [
     {"from": "github.com/StevenACoffman/anarch-lint/internal/connascence",
@@ -35,6 +40,12 @@
     {"from": "github.com/StevenACoffman/anarch-lint/internal/balance",
      "mayImport": ["github.com/StevenACoffman/anarch-lint/internal/arch"],
      "reason": "a measure reads arch's facts and knows no adapter and no other measure; only cmd wires them (summary_rules §1, §5)"},
+    {"from": "github.com/StevenACoffman/anarch-lint/internal/fitness",
+     "mayImport": ["github.com/StevenACoffman/anarch-lint/internal/arch"],
+     "reason": "a measure reads arch's facts and knows no adapter and no other measure; only cmd wires them (summary_rules §1, §5)"},
+    {"from": "github.com/StevenACoffman/anarch-lint/internal/modelith",
+     "mayImport": ["github.com/StevenACoffman/anarch-lint/internal/arch"],
+     "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)"},
     {"from": "github.com/StevenACoffman/anarch-lint/internal/codeowners",
      "mayImport": ["github.com/StevenACoffman/anarch-lint/internal/arch"],
      "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)"}
@@ -43,22 +54,46 @@
     {"from": ["github.com/StevenACoffman/anarch-lint/internal/arch"],
      "imports": ["os", "os/...", "time", "math/rand", "math/rand/...", "golang.org/x/...", "github.com/...", "pgregory.net/..."],
      "reason": "the domain is a pure functional core: no I/O, no clock, no randomness, no third-party code (mmi-plan.md §2)"},
-    {"from": ["github.com/StevenACoffman/anarch-lint/internal/connascence", "github.com/StevenACoffman/anarch-lint/internal/balance"],
+    {"from": ["github.com/StevenACoffman/anarch-lint/internal/connascence", "github.com/StevenACoffman/anarch-lint/internal/balance", "github.com/StevenACoffman/anarch-lint/internal/fitness"],
      "imports": ["os", "os/...", "time", "math/rand", "math/rand/...", "golang.org/x/...", "pgregory.net/...",
        "github.com/peterbourgon/...", "github.com/fzipp/..."],
      "reason": "a measure is a pure functional core like the domain: no I/O, no clock, no randomness, no third-party code; the third-party roots are the module's own dependencies (mmi-plan.md §2)"},
     {"from": ["github.com/StevenACoffman/anarch-lint/internal/gopackages"],
-     "imports": ["github.com/StevenACoffman/anarch-lint/internal/git", "github.com/StevenACoffman/anarch-lint/internal/text", "github.com/StevenACoffman/anarch-lint/internal/codeowners"],
+     "imports": ["github.com/StevenACoffman/anarch-lint/internal/git", "github.com/StevenACoffman/anarch-lint/internal/text", "github.com/StevenACoffman/anarch-lint/internal/codeowners", "github.com/StevenACoffman/anarch-lint/internal/modelith"],
      "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)"},
     {"from": ["github.com/StevenACoffman/anarch-lint/internal/git"],
-     "imports": ["github.com/StevenACoffman/anarch-lint/internal/gopackages", "github.com/StevenACoffman/anarch-lint/internal/text", "github.com/StevenACoffman/anarch-lint/internal/codeowners"],
+     "imports": ["github.com/StevenACoffman/anarch-lint/internal/gopackages", "github.com/StevenACoffman/anarch-lint/internal/text", "github.com/StevenACoffman/anarch-lint/internal/codeowners", "github.com/StevenACoffman/anarch-lint/internal/modelith"],
      "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)"},
     {"from": ["github.com/StevenACoffman/anarch-lint/internal/text"],
-     "imports": ["github.com/StevenACoffman/anarch-lint/internal/gopackages", "github.com/StevenACoffman/anarch-lint/internal/git", "github.com/StevenACoffman/anarch-lint/internal/codeowners"],
+     "imports": ["github.com/StevenACoffman/anarch-lint/internal/gopackages", "github.com/StevenACoffman/anarch-lint/internal/git", "github.com/StevenACoffman/anarch-lint/internal/codeowners", "github.com/StevenACoffman/anarch-lint/internal/modelith"],
      "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)"}
   ],
   "connascence": {
     "maxStrength": {"package": 9, "subsystem": 5, "system": 3, "external": 2}
   },
-  "balance": {"gate": true}
+  "balance": {"gate": true},
+  "fitness": {
+    "requireAssigned": true,
+    "layerAccess": [
+      {"name": "pure-domain", "layer": "domain", "mayNotAccessAny": true, "consideringAll": true,
+       "reason": "the domain and the measures depend on nothing but themselves (summary_rules §5)"},
+      {"name": "adapters-to-domain", "layer": "adapter", "mayOnlyAccess": ["domain"],
+       "reason": "an adapter translates for the domain and knows no command (summary_rules §1)"}
+    ],
+    "calls": [
+      {"name": "no-clock-or-os-in-core",
+       "from": ["github.com/StevenACoffman/anarch-lint/internal/arch", "github.com/StevenACoffman/anarch-lint/internal/connascence", "github.com/StevenACoffman/anarch-lint/internal/balance", "github.com/StevenACoffman/anarch-lint/internal/fitness"],
+       "callees": ["time.Now", "time.Since", "os.*", "(*os.File).*", "math/rand.*", "math/rand/v2.*"],
+       "reason": "the functional core reads no clock, does no I/O and draws no random numbers"}
+    ],
+    "dependents": [
+      {"name": "x-tools-only-in-loader", "packages": ["golang.org/x/tools/..."],
+       "onlyFrom": ["github.com/StevenACoffman/anarch-lint/internal/gopackages"],
+       "reason": "go/packages is the loader's dependency (summary_rules §1)"}
+    ],
+    "domains": [
+      {"name": "core-speaks-its-model", "path": "anarch-lint.modelith.yaml", "subsystem": "domain",
+       "reason": "the functional core keeps the vocabulary of its domain model (docs/adr/0005)"}
+    ]
+  }
 }

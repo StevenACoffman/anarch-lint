@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "fitness": {
+    "domains": [
+      {"name": "skillet-model", "path": "skillet.modelith.yaml",
+       "reason": "skillet's code should speak its own domain model (mmi-plan.md §10.0)"}
+    ]
+  }
+}

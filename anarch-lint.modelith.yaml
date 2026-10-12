@@ -1,0 +1,79 @@
+# yaml-language-server: $schema=https://modelith.sh/schema/domain-model/v1.json
+#
+# anarch-lint's own domain model: the concepts of its functional core,
+# internal/arch. anarch.json's fitness.domains rule checks that the code
+# keeps expressing them (docs/adr/0005).
+kind: DomainModel
+version: v1
+glossary:
+  Gate: The comparison of a run's findings and metrics with the `Baseline`.
+enums:
+  Severity:
+    values:
+      - name: error
+      - name: warning
+  Basis:
+    values:
+      - name: fact
+      - name: candidate
+  Provenance:
+    values:
+      - name: human
+      - name: llm
+  RuleGate:
+    values:
+      - name: fail
+      - name: warn
+      - name: "off"
+entities:
+  Input:
+    definition: >
+      Everything one measurement reads: the `Program`, the `Model`, the
+      reviewers' `Verdict`s and the domain models.
+    relationships:
+      - entity: Program
+        cardinality: "1:1"
+        ownership: owned
+      - entity: Model
+        cardinality: "1:1"
+        ownership: owned
+      - entity: Verdict
+        cardinality: "1:n"
+      - entity: DomainModel
+        cardinality: "1:n"
+  Program:
+    definition: >
+      The facts loaded from the Go code: packages, files, types, functions,
+      references and imports, sorted.
+  Model:
+    definition: >
+      The target architecture: subsystems, layers, roles, import rules,
+      thresholds and fitness rules.
+  DomainModel:
+    definition: >
+      The part of a modelith domain model that anarch-lint reads, compared
+      with the code by the fitness rules.
+  Report:
+    definition: >
+      The deterministic result of analyze, with its `Finding`s and its
+      `JudgementSlot`s.
+    relationships:
+      - entity: Finding
+        cardinality: "1:n"
+        ownership: owned
+      - entity: JudgementSlot
+        cardinality: "1:n"
+        ownership: owned
+  Finding:
+    definition: A rule's violation at a location, with its evidence and fix.
+  JudgementSlot:
+    definition: >
+      A criterion only a reviewer can judge, with its evidence and the
+      approved `Verdict` that answers it.
+    relationships:
+      - entity: Verdict
+        cardinality: "1:1"
+  Verdict:
+    definition: A reviewer's answer to a `JudgementSlot`, bound to its evidence.
+  Baseline:
+    definition: The findings and metrics a `Gate` compares a run against.

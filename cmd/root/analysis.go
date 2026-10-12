@@ -36,8 +36,8 @@ const (
 	NoFacts FactsMode = iota
 	// AllFacts loads the facts, for the connascence and balance commands.
 	AllFacts
-	// GatedFacts loads them when the model opts either measure into the
-	// gate, for baseline and check.
+	// GatedFacts loads them when the model opts a measure that reads them
+	// into the gate, for baseline and check.
 	GatedFacts
 )
 
@@ -67,7 +67,11 @@ func (cfg *Config) Load(
 	if err != nil {
 		return arch.Input{}, &arch.Error{Op: op, Err: err}
 	}
-	gated := model.Connascence.Enabled() || model.Balance.Enabled()
+	domains, err := cfg.readDomains(&model)
+	if err != nil {
+		return arch.Input{}, &arch.Error{Op: op, Err: err}
+	}
+	gated := model.Connascence.Enabled() || model.Balance.Enabled() || model.Fitness.Enabled()
 	prog, err := gopackages.Load(ctx, gopackages.Config{
 		Dir: cfg.Dir, Patterns: patterns, Tags: cfg.Tags,
 		Facts: facts == AllFacts || (facts == GatedFacts && gated),
@@ -78,6 +82,7 @@ func (cfg *Config) Load(
 	return arch.Input{
 		Model:    model,
 		Verdicts: verdicts,
+		Domains:  domains,
 		Program:  prog,
 		Inputs: arch.Inputs{
 			Tool:      "anarch-lint " + toolVersion(),
@@ -122,10 +127,7 @@ func (cfg *Config) Write(v any, writeText func(io.Writer) error) error {
 // file does not exist.
 func (cfg *Config) readModel() (arch.Model, error) {
 	const op = "root.Config.readModel"
-	path, required := cfg.ModelPath, true
-	if path == "" {
-		path, required = filepath.Join(cfg.Dir, defaultModel), false
-	}
+	path, required := cfg.ModelFile(), cfg.ModelPath != ""
 	src, err := ReadFile(path)
 	if !required && arch.ErrorCode(err) == arch.ENOTFOUND {
 		return arch.Model{Version: 1}, nil
@@ -138,6 +140,14 @@ func (cfg *Config) readModel() (arch.Model, error) {
 		return arch.Model{}, &arch.Error{Op: op + " " + path, Err: err}
 	}
 	return m, nil
+}
+
+// ModelFile is the model file --model names, or anarch.json in --dir.
+func (cfg *Config) ModelFile() string {
+	if cfg.ModelPath != "" {
+		return cfg.ModelPath
+	}
+	return filepath.Join(cfg.Dir, defaultModel)
 }
 
 // readVerdicts reads the judgements file, if one is named.

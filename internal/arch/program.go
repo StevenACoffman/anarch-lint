@@ -32,6 +32,9 @@ type Input struct {
 	Model    Model
 	Verdicts []Verdict
 	Inputs   Inputs
+	// Domains are the domain models the model's fitness.domains rules name,
+	// in the rules' order.
+	Domains []DomainModel
 }
 
 // Program is everything a loader extracts from the packages under analysis.

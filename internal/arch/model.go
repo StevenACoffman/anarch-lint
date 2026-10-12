@@ -41,6 +41,9 @@ type CCVariant string
 // are forbidden (mmi.md §7.1). The zero Model is valid; every criterion that
 // needs a model then reports itself unmeasured.
 type Model struct {
+	// Schema optionally names the JSON Schema an editor checks the file
+	// against (anarch-lint schema prints it); nothing else reads it.
+	Schema     string      `json:"$schema,omitempty"`
 	Version    int         `json:"version"`
 	Subsystems []Subsystem `json:"subsystems,omitempty"`
 	// Layers are ordered from the top, the layer that may import every other,
@@ -63,6 +66,9 @@ type Model struct {
 	// Balance opts the Balanced Coupling measures into the gate
 	// (connascence.md §9).
 	Balance BalanceSettings `json:"balance,omitzero"`
+	// Fitness declares ArchUnit-style fitness rules, which opt the fitness
+	// findings into the gate.
+	Fitness Fitness `json:"fitness,omitzero"`
 }
 
 // ConnascenceLimits are the strongest connascence and the largest degree
@@ -239,6 +245,12 @@ func (m *Model) validate() error {
 	for _, check := range []func(func(string, ...any) error) error{
 		m.validateNames, m.validateReferences, m.validateGates, m.Thresholds.validate,
 		m.Connascence.validate, m.Balance.validate,
+		func(invalid func(string, ...any) error) error {
+			return m.Fitness.validate(declaredNames{
+				layers:     namesOf(m.Layers, func(l Layer) string { return l.Name }),
+				subsystems: namesOf(m.Subsystems, func(s Subsystem) string { return s.Name }),
+			}, invalid)
+		},
 	} {
 		if err := check(invalid); err != nil {
 			return err

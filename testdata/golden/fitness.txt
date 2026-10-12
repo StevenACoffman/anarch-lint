@@ -1,0 +1,113 @@
+anarch-lint fitness (anarch-lint.fitness.v1)
+patterns ./... · model 431b952e8ede · GOVERSION
+
+RULES
+  rule                  kind             gate  matched  violations  status  reason                                      
+  strictLayers          strictLayers     fail  7        0           passed  none                                        
+  core-from-features    layerAccess      fail  2        0           passed  binaries reach the core through a feature   
+  onion[0]              onion            fail  6        0           passed  none                                        
+  auth-for-billing      dependents       warn  2        2           failed  only billing should know roles              
+  nothing-yet           dependents       fail  0        0           empty   none                                        
+  maybe-later           dependents       fail  0        0           passed  none                                        
+  areas                 slices           fail  5        0           passed  none                                        
+  no-clock-in-features  calls            fail  2        2           failed  inject a clock                              
+  patterns-in-billing   calls            fail  2        1           failed  none                                        
+  web-ports             interfacesOnly   fail  1        4           failed  none                                        
+  requireAssigned       requireAssigned  fail  7        0           passed  none                                        
+  cx-model              domains          fail  7        6           failed  the code speaks the fixture's domain model  
+
+FINDINGS (15 errors, 8 warnings)
+  error    call-restriction  example.com/cx/web  web/admin.go:14
+           example.com/cx/web calls regexp.MustCompile
+           fix: take what the call provides as a parameter, so the caller no longer needs it
+  warning  dependent-restriction  example.com/cx/audit  audit/audit.go:5
+           example.com/cx/audit imports example.com/cx/auth: only example.com/cx/billing may import it: only billing should know roles
+           fix: reach the package through one of the packages the rule allows
+  warning  dependent-restriction  example.com/cx/web  web/admin.go:11
+           example.com/cx/web imports example.com/cx/auth: only example.com/cx/billing may import it: only billing should know roles
+           fix: reach the package through one of the packages the rule allows
+  error    domain-contract-entity  cx.modelith.yaml:Credentials  
+           example.com/cx/auth.Credentials expresses entity Credentials, yet plays the contract role: the code speaks the fixture's domain model
+           fix: keep the entity type in the model and give the contract its own type, or drop the role
+  error    domain-entity-missing  cx.modelith.yaml:Session  
+           domain model cx.modelith.yaml declares entity Session, and no type expresses it: the code speaks the fixture's domain model
+           fix: name a type after the entity, map it in the rule's types, or remove the entity from the model
+  error    domain-enum-drift  cx.modelith.yaml:Level  
+           enum Level and example.com/cx/auth.Level disagree on 1 value: the code speaks the fixture's domain model
+           evidence: in the model only: Top
+           fix: make the model's values and the type's constants the same set
+  error    domain-enum-missing  cx.modelith.yaml:Currency  
+           domain model cx.modelith.yaml declares enum Currency, and no type expresses it: the code speaks the fixture's domain model
+           fix: name a type after the enum, or map it in the rule's types
+  error    domain-relationship-missing  cx.modelith.yaml:Credentials  
+           the model relates Credentials to Role, but example.com/cx/auth.Credentials and example.com/cx/auth.Role never refer to each other: the code speaks the fixture's domain model
+           fix: add the reference the relationship needs, or correct the model
+  error    domain-type-unmapped  cx.modelith.yaml:Ledger  
+           cx-model maps Ledger to example.com/cx/billing.Ledger, which is no type of the program: the code speaks the fixture's domain model
+           fix: correct the type ID, or remove the mapping if the concept has no type yet
+  error    empty-selector  forbiddenImports[0]  
+           the imports of forbiddenImports[0] match nothing, so the rule checks nothing
+           fix: correct the patterns, or remove the rule
+  error    empty-selector  nothing-yet  
+           fitness rule nothing-yet (dependents) matches nothing
+           fix: correct the rule's patterns, or set optional if it may match nothing
+  error    forbidden-call  example.com/cx/billing.Due  billing/invoice.go:71
+           example.com/cx/billing.Due calls time.Parse: inject a clock
+           fix: take what the call provides as a parameter, so the caller no longer needs it
+  error    forbidden-call  example.com/cx/web.Due  web/admin.go:42
+           example.com/cx/web.Due calls time.Parse: inject a clock
+           fix: take what the call provides as a parameter, so the caller no longer needs it
+  error    interfaces-only  example.com/cx/web.Admin  web/admin.go:17
+           example.com/cx/web.Admin uses example.com/cx/auth.Role, a defined type, where only interfaces are allowed
+           fix: depend on an interface the package exports, or declare one where it is used
+  error    interfaces-only  example.com/cx/web.Allowed  web/admin.go:20
+           example.com/cx/web.Allowed uses example.com/cx/auth.Role, a defined type, where only interfaces are allowed
+           fix: depend on an interface the package exports, or declare one where it is used
+  error    interfaces-only  example.com/cx/web.Peek  web/admin.go:26
+           example.com/cx/web.Peek uses example.com/cx/auth.Secret, a struct, where only interfaces are allowed
+           fix: depend on an interface the package exports, or declare one where it is used
+  error    interfaces-only  example.com/cx/web.Steal  web/admin.go:36
+           example.com/cx/web.Steal uses example.com/cx/auth.Role, a defined type, where only interfaces are allowed
+           fix: depend on an interface the package exports, or declare one where it is used
+  warning  rule-without-reason  areas  
+           fitness rule areas (slices) gives no reason
+           fix: add a reason saying what the rule protects and why
+  warning  rule-without-reason  maybe-later  
+           fitness rule maybe-later (dependents) gives no reason
+           fix: add a reason saying what the rule protects and why
+  warning  rule-without-reason  nothing-yet  
+           fitness rule nothing-yet (dependents) gives no reason
+           fix: add a reason saying what the rule protects and why
+  warning  rule-without-reason  onion[0]  
+           fitness rule onion[0] (onion) gives no reason
+           fix: add a reason saying what the rule protects and why
+  warning  rule-without-reason  patterns-in-billing  
+           fitness rule patterns-in-billing (calls) gives no reason
+           fix: add a reason saying what the rule protects and why
+  warning  rule-without-reason  web-ports  
+           fitness rule web-ports (interfacesOnly) gives no reason
+           fix: add a reason saying what the rule protects and why
+
+LAKOS
+  level       nodes  CCD  ACD    RACD   NCCD   
+  types       8      9    1.125  0.141  0.429  
+  packages    7      14   2.000  0.286  0.824  
+  subsystems  5      8    1.600  0.320  0.727  
+
+VISIBILITY (Dowalil)  ARV 0.714  GRV 0.941
+
+COMPONENT DEPENDENCY METRICS (ArchUnit's definitions)
+  package                    Ca  Ce  I      A      D      
+  example.com/cx/audit       0   1   1.000  0.000  0.000  
+  example.com/cx/auth        3   0   0.000  0.000  1.000  
+  example.com/cx/billing     1   1   0.500  0.000  0.500  
+  example.com/cx/cmd/client  0   1   1.000  0.000  0.000  
+  example.com/cx/cmd/server  0   1   1.000  0.000  0.000  
+  example.com/cx/state       0   0   1.000  0.000  0.000  
+  example.com/cx/web         1   1   0.500  0.000  0.500  
+
+CYCLES (types: 0)
+
+CYCLES (subsystems: 0)
+
+ASSUMPTIONS: 7, listed in the JSON report (--format=json)

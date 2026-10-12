@@ -154,3 +154,53 @@ func TestConformanceAndFloors(t *testing.T) {
 		g.Shortfalls,
 	)
 }
+
+func TestShrink(t *testing.T) {
+	t.Parallel()
+	b := arch.Baseline{
+		Schema: arch.BaselineSchema, ModelHash: "m",
+		Findings: []arch.BaselineFinding{{Fingerprint: "kept"}, {Fingerprint: "fixed"}},
+		Metrics: []arch.Metric{
+			{Name: "cycles", Value: 4},
+			{Name: "mmi.low", Value: 5, HigherIsBetter: true},
+			{Name: "sdi", Value: 3},
+		},
+	}
+	in := arch.GateInput{
+		ModelHash: "m",
+		Findings:  []arch.Finding{{Fingerprint: "kept"}, {Fingerprint: "new"}},
+		Metrics: []arch.Metric{
+			{Name: "cycles", Value: 2},
+			{Name: "mmi.low", Value: 4, HigherIsBetter: true},
+			{Name: "sdi", Value: 3},
+			{Name: "brand.new", Value: 1},
+		},
+	}
+	got := arch.Shrink(&b, &in)
+	equals(
+		t,
+		[]arch.BaselineFinding{{Fingerprint: "kept"}},
+		got.Findings,
+	) // nothing new is accepted
+	equals(t, []arch.Metric{
+		{Name: "cycles", Value: 2},                        // improved
+		{Name: "mmi.low", Value: 5, HigherIsBetter: true}, // worse: keeps the baseline's
+		{Name: "sdi", Value: 3},
+	}, got.Metrics)
+
+	other := in
+	other.ModelHash = "another"
+	equals(t, b.Findings, arch.Shrink(&b, &other).Findings)
+}
+
+func TestGateReportsImprovements(t *testing.T) {
+	t.Parallel()
+	b := arch.Baseline{ModelHash: "m", Metrics: []arch.Metric{{Name: "cycles", Value: 4}}}
+	g := arch.Gate(
+		&arch.GateInput{ModelHash: "m", Metrics: []arch.Metric{{Name: "cycles", Value: 1}}},
+		&b,
+		nil,
+	)
+	equals(t, true, g.Passed)
+	equals(t, []arch.Regression{{Metric: "cycles", Baseline: 4, Current: 1}}, g.Improved)
+}

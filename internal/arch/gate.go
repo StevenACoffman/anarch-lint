@@ -88,6 +88,9 @@ type GateResult struct {
 	// Fixed are baseline findings the report no longer has.
 	Fixed       []BaselineFinding `json:"fixed"`
 	Regressions []Regression      `json:"regressions"`
+	// Improved are metrics better than their baseline values. With Fixed,
+	// they say the baseline can shrink, which never fails the gate.
+	Improved []Regression `json:"improved"`
 	// Shortfalls are the model's coverage and compliance floors the report
 	// falls below; any one fails the gate, whatever the baseline says.
 	Shortfalls []Shortfall `json:"shortfalls"`
@@ -185,7 +188,7 @@ func Gate(r *GateInput, b *Baseline, opts *GateOptions) GateResult {
 		return g
 	}
 	g.compare(r, b, opts)
-	g.Regressions = regressions(b.Metrics, r.Metrics)
+	g.Regressions, g.Improved = metricChanges(b.Metrics, r.Metrics)
 	g.Shortfalls = r.Conformance.shortfalls()
 	g.decide()
 	return g
@@ -234,6 +237,7 @@ func newGateResult(r *GateInput, b *Baseline, opts *GateOptions) GateResult {
 		UnusedWaivers:  make([]Waiver, 0),
 		Fixed:          make([]BaselineFinding, 0),
 		Regressions:    make([]Regression, 0),
+		Improved:       make([]Regression, 0),
 		Shortfalls:     make([]Shortfall, 0),
 	}
 }
@@ -283,27 +287,29 @@ func gateMetrics(r *Report) []Metric {
 	}
 }
 
-// regressions returns every metric worse now than in the baseline. A metric
-// the baseline does not record is new and cannot regress.
-func regressions(baseline, current []Metric) []Regression {
+// metricChanges returns every metric worse now than in the baseline, and
+// every one better, each sorted by name. A metric the baseline does not
+// record is new and changes neither way.
+func metricChanges(baseline, current []Metric) (worse, better []Regression) {
 	old := map[string]Metric{}
 	for _, m := range baseline {
 		old[m.Name] = m
 	}
-	rs := make([]Regression, 0)
+	worse, better = make([]Regression, 0), make([]Regression, 0)
 	for _, m := range current {
 		b, ok := old[m.Name]
-		if !ok {
+		if !ok || math.Abs(m.Value-b.Value) <= 1e-9 {
 			continue
 		}
-		worse := m.Value > b.Value
-		if m.HigherIsBetter {
-			worse = m.Value < b.Value
-		}
-		if worse && math.Abs(m.Value-b.Value) > 1e-9 {
-			rs = append(rs, Regression{Metric: m.Name, Baseline: b.Value, Current: m.Value})
+		change := Regression{Metric: m.Name, Baseline: b.Value, Current: m.Value}
+		if (m.Value > b.Value) != m.HigherIsBetter {
+			worse = append(worse, change)
+		} else {
+			better = append(better, change)
 		}
 	}
-	slices.SortFunc(rs, func(a, b Regression) int { return cmp.Compare(a.Metric, b.Metric) })
-	return rs
+	byName := func(a, b Regression) int { return cmp.Compare(a.Metric, b.Metric) }
+	slices.SortFunc(worse, byName)
+	slices.SortFunc(better, byName)
+	return worse, better
 }

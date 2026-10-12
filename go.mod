@@ -7,6 +7,7 @@ require (
 	github.com/peterbourgon/ff/v4 v4.0.0-beta.1
 	golang.org/x/tools v0.51.0
 	pgregory.net/rapid v1.3.0
+	sigs.k8s.io/yaml v1.4.0
 )
 
 require (

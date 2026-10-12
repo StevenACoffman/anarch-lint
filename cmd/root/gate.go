@@ -5,18 +5,20 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"path/filepath"
 
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 	"github.com/StevenACoffman/anarch-lint/internal/balance"
 	"github.com/StevenACoffman/anarch-lint/internal/codeowners"
 	"github.com/StevenACoffman/anarch-lint/internal/connascence"
+	"github.com/StevenACoffman/anarch-lint/internal/fitness"
 	"github.com/StevenACoffman/anarch-lint/internal/git"
 )
 
 // GateInput measures everything the gate compares with a baseline: the MMI
-// report always, and the connascence and Balanced Coupling reports when the
-// model opts them in.
+// report always, and the fitness, connascence and Balanced Coupling reports
+// when the model opts them in.
 func (cfg *Config) GateInput(ctx context.Context, patterns []string) (arch.GateInput, error) {
 	const op = "root.Config.GateInput"
 	l, err := cfg.Load(ctx, patterns, GatedFacts)
@@ -25,6 +27,10 @@ func (cfg *Config) GateInput(ctx context.Context, patterns []string) (arch.GateI
 	}
 	report := arch.Analyze(&l)
 	in := report.GateInput()
+	if l.Model.Fitness.Enabled() {
+		fit := fitness.Analyze(&l)
+		fit.AddTo(&in)
+	}
 	if !l.Model.Connascence.Enabled() && !l.Model.Balance.Enabled() {
 		return in, nil
 	}
@@ -99,4 +105,28 @@ func (cfg *Config) readOwners(p *arch.Program) (map[string][]string, string, err
 		return codeowners.Resolve(rules, p), hex.EncodeToString(sum[:]), nil
 	}
 	return nil, "", nil
+}
+
+// ReadBaseline reads the baseline file, which must exist; an empty path
+// means anarch-baseline.json in Dir.
+func (cfg *Config) ReadBaseline(path string) (arch.Baseline, error) {
+	const op = "root.Config.ReadBaseline"
+	if path == "" {
+		path = filepath.Join(cfg.Dir, DefaultBaseline)
+	}
+	src, err := ReadFile(path)
+	if arch.ErrorCode(err) == arch.ENOTFOUND {
+		return arch.Baseline{}, &arch.Error{Op: op, Err: &arch.Error{
+			Code:    arch.ENOTFOUND,
+			Message: fmt.Sprintf("no baseline at %s; run baseline first", path),
+		}}
+	}
+	if err != nil {
+		return arch.Baseline{}, &arch.Error{Op: op, Err: err}
+	}
+	b, err := arch.DecodeBaseline(bytes.NewReader(src))
+	if err != nil {
+		return arch.Baseline{}, &arch.Error{Op: op + " " + path, Err: err}
+	}
+	return b, nil
 }

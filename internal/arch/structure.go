@@ -33,7 +33,7 @@ func subsystemCycleRule(s *subject) []Finding {
 			}
 			steps = append(
 				steps,
-				fmt.Sprintf("%s → %s (%s)", cut.From, cut.To, plural(cut.Weight, "import")),
+				fmt.Sprintf("%s → %s (%s)", cut.From, cut.To, Plural(cut.Weight, "import")),
 			)
 		}
 		f.Fix = "cut " + strings.Join(steps, "; ") + ": move each importing package to the " +
@@ -73,7 +73,7 @@ func typeCycleRule(s *subject, limit int) []Finding {
 				f.Location = SpanAt(r.Pos)
 			}
 			steps = append(steps, fmt.Sprintf("%s → %s (%s, %s:%d)",
-				cut.From, cut.To, plural(cut.Weight, "use"), r.Pos.File, r.Pos.Line))
+				cut.From, cut.To, Plural(cut.Weight, "use"), r.Pos.File, r.Pos.Line))
 		}
 		method := "a minimum"
 		if !exact {
@@ -217,8 +217,8 @@ func variantOf(c Complexity, v CCVariant) int {
 	}
 }
 
-// plural returns "1 import" or "2 imports".
-func plural(n int, noun string) string {
+// Plural returns "1 import" or "2 imports".
+func Plural(n int, noun string) string {
 	if n == 1 {
 		return "1 " + noun
 	}

@@ -1,0 +1,325 @@
+package fitness
+
+import (
+	"fmt"
+	"slices"
+	"strings"
+
+	"github.com/StevenACoffman/anarch-lint/internal/arch"
+)
+
+// Rule names of the fitness findings, one per kind.
+const (
+	ruleLayerAccess   = "layer-access"
+	ruleStrictLayers  = "strict-layers"
+	ruleOnion         = "onion-ring"
+	ruleSliceDep      = "slice-dependency"
+	ruleSliceCycle    = "slice-cycle"
+	ruleDependents    = "dependent-restriction"
+	ruleForbiddenCall = "forbidden-call"
+	ruleCallOnly      = "call-restriction"
+	ruleInterfaces    = "interfaces-only"
+	ruleEmptySelector = "empty-selector"
+	ruleNoReason      = "rule-without-reason"
+	ruleOutside       = "package-outside-architecture"
+)
+
+// constraint is one rule compiled to a predicate over an import: layer
+// access, strict layers, the onion, slices and dependents all become
+// constraints, which one pass over the imports checks.
+type constraint struct {
+	rule *rule
+	// kind is the finding's rule name; fix says how to repair a violation.
+	kind, fix string
+	// anyTarget also checks imports of packages outside the analysis.
+	anyTarget bool
+	// violates returns why importing to from from breaks the rule, or "".
+	violates func(from, to string) string
+}
+
+// end is one end of an import: its layer, and whether it has one.
+type end struct {
+	layer   string
+	layered bool
+}
+
+// ring is a package's place in the onion: 0 for the domain models, 1 domain
+// services, 2 application services, 3 an adapter, named.
+type ring struct {
+	level   int
+	adapter string
+}
+
+// importConstraints compiles every import rule of the model.
+func (s *subject) importConstraints() []constraint {
+	f := &s.m.Fitness
+	var cs []constraint
+	if f.StrictLayers {
+		cs = append(cs, s.strictLayers())
+	}
+	for i := range f.LayerAccess {
+		cs = append(cs, s.layerAccess(&f.LayerAccess[i], i))
+	}
+	if f.Onion.Declared() {
+		cs = append(cs, s.onion(&f.Onion))
+	}
+	for i := range f.Slices {
+		if sl := &f.Slices[i]; sl.NotDependOnEachOther {
+			cs = append(cs, s.sliceIsolation(sl, i))
+		}
+	}
+	for i := range f.Dependents {
+		cs = append(cs, s.dependents(&f.Dependents[i], i))
+	}
+	return cs
+}
+
+// checkImports runs every constraint over every import, in sorted order.
+func (s *subject) checkImports(cs []constraint) {
+	for _, imp := range s.p.Imports {
+		_, inScope := s.g.SubsystemOf[imp.To]
+		for _, c := range cs {
+			if !inScope && !c.anyTarget {
+				continue
+			}
+			why := c.violates(imp.From, imp.To)
+			if why == "" {
+				continue
+			}
+			f := arch.NewFinding(arch.FindingID{
+				Rule: c.kind, Subject: imp.From, Object: c.rule.result.Name + ": " + imp.To,
+			}, arch.SeverityError)
+			f.Location = arch.SpanAt(imp.Pos)
+			f.Message = fmt.Sprintf("%s imports %s: %s", imp.From, imp.To, why)
+			f.Fix = c.fix
+			s.violation(c.rule, &f)
+		}
+	}
+}
+
+// strictLayers lets each layer import only the one directly below it. An
+// import upward is analyze's layer-order violation and is not repeated here.
+func (s *subject) strictLayers() constraint {
+	r := s.addRule("strictLayers", arch.RuleOptions{}, "strictLayers")
+	r.result.Matched = len(s.g.LayerAssignment.Of)
+	index := map[string]int{}
+	for i, l := range s.m.Layers {
+		index[l.Name] = i
+	}
+	return constraint{
+		rule: r, kind: ruleStrictLayers,
+		fix: "import through the layer directly below, or move the code into it",
+		violates: func(from, to string) string {
+			a, okA := s.g.LayerAssignment.Of[from]
+			b, okB := s.g.LayerAssignment.Of[to]
+			if !okA || !okB || index[b] <= index[a]+1 {
+				return ""
+			}
+			return fmt.Sprintf("layer %s may import only layer %s, not %s",
+				a, s.m.Layers[index[a]+1].Name, b)
+		},
+	}
+}
+
+// layerAccess restricts one layer's incoming and outgoing imports.
+func (s *subject) layerAccess(la *arch.LayerAccess, i int) constraint {
+	r := s.addRule("layerAccess", la.RuleOptions, arch.DefaultRuleName(la.Name, "layerAccess", i))
+	for _, l := range s.g.LayerAssignment.Of {
+		if l == la.Layer {
+			r.result.Matched++
+		}
+	}
+	return constraint{
+		rule:     r,
+		kind:     ruleLayerAccess,
+		fix:      "depend through a layer the rule allows, or change the rule if the dependency is intended",
+		violates: func(from, to string) string { return s.layerViolation(la, from, to) },
+	}
+}
+
+// layerViolation says why an import from from to to breaks la, or "". A
+// layer may always use itself.
+func (s *subject) layerViolation(la *arch.LayerAccess, from, to string) string {
+	a, okA := s.g.LayerAssignment.Of[from]
+	b, okB := s.g.LayerAssignment.Of[to]
+	if okA && okB && a == b {
+		return ""
+	}
+	if why := incoming(la, end{a, okA}, end{b, okB}); why != "" {
+		return why
+	}
+	return outgoing(la, end{a, okA}, end{b, okB})
+}
+
+// incoming says why an import into la's layer from from breaks la, or "".
+func incoming(la *arch.LayerAccess, from, to end) string {
+	if !to.layered || to.layer != la.Layer || (!from.layered && !la.ConsideringAll) {
+		return ""
+	}
+	switch {
+	case la.MayNotBeAccessedByAny:
+		return "no layer may import layer " + la.Layer
+	case len(la.MayOnlyBeAccessedBy) > 0 && !slices.Contains(la.MayOnlyBeAccessedBy, from.layer):
+		return fmt.Sprintf(
+			"only %s may import layer %s",
+			strings.Join(la.MayOnlyBeAccessedBy, ", "),
+			la.Layer,
+		)
+	}
+	return ""
+}
+
+// outgoing says why an import from la's layer into to breaks la, or "".
+func outgoing(la *arch.LayerAccess, from, to end) string {
+	if !from.layered || from.layer != la.Layer || (!to.layered && !la.ConsideringAll) {
+		return ""
+	}
+	switch {
+	case la.MayNotAccessAny:
+		return "layer " + la.Layer + " may import no other layer"
+	case len(la.MayOnlyAccess) > 0 && !slices.Contains(la.MayOnlyAccess, to.layer):
+		return fmt.Sprintf(
+			"layer %s may import only %s",
+			la.Layer,
+			strings.Join(la.MayOnlyAccess, ", "),
+		)
+	}
+	return ""
+}
+
+// onion lets each ring import only itself and the rings inside it, and no
+// adapter import another (ArchUnit's onionArchitecture).
+func (s *subject) onion(o *arch.Onion) constraint {
+	r := s.addRule("onion", o.RuleOptions, arch.DefaultRuleName(o.Name, "onion", 0))
+	rings := s.onionRings(o)
+	r.result.Matched = len(rings)
+	names := []string{"domain model", "domain service", "application service", "adapter"}
+	return constraint{
+		rule: r, kind: ruleOnion,
+		fix: "invert the dependency: declare what the inner ring needs as an interface in it, " +
+			"and implement it outside",
+		violates: func(from, to string) string {
+			a, okA := rings[from]
+			b, okB := rings[to]
+			switch {
+			case !okA || !okB:
+				return ""
+			case b.level > a.level:
+				return fmt.Sprintf(
+					"a %s may not import an outer %s",
+					names[a.level],
+					names[b.level],
+				)
+			case a.adapter != "" && b.adapter != "" && a.adapter != b.adapter:
+				return fmt.Sprintf("adapter %s may not import adapter %s", a.adapter, b.adapter)
+			}
+			return ""
+		},
+	}
+}
+
+// onionRings places each in-scope package in the innermost ring that
+// matches it; adapters are tried in name order.
+func (s *subject) onionRings(o *arch.Onion) map[string]ring {
+	type candidate struct {
+		patterns []string
+		ring     ring
+	}
+	candidates := []candidate{
+		{o.DomainModels, ring{level: 0}},
+		{o.DomainServices, ring{level: 1}},
+		{o.ApplicationServices, ring{level: 2}},
+	}
+	for _, name := range sortedKeys(o.Adapters) {
+		candidates = append(candidates, candidate{o.Adapters[name], ring{level: 3, adapter: name}})
+	}
+	out := map[string]ring{}
+	for _, pkg := range s.packagePaths() {
+		for _, c := range candidates {
+			if arch.MatchesAny(c.patterns, pkg) {
+				out[pkg] = c.ring
+				break
+			}
+		}
+	}
+	return out
+}
+
+// sliceIsolation forbids imports between two slices of one pattern.
+func (s *subject) sliceIsolation(sl *arch.Slices, i int) constraint {
+	r := s.sliceRule(sl, i)
+	slice := s.sliceOf(sl.Pattern)
+	return constraint{
+		rule: r, kind: ruleSliceDep,
+		fix: "move what both slices need into a package outside them",
+		violates: func(from, to string) string {
+			a, okA := slice[from]
+			b, okB := slice[to]
+			if !okA || !okB || a == b {
+				return ""
+			}
+			return fmt.Sprintf("slice %s may not depend on slice %s", a, b)
+		},
+	}
+}
+
+// sliceRule returns the one rule record of slices rule i, which both its
+// isolation and its cycle check report to.
+func (s *subject) sliceRule(sl *arch.Slices, i int) *rule {
+	if r, ok := s.slices[i]; ok {
+		return r
+	}
+	r := s.addRule("slices", sl.RuleOptions, arch.DefaultRuleName(sl.Name, "slices", i))
+	r.result.Matched = len(s.sliceOf(sl.Pattern))
+	s.slices[i] = r
+	return r
+}
+
+// sliceOf maps each in-scope package the pattern matches to its slice: the
+// pattern's captures, joined with "/".
+func (s *subject) sliceOf(pattern string) map[string]string {
+	out := map[string]string{}
+	for _, pkg := range s.packagePaths() {
+		if _, captures, ok := arch.MatchCaptures(pattern, pkg); ok {
+			out[pkg] = strings.Join(captures, "/")
+		}
+	}
+	return out
+}
+
+// dependents lets only the packages a rule names import its packages, which
+// may lie outside the analysis, such as database/sql.
+func (s *subject) dependents(d *arch.Dependents, i int) constraint {
+	r := s.addRule("dependents", d.RuleOptions, arch.DefaultRuleName(d.Name, "dependents", i))
+	targets := map[string]bool{}
+	for _, imp := range s.p.Imports {
+		if arch.MatchesAny(d.Packages, imp.To) {
+			targets[imp.To] = true
+		}
+	}
+	r.result.Matched = len(targets) + s.matchingPackages(d.Packages)
+	return constraint{
+		rule: r, kind: ruleDependents, anyTarget: true,
+		fix: "reach the package through one of the packages the rule allows",
+		violates: func(from, to string) string {
+			if !arch.MatchesAny(d.Packages, to) || arch.MatchesAny(d.Packages, from) ||
+				arch.MatchesAny(d.OnlyFrom, from) {
+				return ""
+			}
+			if len(d.OnlyFrom) == 0 {
+				return "nothing outside it may import it"
+			}
+			return "only " + strings.Join(d.OnlyFrom, ", ") + " may import it"
+		},
+	}
+}
+
+// sortedKeys returns a map's keys, sorted.
+func sortedKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	return keys
+}

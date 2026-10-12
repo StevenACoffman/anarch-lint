@@ -48,21 +48,8 @@ func excludedValue(v string) bool {
 // exemptCallee reports a callee whose constant arguments are messages or
 // formats rather than shared values: fmt, errors, log and testing.
 func exemptCallee(callee string) bool {
-	pkg := packageOfFullName(callee)
+	pkg := arch.FuncPackage(callee)
 	return pkg == "fmt" || pkg == "errors" || pkg == "log" || pkg == "log/slog" || pkg == "testing"
-}
-
-// packageOfFullName returns the package of a types.Func full name:
-// "strings.Split", "(*net/http.ServeMux).Handle", "(time.Time).Format".
-func packageOfFullName(name string) string {
-	name = strings.TrimPrefix(strings.TrimPrefix(name, "("), "*")
-	if i := strings.Index(name, ")"); i >= 0 {
-		name = name[:i]
-	}
-	if i := strings.LastIndex(name, "."); i > strings.LastIndex(name, "/") {
-		return name[:i]
-	}
-	return name
 }
 
 // lastName returns the part of an ID after its last dot.

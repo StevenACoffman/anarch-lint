@@ -92,6 +92,8 @@ type subject struct {
 	roles map[string]string
 	types map[string]*arch.Type
 	slots *slotBook
+	// domains holds the domain models by the subsystem each describes.
+	domains *domainIndex
 }
 
 // Analyze measures the Balanced Coupling of in's program under its model. It
@@ -129,7 +131,7 @@ func Analyze(in *Input) Report {
 	r.Findings = append(r.Findings, ownerFindings...)
 	r.Findings = append(r.Findings, view.exposureFindings(r.Packages)...)
 	r.Candidates = append(r.Candidates, s.churnCandidates(r.Subsystems)...)
-	(&judge{p: s.p, slots: s.slots, severity: s.severity()}).apply(&r)
+	(&judge{p: s.p, slots: s.slots, domains: s.domains, severity: s.severity()}).apply(&r)
 	r.Judgements = s.slots.all()
 	arch.SortFindings(r.Findings)
 	sortCandidates(r.Candidates)
@@ -142,14 +144,15 @@ func newSubject(in *Input) *subject {
 	p, m := &in.Program, &in.Model
 	g := arch.BuildGraphs(p, m)
 	s := &subject{
-		in:    in,
-		p:     p,
-		m:     m,
-		g:     g,
-		c:     arch.NewContainers(p, &g),
-		roles: arch.TypeRoles(p, m),
-		types: map[string]*arch.Type{},
-		slots: &slotBook{verdicts: in.Verdicts, byID: map[string]arch.JudgementSlot{}},
+		in:      in,
+		p:       p,
+		m:       m,
+		g:       g,
+		c:       arch.NewContainers(p, &g),
+		roles:   arch.TypeRoles(p, m),
+		types:   map[string]*arch.Type{},
+		slots:   &slotBook{verdicts: in.Verdicts, byID: map[string]arch.JudgementSlot{}},
+		domains: newDomainIndex(m, in.Domains),
 	}
 	for i := range p.Types {
 		s.types[p.Types[i].ID] = &p.Types[i]
@@ -170,6 +173,7 @@ func (s *subject) classifier() *classifier {
 	return &classifier{
 		p: s.p, m: s.m, g: &s.g, c: s.c, roles: s.roles, sigs: sigs, consts: consts,
 		types: s.types, slots: s.slots, connascence: s.in.Connascence, rejected: s.in.Rejected,
+		entities: s.in.EntityTypes(&s.g),
 	}
 }
 

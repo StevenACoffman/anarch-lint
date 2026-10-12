@@ -270,6 +270,19 @@ func WriteGate(w io.Writer, g *arch.GateResult) error {
 	for i := range g.Fixed {
 		_, _ = fmt.Fprintf(tw, "  fixed\t%s\t%s\n", g.Fixed[i].Rule, g.Fixed[i].Subject)
 	}
+	for i := range g.Improved {
+		r := &g.Improved[i]
+		_, _ = fmt.Fprintf(tw, "  improved\t%s\t%g -> %g\n", r.Metric, r.Baseline, r.Current)
+	}
+	if n, m := len(g.Fixed), len(g.Improved); n+m > 0 {
+		_, _ = fmt.Fprintf(
+			tw,
+			"\nthe baseline can shrink: %d fixed findings, %d improved metrics; "+
+				"run baseline --shrink\n",
+			n,
+			m,
+		)
+	}
 	writeWaivers(tw, g)
 	if err := tw.Flush(); err != nil {
 		return &arch.Error{Op: "text.WriteGate", Err: err}

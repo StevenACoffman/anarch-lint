@@ -1,0 +1,7 @@
+{
+  "name": "anarch-lint",
+  "version": "0.1.0",
+  "description": "Author an anarch-lint architecture model (anarch.json) by conversation, and load the declared architecture into a coding session so the agent works within it. Requires the anarch-lint CLI.",
+  "homepage": "https://github.com/StevenACoffman/anarch-lint",
+  "keywords": ["anarch-lint", "architecture", "go", "fitness-functions", "modularity"]
+}

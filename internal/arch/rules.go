@@ -240,7 +240,7 @@ func isolationRule(s *subject) []Finding {
 	for _, imp := range s.inScopeImports() {
 		for j := range s.m.Isolations {
 			iso := &s.m.Isolations[j]
-			_, captures, ok := matchCaptures(iso.From, imp.From)
+			_, captures, ok := MatchCaptures(iso.From, imp.From)
 			if !ok || isolationAllows(iso, captures, imp.To) {
 				continue
 			}
