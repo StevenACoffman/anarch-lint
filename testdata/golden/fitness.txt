@@ -16,59 +16,81 @@ RULES
   requireAssigned       requireAssigned  fail  7        0           passed  none                                        
   cx-model              domains          fail  7        6           failed  the code speaks the fixture's domain model  
 
-FINDINGS (15 errors, 8 warnings)
+FINDINGS (15 errors, 9 warnings)
   error    call-restriction  example.com/cx/web  web/admin.go:14
            example.com/cx/web calls regexp.MustCompile
+           model rule: fitness.calls patterns-in-billing
            fix: take what the call provides as a parameter, so the caller no longer needs it
   warning  dependent-restriction  example.com/cx/audit  audit/audit.go:5
            example.com/cx/audit imports example.com/cx/auth: only example.com/cx/billing may import it: only billing should know roles
+           model rule: fitness.dependents auth-for-billing
            fix: reach the package through one of the packages the rule allows
   warning  dependent-restriction  example.com/cx/web  web/admin.go:11
            example.com/cx/web imports example.com/cx/auth: only example.com/cx/billing may import it: only billing should know roles
+           model rule: fitness.dependents auth-for-billing
            fix: reach the package through one of the packages the rule allows
   error    domain-contract-entity  cx.modelith.yaml:Credentials  
            example.com/cx/auth.Credentials expresses entity Credentials, yet plays the contract role: the code speaks the fixture's domain model
+           model rule: fitness.domains cx-model
            fix: keep the entity type in the model and give the contract its own type, or drop the role
   error    domain-entity-missing  cx.modelith.yaml:Session  
            domain model cx.modelith.yaml declares entity Session, and no type expresses it: the code speaks the fixture's domain model
+           model rule: fitness.domains cx-model
            fix: name a type after the entity, map it in the rule's types, or remove the entity from the model
   error    domain-enum-drift  cx.modelith.yaml:Level  
            enum Level and example.com/cx/auth.Level disagree on 1 value: the code speaks the fixture's domain model
+           model rule: fitness.domains cx-model
            evidence: in the model only: Top
            fix: make the model's values and the type's constants the same set
   error    domain-enum-missing  cx.modelith.yaml:Currency  
            domain model cx.modelith.yaml declares enum Currency, and no type expresses it: the code speaks the fixture's domain model
+           model rule: fitness.domains cx-model
            fix: name a type after the enum, or map it in the rule's types
   error    domain-relationship-missing  cx.modelith.yaml:Credentials  
            the model relates Credentials to Role, but example.com/cx/auth.Credentials and example.com/cx/auth.Role never refer to each other: the code speaks the fixture's domain model
+           model rule: fitness.domains cx-model
            fix: add the reference the relationship needs, or correct the model
   error    domain-type-unmapped  cx.modelith.yaml:Ledger  
            cx-model maps Ledger to example.com/cx/billing.Ledger, which is no type of the program: the code speaks the fixture's domain model
+           model rule: fitness.domains cx-model
            fix: correct the type ID, or remove the mapping if the concept has no type yet
   error    empty-selector  forbiddenImports[0]  
            the imports of forbiddenImports[0] match nothing, so the rule checks nothing
+           model rule: forbiddenImports[0]
            fix: correct the patterns, or remove the rule
   error    empty-selector  nothing-yet  
            fitness rule nothing-yet (dependents) matches nothing
+           model rule: fitness.dependents nothing-yet
            fix: correct the rule's patterns, or set optional if it may match nothing
   error    forbidden-call  example.com/cx/billing.Due  billing/invoice.go:71
            example.com/cx/billing.Due calls time.Parse: inject a clock
+           model rule: fitness.calls no-clock-in-features
            fix: take what the call provides as a parameter, so the caller no longer needs it
   error    forbidden-call  example.com/cx/web.Due  web/admin.go:42
            example.com/cx/web.Due calls time.Parse: inject a clock
+           model rule: fitness.calls no-clock-in-features
            fix: take what the call provides as a parameter, so the caller no longer needs it
   error    interfaces-only  example.com/cx/web.Admin  web/admin.go:17
            example.com/cx/web.Admin uses example.com/cx/auth.Role, a defined type, where only interfaces are allowed
+           model rule: fitness.interfacesOnly web-ports
            fix: depend on an interface the package exports, or declare one where it is used
   error    interfaces-only  example.com/cx/web.Allowed  web/admin.go:20
            example.com/cx/web.Allowed uses example.com/cx/auth.Role, a defined type, where only interfaces are allowed
+           model rule: fitness.interfacesOnly web-ports
            fix: depend on an interface the package exports, or declare one where it is used
   error    interfaces-only  example.com/cx/web.Peek  web/admin.go:26
            example.com/cx/web.Peek uses example.com/cx/auth.Secret, a struct, where only interfaces are allowed
+           model rule: fitness.interfacesOnly web-ports
            fix: depend on an interface the package exports, or declare one where it is used
   error    interfaces-only  example.com/cx/web.Steal  web/admin.go:36
            example.com/cx/web.Steal uses example.com/cx/auth.Role, a defined type, where only interfaces are allowed
+           model rule: fitness.interfacesOnly web-ports
            fix: depend on an interface the package exports, or declare one where it is used
+  warning  redundant-rule  core-from-features  
+           every import core-from-features forbids, strictLayers forbids too
+           model rule: fitness.layerAccess core-from-features
+           evidence: for example example.com/cx/cmd/client → example.com/cx/auth
+           fix: remove core-from-features, or keep it and narrow strictLayers if core-from-features states the intent
   warning  rule-without-reason  areas  
            fitness rule areas (slices) gives no reason
            fix: add a reason saying what the rule protects and why
@@ -110,4 +132,4 @@ CYCLES (types: 0)
 
 CYCLES (subsystems: 0)
 
-ASSUMPTIONS: 7, listed in the JSON report (--format=json)
+ASSUMPTIONS: 8, listed in the JSON report (--format=json)

@@ -105,16 +105,27 @@ func TestFactsOverTheLimitAreFindings(t *testing.T) {
 	}
 }
 
+// eventsOf attests a verdict: by a human when approved, and otherwise only
+// by a judge, whose verdict is a draft.
+func eventsOf(approved bool) []arch.VerificationEvent {
+	if approved {
+		return []arch.VerificationEvent{{Role: arch.RoleHuman}}
+	}
+	return []arch.VerificationEvent{{Role: arch.RoleJudge, Config: "model-v1"}}
+}
+
 func TestCandidateVerdicts(t *testing.T) {
 	t.Parallel()
 	pending := analyze(model(true))
 	equals(t, 1, len(pending.Judgements))
 	slot := pending.Judgements[0]
-	equals(t, []string{"confirmed", "rejected"}, slot.Answers)
+	equals(t, []string{"confirmed", "rejected", arch.AnswerInsufficient}, slot.Answers)
 	verdict := func(answer string, approved bool, hash string) arch.Verdict {
 		return arch.Verdict{
-			Criterion: slot.Criterion, Answer: answer, Provenance: arch.ProvenanceLLM,
-			EvidenceHash: hash, Approved: approved,
+			Criterion:    slot.Criterion,
+			Answer:       answer,
+			EvidenceHash: hash,
+			Events:       eventsOf(approved),
 		}
 	}
 	cases := map[string]struct {
@@ -146,6 +157,12 @@ func TestCandidateVerdicts(t *testing.T) {
 			findings:   1,
 			candidates: 1,
 			status:     arch.SlotUnapproved,
+		},
+		"insufficient evidence": {
+			verdict:    verdict(arch.AnswerInsufficient, true, slot.EvidenceHash),
+			findings:   1,
+			candidates: 1,
+			status:     arch.SlotUnresolved,
 		},
 		"stale confirmed": {
 			verdict:    verdict("confirmed", true, "old"),
@@ -189,4 +206,79 @@ func TestAnalyzeIgnoresInputOrder(t *testing.T) {
 	a := connascence.Analyze(&arch.Input{Program: *p, Model: *model(true)})
 	b := connascence.Analyze(&arch.Input{Program: *reversed, Model: *model(true)})
 	equals(t, a, b)
+}
+
+// Two constants of a predeclared type, such as uint64, with one value are not
+// an enum collision: the type belongs to no package, so to no program.
+func TestPredeclaredTypesAreNoEnum(t *testing.T) {
+	t.Parallel()
+	p := program()
+	for _, name := range []string{"a", "b"} {
+		p.Facts.Constants = append(p.Facts.Constants, arch.Constant{
+			ID: "fx/billing/invoice." + name, Type: "uint64", Value: "7",
+			Site: arch.Site{Package: "fx/billing/invoice"},
+		})
+	}
+	r := connascence.Analyze(&arch.Input{Program: *p, Model: *model(true)})
+	for i := range r.Instances {
+		if r.Instances[i].Detector == "contranascence.enum-collision" &&
+			r.Instances[i].Object == "uint64" {
+			t.Fatalf("predeclared type reported as an enum: %+v", r.Instances[i])
+		}
+	}
+}
+
+// A run of code dupl finds in two packages is a partial clone, a candidate
+// of connascence of algorithm; copies that are whole functions of one body
+// shape are left to the whole-body clone detector, and copies within one
+// package are not between packages at all.
+func TestPartialClones(t *testing.T) {
+	t.Parallel()
+	span := func(file string, start, end int) arch.Span {
+		return arch.Span{File: file, Start: start, End: end}
+	}
+	cases := map[string]struct {
+		group arch.CloneGroup
+		want  []string
+	}{
+		"within functions, across packages": {
+			group: arch.CloneGroup{
+				Fragments: []arch.Span{span("auth/a.go", 12, 30), span("web/w.go", 5, 23)},
+			},
+			want: []string{"m/auth.A", "m/web.W"},
+		},
+		"whole bodies of one shape": {
+			group: arch.CloneGroup{
+				Fragments: []arch.Span{span("auth/a.go", 10, 40), span("web/w.go", 1, 30)},
+			},
+		},
+		"within one package": {
+			group: arch.CloneGroup{
+				Fragments: []arch.Span{span("auth/a.go", 12, 20), span("auth/a.go", 22, 30)},
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			p := program()
+			p.Packages[0].Files = []string{"auth/a.go"}
+			p.Packages[2].Files = []string{"web/w.go"}
+			p.Funcs = []arch.Func{
+				{ID: "m/auth.A", Package: "m/auth", Span: span("auth/a.go", 10, 40), BodyHash: "h"},
+				{ID: "m/web.W", Package: "m/web", Span: span("web/w.go", 1, 30), BodyHash: "h"},
+			}
+			p.Facts.Clones = []arch.CloneGroup{tc.group}
+			var got []string
+			for _, c := range connascence.Instances(p, model(false)) {
+				if c.Detector != "algorithm.partial-clone" {
+					continue
+				}
+				for _, s := range c.Sites {
+					got = append(got, s.Func)
+				}
+			}
+			equals(t, tc.want, got)
+		})
+	}
 }

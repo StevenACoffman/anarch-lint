@@ -25,6 +25,14 @@ func assumptions() []arch.Assumption {
 			Source: "TODO.md, Ideas from ArchUnit: Metrics",
 		},
 		{
+			ID: "verification",
+			Text: "The import rules are compared over classes of packages every rule reads alike, " +
+				"at most 250,000 cells (classes inside × all classes), beyond which the report says " +
+				"they were not verified; isolations are left out, since what they allow depends on " +
+				"each package's captures.",
+			Source: "IMPROVEMENTS.md 1.1 (feelc's verifier)",
+		},
+		{
 			ID: "cycles",
 			Text: "Elementary cycles by Johnson's algorithm, starts and arcs in sorted order, at most " +
 				"100 per graph and 20 imports per edge. Go forbids import cycles between packages, so " +

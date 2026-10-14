@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
+	"github.com/StevenACoffman/anarch-lint/internal/balance"
 	"github.com/StevenACoffman/anarch-lint/internal/text"
 )
 
@@ -131,6 +132,43 @@ func TestWriteGate(t *testing.T) {
 				if strings.Contains(out, absent) {
 					t.Errorf("output has %q\noutput:\n%s", absent, out)
 				}
+			}
+		})
+	}
+}
+
+// The temporal sections appear only with a revision range.
+func TestWriteBalanceTemporal(t *testing.T) {
+	t.Parallel()
+	cases := map[string]struct {
+		since  string
+		wants  []string
+		absent string
+	}{
+		"with a range": {
+			since: "aaaaaaaaaaaa1",
+			wants: []string{
+				"CO-CHANGE (1 pairs", "billing ↔ web", "2 commits shared", "score 0.5",
+				"HOTSPOTS (1;", "m/billing", "1 commit ", "complexity 3",
+			},
+		},
+		"without a range": {absent: "CO-CHANGE"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			r := balance.Report{
+				Inputs:   balance.ReportInputs{Since: tc.since, Head: "bbbbbbbbbbbb2"},
+				CoChange: []balance.CoChange{{A: "billing", B: "web", Shared: 2, Score: 0.5}},
+				Hotspots: []balance.Hotspot{{Package: "m/billing", Commits: 1, Complexity: 3}},
+			}
+			var buf bytes.Buffer
+			if err := text.WriteBalance(&buf, &r); err != nil {
+				t.Fatal(err)
+			}
+			contains(t, buf.String(), tc.wants...)
+			if tc.absent != "" && strings.Contains(buf.String(), tc.absent) {
+				t.Errorf("output has %q without a range:\n%s", tc.absent, buf.String())
 			}
 		})
 	}

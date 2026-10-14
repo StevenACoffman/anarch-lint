@@ -76,7 +76,9 @@ func packageMetricsOf(p *Program, g *Graphs) []PackageMetrics {
 // rankDamping of its rank, shared equally, to the types it depends on; a type
 // that depends on nothing spreads its share over every type. Every product is
 // converted explicitly before it is added, so no platform fuses the operations
-// into an FMA instruction that would round differently.
+// into an FMA instruction that would round differently. gonum's
+// network.PageRank stops at a tolerance and sums in map order, so its last
+// digits can vary between runs and platforms; this one is kept.
 func componentRank(g Graph) []RankedType {
 	n := g.Len()
 	if n == 0 {

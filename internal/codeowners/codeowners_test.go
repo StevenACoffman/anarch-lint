@@ -71,6 +71,5 @@ func TestParseRejectsUnsupportedPattern(t *testing.T) {
 	t.Parallel()
 	_, err := codeowners.Parse(strings.NewReader("ok @a\n[ab].go @b\n"))
 	equals(t, arch.EINVALID, arch.ErrorCode(err))
-	equals(t, `CODEOWNERS line 2: pattern "[ab].go" uses a character CODEOWNERS does not support`,
-		arch.ErrorMessage(err))
+	equals(t, "CODEOWNERS line 2: unexpected character '[' at position 1", arch.ErrorMessage(err))
 }

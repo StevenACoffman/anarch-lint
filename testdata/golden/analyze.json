@@ -16,7 +16,8 @@
       "complexityVariant": "modified",
       "maxTypeCycleGroup": 5,
       "largeFileLines": 800,
-      "maxNesting": 4
+      "maxNesting": 4,
+      "highCognitive": 15
     }
   },
   "sizes": {
@@ -24,6 +25,7 @@
     "types": 15,
     "funcs": 11,
     "generated": 1,
+    "buildExcluded": 1,
     "linesInLargeTypes": 0,
     "linesInLargeFuncs": 0,
     "typesInLargePackages": 0,
@@ -271,6 +273,51 @@
       "rank": 0.022831
     }
   ],
+  "excluded": [
+    {
+      "path": "gen/gen.go",
+      "package": "example.com/fx/gen",
+      "reason": "generated"
+    },
+    {
+      "path": "metrics/legacy.go",
+      "package": "example.com/fx/metrics",
+      "reason": "build-constraints"
+    }
+  ],
+  "communities": {
+    "groups": [
+      {
+        "packages": [
+          "example.com/fx/app",
+          "example.com/fx/roles",
+          "example.com/fx/service"
+        ],
+        "subsystem": "support"
+      },
+      {
+        "packages": [
+          "example.com/fx/billing/invoice",
+          "example.com/fx/billing/tax",
+          "example.com/fx/shop/catalog"
+        ],
+        "subsystem": "billing"
+      },
+      {
+        "packages": [
+          "example.com/fx/gen"
+        ],
+        "subsystem": "support"
+      },
+      {
+        "packages": [
+          "example.com/fx/metrics"
+        ],
+        "subsystem": "support"
+      }
+    ],
+    "misplaced": []
+  },
   "conformance": {
     "coverage": 100,
     "rules": 3,
@@ -500,6 +547,7 @@
     {
       "criterion": "1.1.5",
       "question": "Does each subsystem, layer, package and type have one clear responsibility, and does its name describe it?",
+      "edition": "74fd815348e470aec04f144084efca6cfb5509c71c5b4c1dfcaf23c8d39ebedf",
       "evidence": [
         "coupling: example.com/fx/billing/tax imports 1 packages of other subsystems and 0 of its own",
         "coupling: example.com/fx/shop/catalog imports 1 packages of other subsystems and 0 of its own",
@@ -507,47 +555,56 @@
         "lcom4: example.com/fx/shop/catalog.Item has 2 independent groups of methods and fields",
         "balance: largest package example.com/fx/metrics has 45 of 84 lines; smallest example.com/fx/gen has 1"
       ],
-      "evidenceHash": "2b15a3f4de13d72edfef185d3379e8e0c2e8b7b90decfccd3d4ee4c1cb3b4124",
+      "undecided": "the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers",
+      "evidenceHash": "d319728f8cbf8ef93533998ab0c36615fdcd46915991cde76b30dac0eb0f27d5",
       "status": "pending"
     },
     {
       "criterion": "1.1.6",
       "question": "Do the packages map the technical layers and the subsystems (domain modules) of the target architecture, and is that the right mapping?",
+      "edition": "7006f2a1eb43deb9f0b9bf0aed536454f01658e2f7caa9426f933812c7358f60",
       "evidence": [
         "subsystems: 3 declared; 0 packages unassigned, 0 ambiguous",
         "layers: 2 declared; 0 packages unassigned, 0 ambiguous"
       ],
-      "evidenceHash": "709ec3e189ad22779207b81fccc52e0c9a58d59b0231bcb013c1f985e41d02d0",
+      "undecided": "the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers",
+      "evidenceHash": "94e9310e1b3d496aaaaa4f8956bf4367f5e10cc1c4d5b8b1de5bbdb23d79cf30",
       "status": "pending"
     },
     {
       "criterion": "1.2.2",
       "question": "Is each subsystem's internal interface mapped through packages that other subsystems can see and use?",
+      "edition": "e0a61ede6c6826d254695fbefcd650405b7f6ffb3a8c11447eb6a459138f335e",
       "evidence": [
         "subsystems: 3 declared",
         "interface-bypass: example.com/fx/billing/tax imports example.com/fx/shop/catalog, which is not an interface package of subsystem shop",
         "subsystem-without-interface: subsystem shop declares no interface package",
         "subsystem-without-interface: subsystem support declares no interface package"
       ],
-      "evidenceHash": "bdd3b492d9bf87528359145f5b828bb0bbcfed2cf2571a50f0a7e871ddba0bf8",
+      "undecided": "the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers",
+      "evidenceHash": "5478caa264ed4ca53d3fc8669c0d8726c7518de17f3f8816e45cbcdaaacdbae6",
       "status": "pending"
     },
     {
       "criterion": "3.3",
       "question": "Are the patterns mapped explicitly, through type names, embedding or directives, rather than left for readers to infer?",
+      "edition": "bbead25ebeef94e198483de8643e7bd9d244d20147ec2674d9edba2194bc0930",
       "evidence": [
         "roles: 4 declared; of 15 types, 1 have a role by directive, 1 by embedding a marker, 1 by implementing an interface, 2 by name suffix, 0 only by package, 10 none"
       ],
-      "evidenceHash": "98ed7328752ccd9c6bcc7363398c66bcfd7de9ef35bbfbe33cce4a8a53486d24",
+      "undecided": "the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers",
+      "evidenceHash": "f32934a12423886b2ef2ff7072be654848854be2c973e3068ddeabb5f0df128c",
       "status": "pending"
     },
     {
       "criterion": "3.4",
       "question": "Are domain and technical code separated, as DDD, Quasar or hexagonal architecture separate them?",
+      "edition": "348152ace82b1819ad5a8597e50d1edbc8c739db41f76e7406dd2a32ce35d56e",
       "evidence": [
         "forbidden-import rules: 0 declared"
       ],
-      "evidenceHash": "e8fc77dbb3638bb331012a5ec6d95999d477ff1692df1b3945c82da89adeb826",
+      "undecided": "the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers",
+      "evidenceHash": "7a4dc8376697760778795906160012a919378ee5ff12aa1a15c3fb9b851101a7",
       "status": "pending"
     }
   ],
@@ -578,7 +635,8 @@
         "end": 4
       },
       "message": "example.com/fx/billing/tax imports example.com/fx/shop/catalog, which is not an interface package of subsystem shop",
-      "fix": "subsystem shop declares no interface: declare the packages others may import, such as example.com/fx/shop/catalog, as its interface in the model"
+      "fix": "subsystem shop declares no interface: declare the packages others may import, such as example.com/fx/shop/catalog, as its interface in the model",
+      "modelRule": "interfaces"
     },
     {
       "fingerprint": "bf6951f47d4496ed",
@@ -593,7 +651,8 @@
         "end": 8
       },
       "message": "example.com/fx/billing/invoice.Line (entity) refers to example.com/fx/billing/invoice.Invoice (aggregate), against the role order",
-      "fix": "invert the reference through an interface owned by the entity role, or give one of the types a role that fits"
+      "fix": "invert the reference through an interface owned by the entity role, or give one of the types a role that fits",
+      "modelRule": "roles"
     },
     {
       "fingerprint": "c94349457bf8e9fd",
@@ -653,6 +712,11 @@
       "source": "mmi.md §7.3"
     },
     {
+      "id": "cognitive",
+      "text": "Cognitive complexity is github.com/uudashr/gocognit's SonarSource count; a function above 15 is a cognitive-complexity warning.",
+      "source": "SonarSource, Cognitive Complexity (2017)"
+    },
+    {
       "id": "complexity-variant",
       "text": "Criterion 1.3.4 uses the modified cyclomatic complexity, above 15.",
       "source": "mmi.md §7.3; von Zitzewitz"
@@ -666,6 +730,11 @@
       "id": "denominators",
       "text": "1.2.1, 2.1.1, 2.1.2 and 3.2 divide violating imports or references by all candidates between different groups; the chapter gives no denominators.",
       "source": "mmi.md §7.2"
+    },
+    {
+      "id": "communities",
+      "text": "Communities are gonum's Louvain communities (resolution 1, a fixed seed) of the package graph taken as undirected, an edge weighing the imports either way, each split into its connected parts. A package of a subsystem with other packages is misplaced when another subsystem holds more of its community than its own. They are advice and never gate.",
+      "source": "IMPROVEMENTS.md 9.3; codetospec internal/communities"
     },
     {
       "id": "largest-cycle",

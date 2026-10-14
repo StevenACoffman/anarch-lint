@@ -41,8 +41,12 @@ func (j *judge) apply(r *Report) {
 // judgePair reports tight coupling, and a model leaked between bounded
 // contexts.
 func (j *judge) judgePair(r *Report, p *Pair) {
-	if p.Quadrant == QuadrantTightCoupling &&
-		p.Volatility != subdomainSupporting && p.Volatility != subdomainGeneric {
+	lowVolatility := p.Volatility == subdomainSupporting || p.Volatility == subdomainGeneric
+	switch {
+	case p.Quadrant == QuadrantTightCoupling && lowVolatility:
+		r.Suppressed = append(r.Suppressed,
+			j.slots.suppression("subdomain/"+p.To, ruleTightCoupling+p.Level.String(), p))
+	case p.Quadrant == QuadrantTightCoupling:
 		j.gateable(r, p, &Candidate{
 			Rule:    ruleTightCoupling + p.Level.String(),
 			Subject: p.From,
@@ -53,7 +57,13 @@ func (j *judge) judgePair(r *Report, p *Pair) {
 			Fix: tightFix(p.Level),
 		})
 	}
-	if p.Level == LevelModel && j.bothBoundedContexts(p) && !j.sharesModelOnPurpose(p) {
+	if p.Level != LevelModel || !j.bothBoundedContexts(p) {
+		return
+	}
+	if j.sharesModelOnPurpose(p) {
+		r.Suppressed = append(r.Suppressed,
+			j.slots.suppression("integration-pattern/"+p.From+"->"+p.To, ruleLeakedModel, p))
+	} else {
 		j.gateable(r, p, &Candidate{
 			Rule:    ruleLeakedModel,
 			Subject: p.From,
@@ -74,7 +84,15 @@ func (j *judge) gateable(r *Report, p *Pair, c *Candidate) {
 		r.Findings = append(r.Findings, j.finding(&cand))
 		return
 	}
-	switch j.slots.ask("balance/"+cand.Fingerprint, cand.Evidence) {
+	// The judge sees the coupling, not the distance, volatility or score
+	// that make it gate.
+	switch j.slots.ask(&arch.SlotRequest{
+		Criterion: "balance/" + cand.Fingerprint,
+		Evidence: append([]string{
+			fmt.Sprintf("%s depends on %s at the %s level", p.From, p.To, p.Level),
+		}, p.Evidence...),
+		Context: append([]string{cand.Rule + ": " + cand.Message}, pairEvidence(p)...),
+	}) {
 	case "confirmed":
 		r.Candidates = append(r.Candidates, cand)
 		r.Findings = append(r.Findings, j.finding(&cand))
@@ -149,7 +167,9 @@ func (j *judge) sharesModelOnPurpose(p *Pair) bool {
 	ev := append([]string{fmt.Sprintf("%s depends on %s at the model level", p.From, p.To)},
 		p.Evidence...)
 	ev = append(ev, j.domains.integrationEvidence(p.From, p.To)...)
-	switch j.slots.ask("integration-pattern/"+p.From+"->"+p.To, ev) {
+	switch j.slots.ask(&arch.SlotRequest{
+		Criterion: "integration-pattern/" + p.From + "->" + p.To, Evidence: ev,
+	}) {
 	case "shared-kernel", "partnership", "conformist":
 		return true
 	default:

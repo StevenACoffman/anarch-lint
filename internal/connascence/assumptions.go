@@ -91,6 +91,13 @@ func detectorAssumptions() []arch.Assumption {
 			Source: "connascence.md §2.5, §9.2",
 		},
 		{
+			ID: "partial-clones",
+			Text: "Partial clones are github.com/golangci/dupl's: runs of statements, each of at " +
+				"least 60 syntax-tree nodes, repeated in two or more packages, found with facts " +
+				"only. Copies that are whole functions of one shape are left to the clones detector.",
+			Source: "connascence.md §2.5; IMPROVEMENTS.md 9.1",
+		},
+		{
 			ID:     "site-cap",
 			Text:   "An instance lists its first 20 sites in sorted order; siteCount gives the total.",
 			Source: "connascence.md §6",

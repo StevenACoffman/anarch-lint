@@ -26,6 +26,7 @@ func detectors() []func(*subject) []arch.Connascence {
 		repeatedLiteralDetector, shadowedConstantDetector, primitiveParamDetector, nilNilDetector,
 		unkeyedLiteralDetector, longParamDetector, sameTypeResultsDetector, constIndexDetector,
 		samePatternDetector, sameLayoutDetector, sameAlgorithmDetector, cloneDetector,
+		partialCloneDetector,
 		guardDetector, lifecycleDetector, unpairedLockDetector,
 		timeCallDetector, equalDurationDetector,
 		foreignSwitchDetector, equalConstantDetector,

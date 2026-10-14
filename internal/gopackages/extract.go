@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/uudashr/gocognit"
 	"golang.org/x/tools/go/packages"
 
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
@@ -60,8 +61,9 @@ func newExtractor(dir string, inScope map[string]bool, facts bool) *extractor {
 // addPackage extracts the facts of one package. readFile returns a source
 // file's bytes, which go/packages does not keep.
 func (x *extractor) addPackage(p *packages.Package, readFile func(string) ([]byte, error)) error {
-	files, generated := sourceFiles(p)
-	pkg := arch.Package{Path: p.PkgPath, Name: p.Name, Generated: generated}
+	files, excluded := sourceFiles(x.dir, p)
+	x.prog.Excluded = append(x.prog.Excluded, excluded...)
+	pkg := arch.Package{Path: p.PkgPath, Name: p.Name}
 	if p.Module != nil {
 		pkg.Module = p.Module.Path
 	}
@@ -110,7 +112,7 @@ func (x *extractor) addImports(fc *fileContext, f *ast.File) {
 		key := [2]string{fc.pkg.PkgPath, to}
 		pos := fc.position(spec.Pos())
 		if imp, ok := x.imports[key]; ok {
-			if comparePositions(pos, imp.Pos) < 0 {
+			if arch.ComparePositions(pos, imp.Pos) < 0 {
 				imp.Pos = pos
 			}
 			continue
@@ -187,6 +189,7 @@ func (x *extractor) addFunc(fc *fileContext, d *ast.FuncDecl) arch.Func {
 		Statements: countStatements(d),
 		Complexity: complexityOf(d),
 		MaxNesting: maxNesting(d),
+		Cognitive:  gocognit.Complexity(d),
 	}
 	owner := typeOwner(fc.pkg.TypesInfo.Defs[d.Name])
 	fn.ID = fc.pkg.PkgPath + "." + d.Name.Name
@@ -212,6 +215,7 @@ func (x *extractor) addFunc(fc *fileContext, d *ast.FuncDecl) arch.Func {
 // identifier inside node refers to, weighted by the identifiers.
 func (x *extractor) addRefs(fc *fileContext, from *types.TypeName, node ast.Node) {
 	fromID := typeID(from)
+	regions, fallback := refRegions(node)
 	ast.Inspect(node, func(n ast.Node) bool {
 		id, ok := n.(*ast.Ident)
 		if !ok {
@@ -227,14 +231,18 @@ func (x *extractor) addRefs(fc *fileContext, from *types.TypeName, node ast.Node
 		}
 		pos := fc.position(id.Pos())
 		key := [2]string{fromID, toID}
-		if r, ok := x.refs[key]; ok {
+		r, ok := x.refs[key]
+		switch {
+		case !ok:
+			r = &arch.Ref{From: fromID, To: toID, Weight: 1, Pos: pos}
+			x.refs[key] = r
+		default:
 			r.Weight++
-			if comparePositions(pos, r.Pos) < 0 {
+			if arch.ComparePositions(pos, r.Pos) < 0 {
 				r.Pos = pos
 			}
-			return true
 		}
-		x.refs[key] = &arch.Ref{From: fromID, To: toID, Weight: 1, Pos: pos}
+		addKind(r, kindAt(regions, fallback, id.Pos()))
 		return true
 	})
 }
@@ -251,12 +259,16 @@ func (x *extractor) program() arch.Program {
 	slices.SortFunc(p.Types, func(a, b arch.Type) int { return cmp.Compare(a.ID, b.ID) })
 	slices.SortFunc(p.Funcs, func(a, b arch.Func) int { return cmp.Compare(a.ID, b.ID) })
 	slices.SortFunc(p.Files, func(a, b arch.File) int { return cmp.Compare(a.Path, b.Path) })
+	p.Excluded = append(make([]arch.ExcludedFile, 0, len(p.Excluded)), p.Excluded...)
+	slices.SortFunc(p.Excluded, func(a, b arch.ExcludedFile) int {
+		return cmp.Or(cmp.Compare(a.Path, b.Path), cmp.Compare(a.Reason, b.Reason))
+	})
 	slices.SortFunc(p.Injections, func(a, b arch.Injection) int {
 		return cmp.Or(
 			cmp.Compare(a.CalleePackage, b.CalleePackage),
 			cmp.Compare(a.Concrete, b.Concrete),
 			cmp.Compare(a.Caller, b.Caller),
-			comparePositions(a.Pos, b.Pos),
+			arch.ComparePositions(a.Pos, b.Pos),
 		)
 	})
 	for _, r := range x.refs {
@@ -363,8 +375,4 @@ func embeddedName(e ast.Expr) string {
 	default:
 		return ""
 	}
-}
-
-func comparePositions(a, b arch.Position) int {
-	return cmp.Or(cmp.Compare(a.File, b.File), cmp.Compare(a.Line, b.Line))
 }

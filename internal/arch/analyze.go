@@ -25,6 +25,11 @@ type Report struct {
 	Packages []PackageMetrics `json:"packages"`
 	// ComponentRank lists the most depended-upon types: read these first.
 	ComponentRank []RankedType `json:"componentRank"`
+	// Excluded lists the source files no measure read, and why.
+	Excluded []ExcludedFile `json:"excluded"`
+	// Communities are the groups the import graph suggests, beside the
+	// declared subsystems; advice that never gates.
+	Communities Communities `json:"communities"`
 	// Conformance holds the model's coverage and the program's compliance.
 	Conformance Conformance `json:"conformance"`
 	MMI         MMI         `json:"mmi"`
@@ -78,7 +83,7 @@ func Analyze(input *Input) Report {
 	inputs.Tags = append(make([]string, 0, len(in.Tags)), in.Tags...)
 	inputs.Patterns = append(make([]string, 0, len(in.Patterns)), in.Patterns...)
 
-	sizes := sizesOf(p, &g, limits)
+	sizes := sizesOf(p, &g, &limits)
 	ordering := g.Ordering()
 	cohesion := CohesionOf(p)
 	results := ruleResults{
@@ -88,7 +93,7 @@ func Analyze(input *Input) Report {
 		roles:          roleRule(s),
 	}
 	forbidden := forbiddenRule(s)
-	findings := collectFindings(s, limits, cohesion, &results, forbidden)
+	findings := collectFindings(s, &limits, cohesion, &results, forbidden)
 
 	slots := judgementSlots(s, &sizes, cohesion, findings, verdicts)
 	criteria := criteriaOf(s, &sizes, &ordering, &results)
@@ -114,17 +119,19 @@ func Analyze(input *Input) Report {
 		Cohesion:      cohesion,
 		Packages:      packageMetricsOf(p, &g),
 		ComponentRank: componentRank(g.Types),
+		Excluded:      append(make([]ExcludedFile, 0, len(p.Excluded)), p.Excluded...),
+		Communities:   communitiesOf(&g.Packages, g.SubsystemAssignment.Of),
 		Conformance:   conformanceOf(s, findings),
 		MMI:           newMMI(criteria),
 		Judgements:    slots,
 		Findings:      findings,
-		Assumptions:   assumptions(limits),
+		Assumptions:   assumptions(&limits),
 	}
 }
 
 // collectFindings runs every rule and returns the findings, sorted.
 func collectFindings(
-	s *subject, limits Thresholds, cohesion []Cohesion, r *ruleResults, forbidden ruleResult,
+	s *subject, limits *Thresholds, cohesion []Cohesion, r *ruleResults, forbidden ruleResult,
 ) []Finding {
 	lcom := map[string]int{}
 	for _, c := range cohesion {
@@ -153,11 +160,20 @@ func judgementSlots(
 	s *subject, z *Sizes, cohesion []Cohesion, findings []Finding, verdicts []Verdict,
 ) []JudgementSlot {
 	return []JudgementSlot{
-		NewSlot("1.1.5", responsibilityEvidence(s, z, cohesion), verdicts),
-		NewSlot("1.1.6", mappingEvidence(s), verdicts),
-		NewSlot("1.2.2", interfaceEvidence(s, findings), verdicts),
-		NewSlot("3.3", roleEvidence(s), verdicts),
-		NewSlot("3.4", separationEvidence(s, findings), verdicts),
+		NewSlot(
+			&SlotRequest{Criterion: "1.1.5", Evidence: responsibilityEvidence(s, z, cohesion)},
+			verdicts,
+		),
+		NewSlot(&SlotRequest{Criterion: "1.1.6", Evidence: mappingEvidence(s)}, verdicts),
+		NewSlot(
+			&SlotRequest{Criterion: "1.2.2", Evidence: interfaceEvidence(s, findings)},
+			verdicts,
+		),
+		NewSlot(&SlotRequest{Criterion: "3.3", Evidence: roleEvidence(s)}, verdicts),
+		NewSlot(
+			&SlotRequest{Criterion: "3.4", Evidence: separationEvidence(s, findings)},
+			verdicts,
+		),
 	}
 }
 
@@ -271,7 +287,12 @@ func (s *subject) couplingOf(pkg string) (inside, outside int) {
 
 // assumptions lists the choices behind the measures, with the thresholds in
 // force.
-func assumptions(t Thresholds) []Assumption {
+func assumptions(t *Thresholds) []Assumption {
+	return append(sizeAssumptions(t), graphAssumptions()...)
+}
+
+// sizeAssumptions lists the choices behind the size and complexity measures.
+func sizeAssumptions(t *Thresholds) []Assumption {
 	return []Assumption{
 		{"go-acyclic-imports", "Go forbids import cycles, so 2.2.2 and 2.2.4 always score 10; " +
 			"read hierarchy problems from subsystem cycles and 2.1.x instead.", "mmi.md §4"},
@@ -285,6 +306,9 @@ func assumptions(t Thresholds) []Assumption {
 			"test files and generated files are left out of every measure.", "mmi.md §7.3"},
 		{"statements", "Number of Statements counts every statement except blocks, labels, empty " +
 			"statements and case clauses, including a for loop's init and post.", "mmi.md §7.3"},
+		{"cognitive", fmt.Sprintf("Cognitive complexity is github.com/uudashr/gocognit's "+
+			"SonarSource count; a function above %d is a cognitive-complexity warning.",
+			t.HighCognitive), "SonarSource, Cognitive Complexity (2017)"},
 		{"complexity-variant", fmt.Sprintf("Criterion 1.3.4 uses the %s cyclomatic complexity, "+
 			"above %d.", t.ComplexityVariant, t.HighComplexity), "mmi.md §7.3; von Zitzewitz"},
 		{
@@ -302,6 +326,17 @@ func assumptions(t Thresholds) []Assumption {
 				"all candidates between different groups; the chapter gives no denominators.",
 			"mmi.md §7.2",
 		},
+	}
+}
+
+// graphAssumptions lists the choices behind the graph measures and the MMI.
+func graphAssumptions() []Assumption {
+	return []Assumption{
+		{"communities", "Communities are gonum's Louvain communities (resolution 1, a fixed " +
+			"seed) of the package graph taken as undirected, an edge weighing the imports " +
+			"either way, each split into its connected parts. A package of a subsystem with " +
+			"other packages is misplaced when another subsystem holds more of its community " +
+			"than its own. They are advice and never gate.", "IMPROVEMENTS.md 9.3; codetospec internal/communities"},
 		{"largest-cycle", "Criteria 2.2.3 and 2.2.4 use the largest cycle group.", "mmi.md §4"},
 		{"mmi-aggregation", "MMI = Σ weight(group) × mean(scores); unscored criteria count 0 " +
 			"toward the low bound and 10 toward the high bound.", "mmi.md §2"},

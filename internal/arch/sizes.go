@@ -12,8 +12,10 @@ type Sizes struct {
 	Lines int `json:"lines"`
 	Types int `json:"types"`
 	Funcs int `json:"funcs"`
-	// Generated counts the generated files left out of every measure.
-	Generated int `json:"generated"`
+	// Generated counts the generated files left out of every measure, and
+	// BuildExcluded those the build constraints leave out.
+	Generated     int `json:"generated"`
+	BuildExcluded int `json:"buildExcluded"`
 	// LinesInLargeTypes sums the lines of types above largeTypeLines.
 	LinesInLargeTypes int `json:"linesInLargeTypes"`
 	// LinesInLargeFuncs sums the lines of functions above largeFuncLines.
@@ -45,14 +47,21 @@ type Cohesion struct {
 }
 
 // sizesOf computes the size aggregates of p under the limits t.
-func sizesOf(p *Program, g *Graphs, t Thresholds) Sizes {
+func sizesOf(p *Program, g *Graphs, t *Thresholds) Sizes {
 	z := Sizes{Types: len(p.Types), Funcs: len(p.Funcs)}
 	z.LinesInLargeTypes, z.TypesInLargePackages = typeSizes(p, t)
 	z.LinesInLargeFuncs, z.ComplexFuncs = funcSizes(p, t)
+	for _, f := range p.Excluded {
+		switch f.Reason {
+		case ExcludedGenerated:
+			z.Generated++
+		case ExcludedByBuild:
+			z.BuildExcluded++
+		}
+	}
 	subLines, layerLines := map[string]int{}, map[string]int{}
 	for _, pkg := range p.Packages {
 		z.Lines += pkg.Lines
-		z.Generated += pkg.Generated
 		if sub, ok := g.SubsystemAssignment.Of[pkg.Path]; ok {
 			subLines[sub] += pkg.Lines
 		}
@@ -66,7 +75,7 @@ func sizesOf(p *Program, g *Graphs, t Thresholds) Sizes {
 
 // typeSizes returns the lines of code in large types and the number of types
 // in large packages (criteria 1.3.1 and 1.3.3).
-func typeSizes(p *Program, t Thresholds) (linesInLarge, inLargePackages int) {
+func typeSizes(p *Program, t *Thresholds) (linesInLarge, inLargePackages int) {
 	perPkg := map[string]int{}
 	for i := range p.Types {
 		perPkg[p.Types[i].Package]++
@@ -84,12 +93,12 @@ func typeSizes(p *Program, t Thresholds) (linesInLarge, inLargePackages int) {
 
 // funcSizes returns the lines of code in large functions and the number of
 // functions above the complexity limit (criteria 1.3.2 and 1.3.4).
-func funcSizes(p *Program, t Thresholds) (linesInLarge, overComplexity int) {
+func funcSizes(p *Program, t *Thresholds) (linesInLarge, overComplexity int) {
 	for i := range p.Funcs {
 		if p.Funcs[i].Lines > t.LargeFuncLines {
 			linesInLarge += p.Funcs[i].Lines
 		}
-		if variantOf(p.Funcs[i].Complexity, t.ComplexityVariant) > t.HighComplexity {
+		if p.Funcs[i].Complexity.Of(t.ComplexityVariant) > t.HighComplexity {
 			overComplexity++
 		}
 	}

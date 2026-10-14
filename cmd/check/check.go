@@ -13,6 +13,7 @@ import (
 	"github.com/StevenACoffman/anarch-lint/cmd/root"
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 	"github.com/StevenACoffman/anarch-lint/internal/git"
+	"github.com/StevenACoffman/anarch-lint/internal/sarif"
 	"github.com/StevenACoffman/anarch-lint/internal/text"
 )
 
@@ -88,7 +89,14 @@ confirm a candidate into a finding, or suppress one.`,
 }
 
 func (cfg *Config) exec(ctx context.Context, args []string) error {
-	report, err := cfg.GateInput(ctx, args)
+	var changed arch.ChangedLines
+	var err error
+	if cfg.NewFromRev != "" {
+		if changed, err = git.ChangedLines(ctx, cfg.Dir, cfg.NewFromRev); err != nil {
+			return fmt.Errorf("check: %w", err)
+		}
+	}
+	report, err := cfg.GateInput(ctx, args, changed)
 	if err != nil {
 		return fmt.Errorf("check: %w", err)
 	}
@@ -96,20 +104,17 @@ func (cfg *Config) exec(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("check: %w", err)
 	}
-	var changed arch.ChangedLines
-	if cfg.NewFromRev != "" {
-		if changed, err = git.ChangedLines(ctx, cfg.Dir, cfg.NewFromRev); err != nil {
-			return fmt.Errorf("check: %w", err)
-		}
-	}
 	opts, err := cfg.gateOptions(changed)
 	if err != nil {
 		return fmt.Errorf("check: %w", err)
 	}
 	result := arch.Gate(&report, &baseline, opts)
-	if cfg.Format == "json" {
+	switch cfg.Format {
+	case "json":
 		err = arch.WriteJSON(cfg.Stdout, result)
-	} else {
+	case "sarif":
+		err = sarif.WriteGate(cfg.Stdout, &result, cfg.SARIFOptions())
+	default:
 		err = text.WriteGate(cfg.Stdout, &result)
 	}
 	if err != nil {

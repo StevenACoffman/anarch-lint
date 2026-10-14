@@ -19,18 +19,25 @@ import (
 // hashPrefix is how much of a hash the text form shows.
 const hashPrefix = 12
 
-// WriteReport writes a report section by section: inputs, MMI, ordering,
+// maxExcludedListed caps the excluded files the text report names; the JSON
+// report lists them all.
+const maxExcludedListed = 20
+
+// WriteReport writes a report section by section: inputs, the files not
+// measured, MMI, ordering,
 // coupling, package metrics, the types to read first, findings, judgement
 // slots and assumptions.
 func WriteReport(w io.Writer, r *arch.Report) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	writeInputs(tw, &r.Inputs)
+	writeExcluded(tw, r.Excluded)
 	writeMMI(tw, &r.MMI)
 	writeConformance(tw, &r.Conformance)
 	writeOrdering(tw, &r.Ordering)
 	writeCoupling(tw, &r.Coupling)
 	writePackages(tw, r.Packages)
 	writeRank(tw, r.ComponentRank)
+	writeCommunities(tw, &r.Communities)
 	writeFindings(tw, r.Findings)
 	writeJudgements(tw, r.Judgements)
 	_, _ = fmt.Fprintf(
@@ -52,6 +59,33 @@ func writeInputs(w io.Writer, in *arch.Inputs) {
 	_, _ = fmt.Fprintf(w, "anarch-lint report (%s)\n", arch.ReportSchema)
 	_, _ = fmt.Fprintf(w, "patterns %s · tags %s · model %s · %s\n",
 		strings.Join(in.Patterns, " "), tags, short(in.ModelHash), in.GoVersion)
+}
+
+// writeExcluded names the source files no measure read, and why, so a reader
+// knows what the numbers below leave out.
+func writeExcluded(w io.Writer, files []arch.ExcludedFile) {
+	if len(files) == 0 {
+		return
+	}
+	_, _ = fmt.Fprintf(w, "\nNOT MEASURED (%s; test files are never measured)\n",
+		arch.Plural(len(files), "file"))
+	for _, f := range files[:min(len(files), maxExcludedListed)] {
+		_, _ = fmt.Fprintf(w, "  %s\t%s\t\n", f.Path, f.Reason)
+	}
+	if rest := len(files) - maxExcludedListed; rest > 0 {
+		_, _ = fmt.Fprintf(w, "  … and %d more, listed in the JSON report\n", rest)
+	}
+}
+
+// writeCommunities names the packages whose import community mostly lies in
+// another subsystem: advice, which never gates.
+func writeCommunities(w io.Writer, c *arch.Communities) {
+	_, _ = fmt.Fprintf(w, "\nCOMMUNITIES (%s of the import graph, advice; %d misplaced)\n",
+		arch.Plural(len(c.Groups), "group"), len(c.Misplaced))
+	for _, m := range c.Misplaced {
+		_, _ = fmt.Fprintf(w, "  %s\tdeclared in %s, couples with %s\t\n",
+			m.Package, m.Subsystem, m.Community)
+	}
 }
 
 func writeMMI(w io.Writer, m *arch.MMI) {
@@ -216,6 +250,9 @@ func WriteFinding(w io.Writer, f *arch.Finding) {
 	}
 	_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\t%s\n", f.Severity, f.Rule, f.Subject, where)
 	_, _ = fmt.Fprintf(w, "  \t%s\n", f.Message)
+	if f.ModelRule != "" {
+		_, _ = fmt.Fprintf(w, "  \tmodel rule: %s\n", f.ModelRule)
+	}
 	for _, e := range f.Evidence {
 		_, _ = fmt.Fprintf(w, "  \tevidence: %s\n", e)
 	}
@@ -226,12 +263,24 @@ func writeJudgements(w io.Writer, slots []arch.JudgementSlot) {
 	_, _ = fmt.Fprintln(w, "\nJUDGEMENTS (for a human expert or an adversarial LLM; never gate)")
 	for i := range slots {
 		s := &slots[i]
-		_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\n", s.Criterion, s.Status, s.Question)
+		_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\n", s.Criterion, statusText(s), s.Question)
+		_, _ = fmt.Fprintf(w, "  \t\tundecided: %s\n", s.Undecided)
 		for _, e := range s.Evidence {
 			_, _ = fmt.Fprintf(w, "  \t\tevidence: %s\n", e)
 		}
+		for _, c := range s.Context {
+			_, _ = fmt.Fprintf(w, "  \t\tcontext, hidden from a judge: %s\n", c)
+		}
 		_, _ = fmt.Fprintf(w, "  \t\tevidence hash: %s\n", s.EvidenceHash)
 	}
+}
+
+// statusText is a slot's status, with the cause of a stale one.
+func statusText(s *arch.JudgementSlot) string {
+	if s.StaleBecause != "" {
+		return fmt.Sprintf("%s (%s changed)", s.Status, s.StaleBecause)
+	}
+	return string(s.Status)
 }
 
 func value(c *arch.Criterion) string {

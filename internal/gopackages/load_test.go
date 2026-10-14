@@ -78,13 +78,27 @@ func TestLoadFixtureGraphFacts(t *testing.T) {
 	}
 }
 
+// Every source file no measure reads is listed with the reason: generated
+// code, and files the build constraints leave out.
+func TestLoadListsExcludedFiles(t *testing.T) {
+	t.Parallel()
+	p := loadFixture(t)
+	equals(t, []arch.ExcludedFile{
+		{Path: "gen/gen.go", Package: "example.com/fx/gen", Reason: arch.ExcludedGenerated},
+		{
+			Path:    "metrics/legacy.go",
+			Package: "example.com/fx/metrics",
+			Reason:  arch.ExcludedByBuild,
+		},
+	}, p.Excluded)
+}
+
 func TestLoadSkipsGeneratedFiles(t *testing.T) {
 	t.Parallel()
 	p := loadFixture(t)
 	for _, pkg := range p.Packages {
 		if pkg.Path == "example.com/fx/gen" {
 			equals(t, []string{"gen/doc.go"}, pkg.Files)
-			equals(t, 1, pkg.Generated)
 		}
 	}
 	for _, typ := range p.Types {
@@ -101,7 +115,10 @@ func TestLoadFunctionMetrics(t *testing.T) {
 		Complexity arch.Complexity
 		Statements int
 		MaxNesting int
+		Cognitive  int
 	}
+	// Cognitive complexity by SonarSource's rules: a decision costs 1 plus
+	// its nesting, and each run of && or || costs 1.
 	cases := map[string]metrics{
 		"Straight": {
 			Complexity: arch.Complexity{Plain: 1, Modified: 1, Extended: 1},
@@ -112,11 +129,13 @@ func TestLoadFunctionMetrics(t *testing.T) {
 			Complexity: arch.Complexity{Plain: 6, Modified: 5, Extended: 8},
 			Statements: 13,
 			MaxNesting: 3,
+			Cognitive:  7, // if 1, && 1, for 1, range 1, nested switch 2, || 1
 		},
 		"Nested": {
 			Complexity: arch.Complexity{Plain: 5, Modified: 5, Extended: 5},
 			Statements: 7,
 			MaxNesting: 5,
+			Cognitive:  10, // 1 + 2 + 3 + 4 down the nesting
 		},
 	}
 	got := map[string]metrics{}
@@ -126,6 +145,7 @@ func TestLoadFunctionMetrics(t *testing.T) {
 				Complexity: fn.Complexity,
 				Statements: fn.Statements,
 				MaxNesting: fn.MaxNesting,
+				Cognitive:  fn.Cognitive,
 			}
 		}
 	}
@@ -248,4 +268,80 @@ func TestLoadInjections(t *testing.T) {
 		Concrete:      "example.com/fx/roles.SQLStore",
 		Pos:           arch.Position{File: "app/app.go", Line: 11},
 	}}, p.Injections)
+}
+
+// Each reference records where its uses are: embedded, a field, a type's
+// definition, a signature or a method body.
+func TestRefKinds(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("loads and type-checks a module; skipped with -short")
+	}
+	p, err := gopackages.Load(context.Background(),
+		gopackages.Config{Dir: "../../testdata/gx", Patterns: []string{"./kinds"}})
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	got := map[string][]arch.RefKind{}
+	for _, r := range p.Refs {
+		got[r.From+" -> "+r.To] = r.Kinds
+	}
+	const k = "example.com/gx/kinds."
+	equals(t, map[string][]arch.RefKind{
+		k + "Holder -> " + k + "Base":  {arch.RefEmbed},
+		k + "Holder -> " + k + "Item":  {arch.RefField},
+		k + "Spec -> " + k + "Item":    {arch.RefDefinition},
+		k + "Reader -> " + k + "Item":  {arch.RefSignature},
+		k + "Service -> " + k + "Base": {arch.RefSignature},
+		k + "Service -> " + k + "Item": {arch.RefSignature, arch.RefBody},
+		k + "Service -> " + k + "Spec": {arch.RefBody},
+	}, got)
+}
+
+// A call is named by what it calls, not how the file spells it: aliased and
+// dot imports of time call time.Now, and a local variable named time does
+// not.
+func TestCallsAreResolvedByType(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("loads and type-checks a module; skipped with -short")
+	}
+	p, err := gopackages.Load(context.Background(), gopackages.Config{
+		Dir: "../../testdata/gx", Patterns: []string{"./calls"}, Facts: true,
+	})
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	callees := map[string]string{}
+	for _, c := range p.Facts.Calls {
+		callees[c.Site.Func] = c.Callee
+	}
+	const pkg = "example.com/gx/calls."
+	equals(t, map[string]string{
+		pkg + "Aliased":  "time.Now",
+		pkg + "Dotted":   "time.Now",
+		pkg + "Shadowed": "(example.com/gx/calls.stopwatch).Now",
+	}, callees)
+}
+
+// dupl finds the loop package right copies from package left, renamed, inside
+// functions that differ around it: a partial clone.
+func TestLoadFindsPartialClones(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("loads and type-checks a module; skipped with -short")
+	}
+	p, err := gopackages.Load(context.Background(), gopackages.Config{
+		Dir: "../../testdata/gx", Patterns: []string{"./clones/..."}, Facts: true,
+	})
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	t.Logf("%+v", p.Facts.Clones)
+	equals(t, 1, len(p.Facts.Clones))
+	files := []string{}
+	for _, f := range p.Facts.Clones[0].Fragments {
+		files = append(files, f.File)
+	}
+	equals(t, []string{"clones/left/left.go", "clones/right/right.go"}, files)
 }

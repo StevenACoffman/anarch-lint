@@ -35,6 +35,19 @@ type constraint struct {
 	anyTarget bool
 	// violates returns why importing to from from breaks the rule, or "".
 	violates func(from, to string) string
+	// reads returns everything about a package that violates reads, so two
+	// packages it reads alike are one class to the verification.
+	reads func(pkg string) string
+	// allowances are the imports the rule allows by name, such as a layer
+	// in an allow-list; a rule that only forbids has none.
+	allowances []allowance
+}
+
+// allowance is one name a rule allows imports by: item is the name as the
+// model spells it, and names reports whether an import is one it allows.
+type allowance struct {
+	item  string
+	names func(from, to string) bool
 }
 
 // end is one end of an import: its layer, and whether it has one.
@@ -70,6 +83,9 @@ func (s *subject) importConstraints() []constraint {
 	}
 	for i := range f.Dependents {
 		cs = append(cs, s.dependents(&f.Dependents[i], i))
+	}
+	for i := range f.Libraries {
+		cs = append(cs, libraryConstraint(s.ledger, &f.Libraries[i], i, s.p, s.g.SubsystemOf))
 	}
 	return cs
 }
@@ -107,7 +123,7 @@ func (s *subject) strictLayers() constraint {
 		index[l.Name] = i
 	}
 	return constraint{
-		rule: r, kind: ruleStrictLayers,
+		rule: r, kind: ruleStrictLayers, reads: s.layerKey,
 		fix: "import through the layer directly below, or move the code into it",
 		violates: func(from, to string) string {
 			a, okA := s.g.LayerAssignment.Of[from]
@@ -130,11 +146,45 @@ func (s *subject) layerAccess(la *arch.LayerAccess, i int) constraint {
 		}
 	}
 	return constraint{
-		rule:     r,
-		kind:     ruleLayerAccess,
-		fix:      "depend through a layer the rule allows, or change the rule if the dependency is intended",
-		violates: func(from, to string) string { return s.layerViolation(la, from, to) },
+		rule:       r,
+		kind:       ruleLayerAccess,
+		fix:        "depend through a layer the rule allows, or change the rule if the dependency is intended",
+		violates:   func(from, to string) string { return s.layerViolation(la, from, to) },
+		reads:      s.layerKey,
+		allowances: layerAllowances(la, s.g.LayerAssignment.Of),
 	}
+}
+
+// layerAllowances are the layers a layer access rule names as allowed: each
+// layer its layer may import, and each layer that may import it.
+func layerAllowances(la *arch.LayerAccess, layerOf map[string]string) []allowance {
+	layer := func(pkg string) string { return layerOf[pkg] }
+	var out []allowance
+	for _, x := range la.MayOnlyAccess {
+		if x != la.Layer {
+			out = append(out, allowance{
+				item:  "mayOnlyAccess " + x,
+				names: func(from, to string) bool { return layer(from) == la.Layer && layer(to) == x },
+			})
+		}
+	}
+	for _, x := range la.MayOnlyBeAccessedBy {
+		if x != la.Layer {
+			out = append(out, allowance{
+				item:  "mayOnlyBeAccessedBy " + x,
+				names: func(from, to string) bool { return layer(from) == x && layer(to) == la.Layer },
+			})
+		}
+	}
+	return out
+}
+
+// layerKey is what the layer rules read of a package: its layer.
+func (s *subject) layerKey(pkg string) string {
+	if l, ok := s.g.LayerAssignment.Of[pkg]; ok {
+		return "layer " + l
+	}
+	return "no layer"
 }
 
 // layerViolation says why an import from from to to breaks la, or "". A
@@ -196,6 +246,12 @@ func (s *subject) onion(o *arch.Onion) constraint {
 	names := []string{"domain model", "domain service", "application service", "adapter"}
 	return constraint{
 		rule: r, kind: ruleOnion,
+		reads: func(pkg string) string {
+			if rg, ok := rings[pkg]; ok {
+				return fmt.Sprintf("ring %d %s", rg.level, rg.adapter)
+			}
+			return "no ring"
+		},
 		fix: "invert the dependency: declare what the inner ring needs as an interface in it, " +
 			"and implement it outside",
 		violates: func(from, to string) string {
@@ -251,6 +307,12 @@ func (s *subject) sliceIsolation(sl *arch.Slices, i int) constraint {
 	slice := s.sliceOf(sl.Pattern)
 	return constraint{
 		rule: r, kind: ruleSliceDep,
+		reads: func(pkg string) string {
+			if v, ok := slice[pkg]; ok {
+				return "slice " + v
+			}
+			return "no slice"
+		},
 		fix: "move what both slices need into a package outside them",
 		violates: func(from, to string) string {
 			a, okA := slice[from]
@@ -300,7 +362,9 @@ func (s *subject) dependents(d *arch.Dependents, i int) constraint {
 	r.result.Matched = len(targets) + s.matchingPackages(d.Packages)
 	return constraint{
 		rule: r, kind: ruleDependents, anyTarget: true,
-		fix: "reach the package through one of the packages the rule allows",
+		reads:      func(pkg string) string { return matchBits(pkg, d.Packages, d.OnlyFrom) },
+		allowances: dependentAllowances(d),
+		fix:        "reach the package through one of the packages the rule allows",
 		violates: func(from, to string) string {
 			if !arch.MatchesAny(d.Packages, to) || arch.MatchesAny(d.Packages, from) ||
 				arch.MatchesAny(d.OnlyFrom, from) {
@@ -312,6 +376,40 @@ func (s *subject) dependents(d *arch.Dependents, i int) constraint {
 			return "only " + strings.Join(d.OnlyFrom, ", ") + " may import it"
 		},
 	}
+}
+
+// dependentAllowances are the patterns a dependents rule names as the only
+// importers allowed.
+func dependentAllowances(d *arch.Dependents) []allowance {
+	out := make([]allowance, 0, len(d.OnlyFrom))
+	for _, pat := range d.OnlyFrom {
+		out = append(out, allowance{
+			item: "onlyFrom " + pat,
+			names: func(from, to string) bool {
+				return arch.MatchesAny(d.Packages, to) && !arch.MatchesAny(d.Packages, from) &&
+					arch.MatchesAny([]string{pat}, from)
+			},
+		})
+	}
+	return out
+}
+
+// matchBits says, for the whole of first and then each pattern of each, whether
+// it matches pkg: what a rule over these patterns can tell about a package.
+func matchBits(pkg string, first []string, each []string) string {
+	bits := []byte{bit(arch.MatchesAny(first, pkg))}
+	for _, pat := range each {
+		bits = append(bits, bit(arch.MatchesAny([]string{pat}, pkg)))
+	}
+	return string(bits)
+}
+
+// bit is '1' for true and '0' for false.
+func bit(b bool) byte {
+	if b {
+		return '1'
+	}
+	return '0'
 }
 
 // sortedKeys returns a map's keys, sorted.

@@ -26,7 +26,9 @@ type johnson struct {
 // nodes starting at its smallest, at most limit of them. Start nodes are
 // taken in sorted order and arcs in target order, so the first limit cycles
 // are the same on every run, unlike an enumeration over a hash map (TODO.md,
-// "Ideas from ArchUnit", Cycles). truncated reports that more exist.
+// "Ideas from ArchUnit", Cycles). truncated reports that more exist. gonum's
+// topo.DirectedCyclesIn enumerates every cycle, which can be exponentially
+// many, with no limit, so this one is kept.
 //
 // Requires: limit > 0.
 func (g Graph) ElementaryCycles(limit int) (cycles [][]string, truncated bool) {

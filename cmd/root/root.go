@@ -101,7 +101,8 @@ func New(stdin io.Reader, stdout, stderr io.Writer) *Config {
 		"CODEOWNERS file for the owner boundary, matched relative to --dir "+
 			"(default: .github/CODEOWNERS, CODEOWNERS or docs/CODEOWNERS in --dir)")
 	cfg.Flags.StringListVar(&cfg.Tags, 0, "tags", "build tag to compile with (repeatable)")
-	cfg.Flags.StringEnumVar(&cfg.Format, 0, "format", "output format", "text", "json")
+	cfg.Flags.StringEnumVar(&cfg.Format, 0, "format",
+		"output format; sarif is for check", "text", "json", "sarif")
 	cfg.Command = &ff.Command{
 		Name:      "anarch-lint",
 		Usage:     "anarch-lint [FLAGS] <SUBCOMMAND> ...",

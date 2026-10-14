@@ -1,31 +1,31 @@
 {
   "schema": "anarch-lint.baseline.v1",
-  "modelHash": "5ee07763b10c6c7677bed30eee6f70eb4194c522609a8bf38c624a5eb5e40336",
+  "modelHash": "79a237bcdb4146efc10dc8feb0e4efa1e1bde08c7118448600a6f4d2e21325da",
   "findings": [],
   "metrics": [
     {
       "name": "mmi.low",
-      "value": 5.46,
+      "value": 5.33,
       "higherIsBetter": true
     },
     {
       "name": "types.inCycles",
-      "value": 2,
+      "value": 0,
       "higherIsBetter": false
     },
     {
       "name": "types.maxCycleGroup",
-      "value": 2,
+      "value": 0,
       "higherIsBetter": false
     },
     {
       "name": "types.relativeCyclicity",
-      "value": 0.00995,
+      "value": 0,
       "higherIsBetter": false
     },
     {
       "name": "types.sdi",
-      "value": 11,
+      "value": 0,
       "higherIsBetter": false
     },
     {
@@ -45,17 +45,17 @@
     },
     {
       "name": "fitness.cycles.types",
-      "value": 1,
+      "value": 0,
       "higherIsBetter": false
     },
     {
       "name": "fitness.nccd.packages",
-      "value": 2.083333,
+      "value": 2.159574,
       "higherIsBetter": false
     },
     {
       "name": "fitness.nccd.subsystems",
-      "value": 1.034483,
+      "value": 1,
       "higherIsBetter": false
     },
     {

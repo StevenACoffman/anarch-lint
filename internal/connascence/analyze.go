@@ -177,7 +177,13 @@ func (r *Report) place(c *arch.Connascence, m *arch.Model, verdicts []arch.Verdi
 		r.Candidates = append(r.Candidates, capped(c))
 		return
 	}
-	slot := arch.NewSlot("connascence/"+c.Fingerprint, candidateEvidence(c, reason), verdicts)
+	slot := arch.NewSlot(&arch.SlotRequest{
+		Criterion: "connascence/" + c.Fingerprint,
+		Evidence:  candidateEvidence(c),
+		Context:   []string{"over the limits: " + reason},
+		Undecided: fmt.Sprintf("a detector found the shape of connascence, with %s confidence "+
+			"that it is not chance, but not that the places must change together", c.Confidence),
+	}, verdicts)
 	r.Judgements = append(r.Judgements, slot)
 	switch slot.Answer() {
 	case "confirmed":
@@ -225,13 +231,11 @@ func connascenceFinding(c *arch.Connascence, reason string, m *arch.Model) arch.
 	return f
 }
 
-// candidateEvidence is what a reviewer weighs for one candidate.
-func candidateEvidence(c *arch.Connascence, reason string) []string {
-	ev := []string{
-		c.Message,
-		fmt.Sprintf("basis: %s, confidence %s", c.Basis, c.Confidence),
-		axes(c) + ": " + reason,
-	}
+// candidateEvidence is what a judge weighs for one candidate: what it is
+// and where, never the limits it exceeds, which say what a confirmation
+// would set off.
+func candidateEvidence(c *arch.Connascence) []string {
+	ev := []string{c.Message, axes(c)}
 	return append(ev, siteLines(c)...)
 }
 

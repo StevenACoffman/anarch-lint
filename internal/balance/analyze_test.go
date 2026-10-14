@@ -225,8 +225,8 @@ func TestTightCouplingGatesOnFactsAndVerdicts(t *testing.T) {
 		}
 	}
 	confirm := arch.Verdict{
-		Criterion: slot.Criterion, Answer: "confirmed", Provenance: arch.ProvenanceHuman,
-		EvidenceHash: slot.EvidenceHash, Approved: true,
+		Criterion: slot.Criterion, Answer: "confirmed",
+		EvidenceHash: slot.EvidenceHash, Events: []arch.VerificationEvent{{Role: arch.RoleHuman}},
 	}
 	in.Verdicts = []arch.Verdict{confirm}
 	confirmed := analyze(in, clone())
@@ -246,11 +246,15 @@ func TestLowVolatilitySuppresses(t *testing.T) {
 			slot = s
 		}
 	}
-	equals(t, []string{"core", "generic", "supporting"}, slot.Answers)
-	in.Verdicts = []arch.Verdict{{
-		Criterion: "subdomain/auth", Answer: "supporting",
-		Provenance: arch.ProvenanceHuman, EvidenceHash: slot.EvidenceHash, Approved: true,
-	}}
+	equals(t, []string{"core", "generic", "supporting", arch.AnswerInsufficient}, slot.Answers)
+	in.Verdicts = []arch.Verdict{
+		{
+			Criterion:    "subdomain/auth",
+			Answer:       "supporting",
+			EvidenceHash: slot.EvidenceHash,
+			Events:       []arch.VerificationEvent{{Role: arch.RoleHuman}},
+		},
+	}
 	judged := analyze(in)
 	equals(t, 0, len(judged.Findings))
 	equals(t, "supporting", pairOf(t, &judged, "web", "auth").Volatility)
@@ -278,4 +282,34 @@ func TestOwnersDiffer(t *testing.T) {
 	}})
 	equals(t, "subsystem-owners-differ", r.Findings[0].Rule)
 	equals(t, []string{"owners: @money", "owners: @platform"}, r.Findings[0].Evidence)
+}
+
+// A slot opens only where its answer can change something, and the report
+// says which were skipped and why. Without the clone, only auth is
+// upstream, and only billing and auth share a model.
+func TestSlotsOpenOnlyWhereTheyDecide(t *testing.T) {
+	t.Parallel()
+	r := analyze(fixture())
+	var opened []string
+	for _, s := range r.Judgements {
+		if strings.HasPrefix(s.Criterion, "subdomain/") ||
+			strings.HasPrefix(s.Criterion, "bounded-context/") {
+			opened = append(opened, s.Criterion)
+		}
+	}
+	equals(t, []string{"bounded-context/auth", "bounded-context/billing", "subdomain/auth"}, opened)
+	var skipped []string
+	for _, s := range r.Skipped {
+		equals(t, true, s.Reason != "")
+		skipped = append(skipped, s.Criterion)
+	}
+	equals(t, []string{"subdomain/billing", "subdomain/web", "bounded-context/web"}, skipped)
+
+	// A revision range gives every subsystem's churn, whose candidates read
+	// the subdomain, so every subdomain slot opens.
+	churned := balance.Input{Input: fixture(), Churn: &arch.Churn{Since: "a", Head: "b"}}
+	withChurn := balance.Analyze(&churned)
+	for _, s := range withChurn.Skipped {
+		equals(t, false, strings.HasPrefix(s.Criterion, "subdomain/"))
+	}
 }

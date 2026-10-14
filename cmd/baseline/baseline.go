@@ -56,7 +56,7 @@ check says when the baseline can shrink.`,
 }
 
 func (cfg *Config) exec(ctx context.Context, args []string) error {
-	in, err := cfg.GateInput(ctx, args)
+	in, err := cfg.GateInput(ctx, args, nil)
 	if err != nil {
 		return fmt.Errorf("baseline: %w", err)
 	}

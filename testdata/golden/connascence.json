@@ -16,7 +16,8 @@
       "complexityVariant": "modified",
       "maxTypeCycleGroup": 5,
       "largeFileLines": 800,
-      "maxNesting": 4
+      "maxNesting": 4,
+      "highCognitive": 15
     }
   },
   "summary": [
@@ -1058,16 +1059,21 @@
       "question": "Must these places change together, so that the candidate is connascence?",
       "answers": [
         "confirmed",
-        "rejected"
+        "rejected",
+        "insufficient-evidence"
       ],
+      "edition": "5f293ed8552eb4d2f7f0d2996de2db7731b15ff7ec975b012dbe8503fabb354a",
       "evidence": [
         "the time layout \"2006-01-02\" is written in 2 packages",
-        "basis: candidate, confidence high",
-        "strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3",
+        "strength 5 (algorithm), locality system, degree 2",
         "site: billing/invoice.go:71 (example.com/cx/billing.Due)",
         "site: web/admin.go:42 (example.com/cx/web.Due)"
       ],
-      "evidenceHash": "f0f33388e756c5b6968d7c1370e4a80e280bdbc0607d5438645c82819cc5f725",
+      "context": [
+        "over the limits: above maxStrength.system 3"
+      ],
+      "undecided": "a detector found the shape of connascence, with high confidence that it is not chance, but not that the places must change together",
+      "evidenceHash": "ca5c25c9a739984b999bf4a933463291e2241505a6e844c5aa4ac93397696042",
       "status": "pending"
     },
     {
@@ -1075,16 +1081,21 @@
       "question": "Must these places change together, so that the candidate is connascence?",
       "answers": [
         "confirmed",
-        "rejected"
+        "rejected",
+        "insufficient-evidence"
       ],
+      "edition": "5f293ed8552eb4d2f7f0d2996de2db7731b15ff7ec975b012dbe8503fabb354a",
       "evidence": [
         "the regular expression \"^[A-Z]{3}-[0-9]+$\" is written in 2 packages",
-        "basis: candidate, confidence high",
-        "strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3",
+        "strength 5 (algorithm), locality system, degree 2",
         "site: billing/invoice.go:16",
         "site: web/admin.go:14"
       ],
-      "evidenceHash": "eff70f499987ee817c31afbbf072f9adffa7936ba007cef161e0cbb51895a69a",
+      "context": [
+        "over the limits: above maxStrength.system 3"
+      ],
+      "undecided": "a detector found the shape of connascence, with high confidence that it is not chance, but not that the places must change together",
+      "evidenceHash": "3d7b5a70972c1923d3a77d761b4eb71d20c044f880087dd4f68a8ef0c938a379",
       "status": "pending"
     },
     {
@@ -1092,16 +1103,21 @@
       "question": "Must these places change together, so that the candidate is connascence?",
       "answers": [
         "confirmed",
-        "rejected"
+        "rejected",
+        "insufficient-evidence"
       ],
+      "edition": "5f293ed8552eb4d2f7f0d2996de2db7731b15ff7ec975b012dbe8503fabb354a",
       "evidence": [
         "2 packages call crypto/sha256",
-        "basis: candidate, confidence low",
-        "strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3",
+        "strength 5 (algorithm), locality system, degree 2",
         "site: billing/invoice.go:74 (example.com/cx/billing.Sum)",
         "site: web/admin.go:45 (example.com/cx/web.Sum)"
       ],
-      "evidenceHash": "2c2881761cf50cab053091a2eb37dc2b6eb7457dfe3b90d963bd69ebf7af11f2",
+      "context": [
+        "over the limits: above maxStrength.system 3"
+      ],
+      "undecided": "a detector found the shape of connascence, with low confidence that it is not chance, but not that the places must change together",
+      "evidenceHash": "df957d76b9801d5aa560cb3e32dd66bf4ef20d35bfa47c1d074f812e94a9ce29",
       "status": "pending"
     },
     {
@@ -1109,16 +1125,21 @@
       "question": "Must these places change together, so that the candidate is connascence?",
       "answers": [
         "confirmed",
-        "rejected"
+        "rejected",
+        "insufficient-evidence"
       ],
+      "edition": "5f293ed8552eb4d2f7f0d2996de2db7731b15ff7ec975b012dbe8503fabb354a",
       "evidence": [
         "2 functions in 2 packages have the same body shape as example.com/cx/billing.Total",
-        "basis: candidate, confidence low",
-        "strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3",
+        "strength 5 (algorithm), locality system, degree 2",
         "site: billing/invoice.go:77 (example.com/cx/billing.Total)",
         "site: web/admin.go:48 (example.com/cx/web.Tally)"
       ],
-      "evidenceHash": "81934f0053caf651e32c0e1ec1e4530d4dbcd2e616b448d411dd3a13828a2264",
+      "context": [
+        "over the limits: above maxStrength.system 3"
+      ],
+      "undecided": "a detector found the shape of connascence, with low confidence that it is not chance, but not that the places must change together",
+      "evidenceHash": "0f42bc3f4cce8034907d573b9ed1196d547fb08715b1ea2bb3e011d6b4f601a8",
       "status": "pending"
     },
     {
@@ -1126,16 +1147,21 @@
       "question": "Must these places change together, so that the candidate is connascence?",
       "answers": [
         "confirmed",
-        "rejected"
+        "rejected",
+        "insufficient-evidence"
       ],
+      "edition": "5f293ed8552eb4d2f7f0d2996de2db7731b15ff7ec975b012dbe8503fabb354a",
       "evidence": [
         "2 packages declare constants of type untyped int equal to 8080",
-        "basis: candidate, confidence high",
-        "strength 8 (value), locality system, degree 2: above maxStrength.system 3",
+        "strength 8 (value), locality system, degree 2",
         "site: auth/role.go:30",
         "site: billing/invoice.go:14"
       ],
-      "evidenceHash": "5f6bcd9c538031019cfec332b974df8025e5947a338f7acec11fb409854566b4",
+      "context": [
+        "over the limits: above maxStrength.system 3"
+      ],
+      "undecided": "a detector found the shape of connascence, with high confidence that it is not chance, but not that the places must change together",
+      "evidenceHash": "6db1fb538159d9c167bf1348f2250a25ca4b7983c479c98b47cc16d9f7e2f9fa",
       "status": "pending"
     }
   ],
@@ -1194,6 +1220,11 @@
       "id": "clones",
       "text": "Clones are function bodies of 10 or more statements with the same shape once names and literal values are removed; a rule re-implemented in different code is missed.",
       "source": "connascence.md §2.5, §9.2"
+    },
+    {
+      "id": "partial-clones",
+      "text": "Partial clones are github.com/golangci/dupl's: runs of statements, each of at least 60 syntax-tree nodes, repeated in two or more packages, found with facts only. Copies that are whole functions of one shape are left to the clones detector.",
+      "source": "connascence.md §2.5; IMPROVEMENTS.md 9.1"
     },
     {
       "id": "site-cap",

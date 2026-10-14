@@ -104,10 +104,14 @@ func writeSlots(w io.Writer, slots []arch.JudgementSlot) {
 	)
 	for i := range slots {
 		s := &slots[i]
-		_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\n", s.Criterion, s.Status, s.Question)
+		_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\n", s.Criterion, statusText(s), s.Question)
 		_, _ = fmt.Fprintf(w, "  \t\tanswers: %s\n", strings.Join(s.Answers, ", "))
+		_, _ = fmt.Fprintf(w, "  \t\tundecided: %s\n", s.Undecided)
 		for _, e := range s.Evidence {
 			_, _ = fmt.Fprintf(w, "  \t\tevidence: %s\n", e)
+		}
+		for _, c := range s.Context {
+			_, _ = fmt.Fprintf(w, "  \t\tcontext, hidden from a judge: %s\n", c)
 		}
 		_, _ = fmt.Fprintf(w, "  \t\tevidence hash: %s\n", s.EvidenceHash)
 	}

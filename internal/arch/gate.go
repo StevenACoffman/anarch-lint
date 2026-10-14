@@ -245,7 +245,7 @@ func newGateResult(r *GateInput, b *Baseline, opts *GateOptions) GateResult {
 // classify sorts one finding the baseline does not have into the result. An
 // expired waiver no longer protects its finding, and is reported.
 func (g *GateResult) classify(f *Finding, opts *GateOptions, waivers map[string]Waiver) {
-	if opts.Changed != nil && !opts.Changed.Touches(f.Location) {
+	if opts.Changed != nil && !f.touchedBy(opts.Changed) {
 		g.OutOfScope++
 		return
 	}

@@ -1,12 +1,11 @@
 package arch
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
-	"fmt"
-	"io"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -20,25 +19,34 @@ const (
 	// SlotStale is a slot whose verdict judged different evidence: the code
 	// changed since, so the verdict no longer applies.
 	SlotStale SlotStatus = "stale"
-	// SlotUnapproved is a slot whose verdict nobody has approved yet, such as
-	// a draft from an LLM.
+	// SlotUnapproved is a slot whose verdict no human has attested yet, such
+	// as a judge's draft.
 	SlotUnapproved SlotStatus = "unapproved"
+	// SlotUnresolved is a slot whose approved verdict found the evidence
+	// insufficient to answer. It counts as no answer: it neither gates nor
+	// suppresses, and an MMI criterion stays unscored.
+	SlotUnresolved SlotStatus = "unresolved"
 )
 
-// Provenances of a verdict.
+// AnswerInsufficient is the answer every slot accepts besides its own: the
+// evidence cannot settle the question. An MMI verdict gives it instead of a
+// score. Being able to say so keeps a judge from guessing.
+const AnswerInsufficient = "insufficient-evidence"
+
+// Causes of a stale slot.
 const (
-	ProvenanceHuman Provenance = "human"
-	ProvenanceLLM   Provenance = "llm"
+	// StaleQuestion is a verdict given under an earlier edition of the
+	// question: its words, answers or revision changed.
+	StaleQuestion StaleCause = "question"
+	// StaleEvidence is a verdict that judged different evidence.
+	StaleEvidence StaleCause = "evidence"
 )
-
-// judgementsVersion is the only judgements-file version this build reads.
-const judgementsVersion = 1
 
 // SlotStatus says whether a judgement slot has a verdict that applies.
 type SlotStatus string
 
-// Provenance says who produced a verdict.
-type Provenance string
+// StaleCause says why a verdict no longer applies to its slot.
+type StaleCause string
 
 // JudgementSlot is a question waiting for a reviewer: a human expert or an
 // adversarial LLM (mmi.md §7.6). It carries the question, the deterministic
@@ -57,145 +65,132 @@ type JudgementSlot struct {
 	Question  string `json:"question"`
 	// Answers lists the valid answers of a family slot; an MMI slot takes a
 	// score from 0 to 10 instead.
-	Answers      []string   `json:"answers,omitempty"`
-	Evidence     []string   `json:"evidence"`
+	Answers []string `json:"answers,omitempty"`
+	// Edition identifies the question's wording, answers and revision; a
+	// verdict given under another edition is stale.
+	Edition  string   `json:"edition"`
+	Evidence []string `json:"evidence"`
+	// Context is what a reviewer weighs but a judge must not see: what the
+	// answer would set off, such as the limit a candidate exceeds. Showing
+	// it would tell a judge which answer gates (mmi-plan.md §9.3 B).
+	Context []string `json:"context,omitempty"`
+	// Undecided says why the deterministic measure could not settle the
+	// slot, so a judge knows what is left to decide (mmi-plan.md §9.3 H).
+	Undecided    string     `json:"undecided"`
 	EvidenceHash string     `json:"evidenceHash"`
 	Status       SlotStatus `json:"status"`
+	// StaleBecause says why a stale slot's verdict no longer applies.
+	StaleBecause StaleCause `json:"staleBecause,omitempty"`
 	Verdict      *Verdict   `json:"verdict,omitempty"`
 }
 
-// Verdict is one reviewer's answer to a judgement slot: a Score for an MMI
-// criterion, an Answer for a family slot, never both.
-type Verdict struct {
-	Criterion  string     `json:"criterion"`
-	Score      int        `json:"score"`
-	Answer     string     `json:"answer,omitempty"`
-	Provenance Provenance `json:"provenance"`
-	Rationale  string     `json:"rationale"`
-	// EvidenceHash must equal the slot's hash for the verdict to apply.
-	EvidenceHash string `json:"evidenceHash"`
-	// Approved records that a human accepted the verdict; an LLM's verdict
-	// stays a draft until then.
-	Approved bool `json:"approved"`
+// SlotRequest is what a measure asks a reviewer: the slot's criterion, the
+// evidence a judge may see, and the context only a human sees. Undecided,
+// when set, replaces the family's reason that no measure could decide, with
+// one particular to this slot.
+type SlotRequest struct {
+	Criterion string
+	Evidence  []string
+	Context   []string
+	Undecided string
+}
+
+// JudgeView is all a judge may see of a slot: the question, the answers and
+// the evidence, each piece numbered so a reply can cite it. It has no field
+// for the context, the status, an earlier verdict or its rationale, so none
+// can reach a judge (gnosis's blinded critic projection).
+type JudgeView struct {
+	ID        string    `json:"id"`
+	Question  string    `json:"question"`
+	Answers   []string  `json:"answers,omitempty"`
+	Undecided string    `json:"undecided"`
+	Exhibits  []Exhibit `json:"exhibits"`
+}
+
+// Exhibit is one numbered piece of evidence: E1, E2, ….
+type Exhibit struct {
+	ID   string `json:"id"`
+	Text string `json:"text"`
 }
 
 // question is what a slot asks, and the answers it accepts: nil for an MMI
-// criterion, which takes a score.
+// criterion, which takes a score. revision is turned by hand when the
+// question's meaning changes without its words, so its verdicts go stale.
+// undecided is why no deterministic measure answers it.
 type question struct {
-	text    string
-	answers []string
+	text      string
+	answers   []string
+	revision  int
+	undecided string
 }
 
-// judgementsFile is the on-disk form of a set of verdicts.
-type judgementsFile struct {
-	Version  int       `json:"version"`
-	Verdicts []Verdict `json:"verdicts"`
-}
-
-// DecodeJudgements reads a judgements file: {"version": 1, "verdicts": [...]}.
-// An unknown slot, two verdicts for one slot, an unknown provenance, a score
-// outside 0–10, an answer on an MMI criterion, and a score or an invalid
-// answer on a family slot are all EINVALID.
-func DecodeJudgements(r io.Reader) ([]Verdict, error) {
-	const op = "arch.DecodeJudgements"
-	invalid := func(format string, args ...any) error {
-		return &Error{
-			Op:  op,
-			Err: &Error{Code: EINVALID, Message: "judgements: " + fmt.Sprintf(format, args...)},
-		}
-	}
-	var f judgementsFile
-	dec := json.NewDecoder(r)
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&f); err != nil {
-		return nil, invalid("%v", err)
-	}
-	if f.Version != judgementsVersion {
-		return nil, invalid("version %d is not supported; want %d", f.Version, judgementsVersion)
-	}
-	seen := map[string]bool{}
-	for i := range f.Verdicts {
-		v := &f.Verdicts[i]
-		if seen[v.Criterion] {
-			return nil, invalid("criterion %s has two verdicts", v.Criterion)
-		}
-		if msg := v.problem(); msg != "" {
-			return nil, invalid("criterion %s: %s", v.Criterion, msg)
-		}
-		seen[v.Criterion] = true
-	}
-	return f.Verdicts, nil
-}
-
-// problem returns what makes v unusable, or "" when nothing does.
-func (v *Verdict) problem() string {
-	q, ok := questionOf(v.Criterion)
-	switch {
-	case !ok:
-		return "not a judgement criterion or slot family"
-	case v.Provenance != ProvenanceHuman && v.Provenance != ProvenanceLLM:
-		return fmt.Sprintf("provenance %q is not human or llm", v.Provenance)
-	case q.answers == nil:
-		return v.scoreProblem()
-	default:
-		return v.answerProblem(q.answers)
-	}
-}
-
-// scoreProblem checks the verdict of an MMI criterion: a score, no answer.
-func (v *Verdict) scoreProblem() string {
-	switch {
-	case v.Answer != "":
-		return "an MMI criterion takes a score, not an answer"
-	case v.Score < 0 || v.Score > 10:
-		return fmt.Sprintf("score %d is outside 0–10", v.Score)
-	}
-	return ""
-}
-
-// answerProblem checks the verdict of a family slot: one of answers, no score.
-func (v *Verdict) answerProblem(answers []string) string {
-	switch {
-	case v.Score != 0:
-		return "a slot family takes an answer, not a score"
-	case !slices.Contains(answers, v.Answer):
-		return fmt.Sprintf("answer %q is not one of %s", v.Answer, strings.Join(answers, ", "))
-	}
-	return ""
-}
-
-// NewSlot returns the slot of a criterion with its evidence and hash, filled
-// by whichever verdict applies.
+// NewSlot returns the slot req asks for, with its hash, filled by whichever
+// verdict applies.
 //
-// Requires: criterion is an MMI judgement criterion or "family/subject" of a
-// known family.
-func NewSlot(criterion string, evidence []string, verdicts []Verdict) JudgementSlot {
-	sum := sha256.Sum256([]byte(criterion + "\n" + strings.Join(evidence, "\n")))
-	q, _ := questionOf(criterion)
+// Requires: req.Criterion is an MMI judgement criterion or "family/subject"
+// of a known family.
+func NewSlot(req *SlotRequest, verdicts []Verdict) JudgementSlot {
+	q, _ := questionOf(req.Criterion)
 	slot := JudgementSlot{
-		Criterion:    criterion,
-		Question:     q.text,
-		Answers:      q.answers,
-		Evidence:     evidence,
-		EvidenceHash: hex.EncodeToString(sum[:]),
-		Status:       SlotPending,
+		Criterion: req.Criterion,
+		Question:  q.text,
+		Answers:   q.answers,
+		Edition:   q.edition(),
+		Evidence:  req.Evidence,
+		Context:   req.Context,
+		Undecided: cmp.Or(req.Undecided, q.undecided),
+		Status:    SlotPending,
 	}
+	slot.EvidenceHash = slot.hash()
 	for i := range verdicts {
 		v := verdicts[i]
-		if v.Criterion != criterion {
+		if v.Criterion != req.Criterion {
 			continue
 		}
 		slot.Verdict = &v
 		switch {
 		case v.EvidenceHash != slot.EvidenceHash:
-			slot.Status = SlotStale
-		case !v.Approved:
+			slot.Status, slot.StaleBecause = SlotStale, StaleEvidence
+			if v.Edition != "" && v.Edition != slot.Edition {
+				slot.StaleBecause = StaleQuestion
+			}
+		case !v.attestedBy(RoleHuman):
+			// Every family is judged by humans until canaries can qualify
+			// a judge (mmi-plan.md §9.3 D, E), so a judge's verdict is a
+			// draft.
 			slot.Status = SlotUnapproved
+		case v.Answer == AnswerInsufficient:
+			slot.Status = SlotUnresolved
 		default:
 			slot.Status = SlotSupplied
 		}
 	}
 	return slot
+}
+
+// edition is the digest of the question's revision, text and answers, or
+// its score scale for an MMI criterion.
+func (q *question) edition() string {
+	scale := q.answers
+	if scale == nil {
+		scale = []string{"score 0–10"}
+	}
+	return digest([]string{strconv.Itoa(q.revision), q.text}, scale)
+}
+
+// digest is the SHA-256 of groups of strings, each group prefixed by its
+// length and each string written as a netstring ("5:hello,"). The encoding
+// is injective, so no string can imitate a boundary between two others.
+func digest(groups ...[]string) string {
+	var b strings.Builder
+	for _, g := range groups {
+		b.WriteString(strconv.Itoa(len(g)) + ":")
+		for _, s := range g {
+			b.WriteString(strconv.Itoa(len(s)) + ":" + s + ",")
+		}
+	}
+	sum := sha256.Sum256([]byte(b.String()))
+	return hex.EncodeToString(sum[:])
 }
 
 // Answer returns the answer of an approved verdict that judged the slot's
@@ -208,17 +203,44 @@ func (slot *JudgementSlot) Answer() string {
 	return slot.Verdict.Answer
 }
 
+// JudgeView returns what a judge may see of the slot.
+func (slot *JudgementSlot) JudgeView() JudgeView {
+	v := JudgeView{
+		ID: slot.Criterion, Question: slot.Question, Answers: slot.Answers,
+		Undecided: slot.Undecided, Exhibits: make([]Exhibit, len(slot.Evidence)),
+	}
+	for i, e := range slot.Evidence {
+		v.Exhibits[i] = Exhibit{ID: "E" + strconv.Itoa(i+1), Text: e}
+	}
+	return v
+}
+
+// hash is the digest of what the slot asks and shows: its edition,
+// criterion, evidence, context and why it is undecided. The context is
+// hashed too: a change in what an answer would set off is a reason to judge
+// again.
+func (slot *JudgementSlot) hash() string {
+	return digest(
+		[]string{slot.Edition, slot.Criterion, slot.Undecided}, slot.Evidence, slot.Context,
+	)
+}
+
 // apply scores a judgement criterion from its slot, when the slot is supplied.
 func (slot *JudgementSlot) apply(c *Criterion) {
 	switch slot.Status {
 	case SlotSupplied:
 		score := slot.Verdict.Score
 		c.Score = &score
-		c.Reason = fmt.Sprintf("scored by an approved %s verdict", slot.Verdict.Provenance)
+		c.Reason = "scored by a verdict a human attested"
 	case SlotStale:
 		c.Reason = "the verdict judged different evidence; re-review the slot"
+		if slot.StaleBecause == StaleQuestion {
+			c.Reason = "the verdict answered an earlier edition of the question; re-review the slot"
+		}
 	case SlotUnapproved:
 		c.Reason = "the verdict awaits approval"
+	case SlotUnresolved:
+		c.Reason = "a reviewer found the evidence insufficient to score it"
 	case SlotPending:
 		c.Reason = "needs a reviewer; see the judgement slot"
 	}
@@ -229,10 +251,15 @@ func (slot *JudgementSlot) apply(c *Criterion) {
 func questionOf(id string) (question, bool) {
 	if family, subject, ok := strings.Cut(id, "/"); ok {
 		q, known := familyQuestion(family)
+		q.answers = append(slices.Clone(q.answers), AnswerInsufficient)
 		return q, known && subject != ""
 	}
 	text := mmiQuestion(id)
-	return question{text: text}, text != ""
+	return question{
+		text: text, revision: 1,
+		undecided: "the MMI leaves this criterion to a reviewer (mmi.md §7.6): " +
+			"it asks what the structure means, which no measure of the structure answers",
+	}, text != ""
 }
 
 // familyQuestion returns the question a slot family asks of its subject.
@@ -240,35 +267,49 @@ func familyQuestion(family string) (question, bool) {
 	confirm := []string{"confirmed", "rejected"}
 	q, ok := map[string]question{
 		"connascence": {
-			"Must these places change together, so that the candidate is connascence?",
-			confirm,
+			text:      "Must these places change together, so that the candidate is connascence?",
+			answers:   confirm,
+			revision:  1,
+			undecided: "a detector found the shape of connascence, not that the places must change together",
 		},
 		"subdomain": {
-			"Is this subsystem a core, supporting or generic subdomain of the business?",
-			[]string{"core", "generic", "supporting"},
+			text:      "Is this subsystem a core, supporting or generic subdomain of the business?",
+			answers:   []string{"core", "generic", "supporting"},
+			revision:  1,
+			undecided: "how often the business need changes is a business judgement; churn is only evidence of it",
 		},
 		"bounded-context": {
-			"Is this subsystem a bounded context, with a model of its own?",
-			[]string{"no", "yes"},
+			text:      "Is this subsystem a bounded context, with a model of its own?",
+			answers:   []string{"no", "yes"},
+			revision:  1,
+			undecided: "whether a subsystem has a model of its own is a design judgement no import shows",
 		},
 		"integration-pattern": {
-			"Which DDD integration pattern do these two subsystems follow?",
-			[]string{
+			text: "Which DDD integration pattern do these two subsystems follow?",
+			answers: []string{
 				"anti-corruption-layer", "conformist", "customer-supplier",
 				"open-host-service", "partnership", "separate-ways", "shared-kernel",
 			},
+			revision:  1,
+			undecided: "an integration pattern is an agreement between teams, which imports do not show",
 		},
 		"contract-type": {
-			"Is this exported type part of the domain model or an integration contract?",
-			[]string{"contract", "model"},
+			text:      "Is this exported type part of the domain model or an integration contract?",
+			answers:   []string{"contract", "model"},
+			revision:  1,
+			undecided: "the type plays no contract role, yet another subsystem uses it",
 		},
 		"async": {
-			"Does this package integrate asynchronously, through the messaging it imports?",
-			[]string{"async", "sync"},
+			text:      "Does this package integrate asynchronously, through the messaging it imports?",
+			answers:   []string{"async", "sync"},
+			revision:  1,
+			undecided: "importing a messaging client does not show that the package integrates through it",
 		},
 		"balance": {
-			"Is this Balanced Coupling candidate real?",
-			confirm,
+			text:      "Is this Balanced Coupling candidate real?",
+			answers:   confirm,
+			revision:  1,
+			undecided: "the coupling rests on candidate evidence, which a detector found but cannot confirm",
 		},
 	}[family]
 	return q, ok

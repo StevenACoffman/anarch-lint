@@ -219,5 +219,12 @@ func (s *subject) useSites(object string) []arch.Site {
 	return sites
 }
 
-// packageOf returns the package part of a package-level object's ID.
-func packageOf(id string) string { return id[:strings.LastIndex(id, ".")] }
+// packageOf returns the package part of a package-level object's ID, and ""
+// for a predeclared type such as uint64, which belongs to no package.
+func packageOf(id string) string {
+	i := strings.LastIndex(id, ".")
+	if i < 0 {
+		return ""
+	}
+	return id[:i]
+}

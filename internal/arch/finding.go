@@ -35,6 +35,7 @@ const (
 	RuleLargeType             = "large-type"
 	RuleLargeFile             = "large-file"
 	RuleDeepNesting           = "deep-nesting"
+	RuleCognitive             = "cognitive-complexity"
 	fingerprintBytes          = 8
 )
 
@@ -61,10 +62,15 @@ type Finding struct {
 	Fix      string   `json:"fix"`
 	Evidence []string `json:"evidence,omitempty"`
 
-	// instance names the declared rule the finding violates, such as
-	// "layers" or "forbiddenImports[2]", for the compliance measure. It is
-	// unexported so it changes neither the JSON nor the fingerprint.
-	instance string
+	// ModelRule names the rule of the model the finding breaks, such as
+	// "layers", "forbiddenImports[2]" or "fitness.layerAccess web", so a
+	// reader can find it in anarch.json; the compliance measure counts by it.
+	// It is not part of the fingerprint.
+	ModelRule string `json:"modelRule,omitempty"`
+	// sites are the places besides Location that the finding rests on, such
+	// as every import of a subsystem cycle: a change to any of them scopes
+	// the finding (docs/adr/0011). Only the gate reads them.
+	sites []Span
 }
 
 // FindingID is what identifies a finding: the rule it violates, what
@@ -91,6 +97,22 @@ func NewFinding(id FindingID, sev Severity) Finding {
 // SpanAt returns the one-line span of a position.
 func SpanAt(p Position) *Span {
 	return &Span{File: p.File, Start: p.Line, End: p.Line}
+}
+
+// touchedBy reports whether a change set scopes the finding: its location or
+// one of its sites is on a changed line (docs/adr/0011). A finding with
+// neither, such as one about the model, belongs to the whole system and is
+// touched by no change.
+func (f *Finding) touchedBy(c ChangedLines) bool {
+	if c.Touches(f.Location) {
+		return true
+	}
+	for i := range f.sites {
+		if c.Touches(&f.sites[i]) {
+			return true
+		}
+	}
+	return false
 }
 
 // SortFindings orders findings by rule, subject, object and fingerprint, a

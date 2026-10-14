@@ -115,7 +115,7 @@ func roleRule(s *subject) ruleResult {
 			FindingID{Rule: RuleRoleOrder, Subject: ref.From, Object: ref.To},
 			SeverityError,
 		)
-		f.instance = "roles"
+		f.ModelRule = "roles"
 		f.Location = SpanAt(ref.Pos)
 		f.Criterion = "3.2"
 		f.Message = fmt.Sprintf(

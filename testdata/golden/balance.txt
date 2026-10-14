@@ -80,76 +80,54 @@ NO DEPLOY UNIT: example.com/cx/audit, example.com/cx/state
 
 JUDGEMENTS (for a human expert or an adversarial LLM; an approved verdict confirms or rejects)
   balance/b8a015bc0a8d61d4                       pending  Is this Balanced Coupling candidate real?
-                                                          answers: confirmed, rejected
-                                                          evidence: strength functional (candidate), distance 9 (locality system, owner boundary true, deploy boundary true, async false), volatility unjudged, balance 1
+                                                          answers: confirmed, rejected, insufficient-evidence
+                                                          undecided: the coupling rests on candidate evidence, which a detector found but cannot confirm
+                                                          evidence: billing depends on web at the functional level
                                                           evidence: algorithm.same-pattern candidate: the regular expression "^[A-Z]{3}-[0-9]+$" is written in 2 packages
                                                           evidence: algorithm.same-layout candidate: the time layout "2006-01-02" is written in 2 packages
                                                           evidence: algorithm.same-algorithm candidate: 2 packages call crypto/sha256
                                                           evidence: algorithm.clone candidate: 2 functions in 2 packages have the same body shape as example.com/cx/billing.Total
-                                                          evidence hash: 8707bca34afbfd108fecfa7f15193848d4895f179d4d8e57b0d13758bc6083f2
-  bounded-context/audit                          pending  Is this subsystem a bounded context, with a model of its own?
-                                                          answers: no, yes
-                                                          evidence: packages: example.com/cx/audit
-                                                          evidence: downstream subsystems: 0
-                                                          evidence hash: 1aa38f8033fb28c459ac5732a7ec9b912f92a4c9b467e6d1ff95769903739c4a
-  bounded-context/auth                           pending  Is this subsystem a bounded context, with a model of its own?
-                                                          answers: no, yes
-                                                          evidence: packages: example.com/cx/auth
-                                                          evidence: downstream subsystems: 3
-                                                          evidence hash: 82e36d83e0d850a69748e5421543867f71f96466da13bff7330606f7c9e323c6
-  bounded-context/billing                        pending  Is this subsystem a bounded context, with a model of its own?
-                                                          answers: no, yes
-                                                          evidence: packages: example.com/cx/billing, example.com/cx/cmd/client
-                                                          evidence: downstream subsystems: 0
-                                                          evidence hash: e19c33f7a2972757b1187beaa5e09afdb70962c9ddbb21d459e7859e7d00c5b6
-  bounded-context/state                          pending  Is this subsystem a bounded context, with a model of its own?
-                                                          answers: no, yes
-                                                          evidence: packages: example.com/cx/state
-                                                          evidence: downstream subsystems: 0
-                                                          evidence hash: 942de81792fdc4468ca28f774a73ada6dc694b522085b1f93436b47916e2b65b
-  bounded-context/web                            pending  Is this subsystem a bounded context, with a model of its own?
-                                                          answers: no, yes
-                                                          evidence: packages: example.com/cx/cmd/server, example.com/cx/web
-                                                          evidence: downstream subsystems: 1
-                                                          evidence hash: c20869eebfa553af9a8568fc4d9f99ec71e73bc8e48a0f29a7a33a45740a8e79
+                                                          context, hidden from a judge: tight-coupling-functional: billing couples to web at the functional level across a distance of 9, and web's volatility is unjudged, so it counts as core: a step toward a distributed monolith
+                                                          context, hidden from a judge: strength functional (candidate), distance 9 (locality system, owner boundary true, deploy boundary true, async false), volatility unjudged, balance 1
+                                                          evidence hash: 75e39df676c09455f7848487bcb34ee893a83f5e619899d2520b95430c62bd1a
   contract-type/example.com/cx/auth.Credentials  pending  Is this exported type part of the domain model or an integration contract?
-                                                          answers: contract, model
+                                                          answers: contract, model, insufficient-evidence
+                                                          undecided: the type plays no contract role, yet another subsystem uses it
                                                           evidence: type example.com/cx/auth.Credentials (struct) in package example.com/cx/auth
                                                           evidence: fields: User, Password
-                                                          evidence hash: a2e463e22847b3c5533b1b95f5020977847976e97c48e913572ebe0e832ae205
+                                                          evidence hash: 667c9f282ed5056bb4ab1c165e774b5c6b59b3f14d2b5cb85b85cecc74279143
   contract-type/example.com/cx/auth.Role         pending  Is this exported type part of the domain model or an integration contract?
-                                                          answers: contract, model
+                                                          answers: contract, model, insufficient-evidence
+                                                          undecided: the type plays no contract role, yet another subsystem uses it
                                                           evidence: type example.com/cx/auth.Role (other) in package example.com/cx/auth
-                                                          evidence hash: f096dfb36c09357313994617759faa54d74d81faa338ec1c878213762711c098
+                                                          evidence hash: 456c77b6eb0c6d2585a3a1807c978e29b709fa7828f8ffb2649ee2bd4ea31b9a
   contract-type/example.com/cx/auth.Secret       pending  Is this exported type part of the domain model or an integration contract?
-                                                          answers: contract, model
+                                                          answers: contract, model, insufficient-evidence
+                                                          undecided: the type plays no contract role, yet another subsystem uses it
                                                           evidence: type example.com/cx/auth.Secret (struct) in package example.com/cx/auth
                                                           evidence: fields: token
-                                                          evidence hash: b15115ec641110cb0fc86a53dc0e34a22a7332cc710953f5d859bdcd841ce844
-  subdomain/audit                                pending  Is this subsystem a core, supporting or generic subdomain of the business?
-                                                          answers: core, generic, supporting
-                                                          evidence: packages: example.com/cx/audit
-                                                          evidence: downstream subsystems: 0
-                                                          evidence hash: 4541d94176135d17d2861336201c7e6ad58faa40a30315848ece524312acff9d
+                                                          evidence hash: f40ca14053f8404c36117d3d0fe76466a0e4fab8542349ea7515557ea094aa83
   subdomain/auth                                 pending  Is this subsystem a core, supporting or generic subdomain of the business?
-                                                          answers: core, generic, supporting
+                                                          answers: core, generic, supporting, insufficient-evidence
+                                                          undecided: how often the business need changes is a business judgement; churn is only evidence of it
                                                           evidence: packages: example.com/cx/auth
                                                           evidence: downstream subsystems: 3
-                                                          evidence hash: e079d2329ef475c0771f05e436c10d6e20c563a427a7186e245f2a30f76d77be
-  subdomain/billing                              pending  Is this subsystem a core, supporting or generic subdomain of the business?
-                                                          answers: core, generic, supporting
-                                                          evidence: packages: example.com/cx/billing, example.com/cx/cmd/client
-                                                          evidence: downstream subsystems: 0
-                                                          evidence hash: a91079ed51996b5e0cb2155d6b16abd461f2b86fecdbfc90d6ab6f94b0d1bea3
-  subdomain/state                                pending  Is this subsystem a core, supporting or generic subdomain of the business?
-                                                          answers: core, generic, supporting
-                                                          evidence: packages: example.com/cx/state
-                                                          evidence: downstream subsystems: 0
-                                                          evidence hash: 243ac8e8e774bfdf4f86bd51b5e1d626866acc3ecc487692fe80f09d15bc4bc2
+                                                          evidence hash: 2b378bb867dc0f7177fdd50e0060751a471a61eb505114653262f269d9829b49
   subdomain/web                                  pending  Is this subsystem a core, supporting or generic subdomain of the business?
-                                                          answers: core, generic, supporting
+                                                          answers: core, generic, supporting, insufficient-evidence
+                                                          undecided: how often the business need changes is a business judgement; churn is only evidence of it
                                                           evidence: packages: example.com/cx/cmd/server, example.com/cx/web
                                                           evidence: downstream subsystems: 1
-                                                          evidence hash: d30aabe9d8834f5000f445b2a9ea30dacf129e0a1256ba02df32a961f413fd8b
+                                                          evidence hash: 0c7071c191bf4b1ed6d885a45c8078e673126242b82b096461a804e598d6c42f
 
-ASSUMPTIONS: 8, listed in the JSON report (--format=json)
+SKIPPED SLOTS (8; an answer would change nothing)
+  subdomain/billing        no subsystem depends on it and no revision range gives its churn, so its volatility decides nothing
+  subdomain/state          no subsystem depends on it and no revision range gives its churn, so its volatility decides nothing
+  subdomain/audit          no subsystem depends on it and no revision range gives its churn, so its volatility decides nothing
+  bounded-context/auth     it shares no model with another subsystem, so whether it is a bounded context decides nothing
+  bounded-context/billing  it shares no model with another subsystem, so whether it is a bounded context decides nothing
+  bounded-context/web      it shares no model with another subsystem, so whether it is a bounded context decides nothing
+  bounded-context/state    it shares no model with another subsystem, so whether it is a bounded context decides nothing
+  bounded-context/audit    it shares no model with another subsystem, so whether it is a bounded context decides nothing
+
+ASSUMPTIONS: 11, listed in the JSON report (--format=json)

@@ -16,7 +16,8 @@
       "complexityVariant": "modified",
       "maxTypeCycleGroup": 5,
       "largeFileLines": 800,
-      "maxNesting": 4
+      "maxNesting": 4,
+      "highCognitive": 15
     },
     "codeowners": "16c41ce3f256768b7bba7ea3904631fd8e1a440309557e50bf34ba0362803550"
   },
@@ -248,6 +249,9 @@
       "subdomain": "unjudged"
     }
   ],
+  "coChange": [],
+  "hotspots": [],
+  "coverage": [],
   "unbound": [
     "example.com/cx/audit",
     "example.com/cx/state"
@@ -372,92 +376,30 @@
     }
   ],
   "rejected": [],
+  "suppressed": [],
   "judgements": [
     {
       "criterion": "balance/b8a015bc0a8d61d4",
       "question": "Is this Balanced Coupling candidate real?",
       "answers": [
         "confirmed",
-        "rejected"
+        "rejected",
+        "insufficient-evidence"
       ],
+      "edition": "9236d4c2a2f2ee98965375ab9cef9eb9c4dcda8442172ccaf1821d6e81df31e5",
       "evidence": [
-        "strength functional (candidate), distance 9 (locality system, owner boundary true, deploy boundary true, async false), volatility unjudged, balance 1",
+        "billing depends on web at the functional level",
         "algorithm.same-pattern candidate: the regular expression \"^[A-Z]{3}-[0-9]+$\" is written in 2 packages",
         "algorithm.same-layout candidate: the time layout \"2006-01-02\" is written in 2 packages",
         "algorithm.same-algorithm candidate: 2 packages call crypto/sha256",
         "algorithm.clone candidate: 2 functions in 2 packages have the same body shape as example.com/cx/billing.Total"
       ],
-      "evidenceHash": "8707bca34afbfd108fecfa7f15193848d4895f179d4d8e57b0d13758bc6083f2",
-      "status": "pending"
-    },
-    {
-      "criterion": "bounded-context/audit",
-      "question": "Is this subsystem a bounded context, with a model of its own?",
-      "answers": [
-        "no",
-        "yes"
+      "context": [
+        "tight-coupling-functional: billing couples to web at the functional level across a distance of 9, and web's volatility is unjudged, so it counts as core: a step toward a distributed monolith",
+        "strength functional (candidate), distance 9 (locality system, owner boundary true, deploy boundary true, async false), volatility unjudged, balance 1"
       ],
-      "evidence": [
-        "packages: example.com/cx/audit",
-        "downstream subsystems: 0"
-      ],
-      "evidenceHash": "1aa38f8033fb28c459ac5732a7ec9b912f92a4c9b467e6d1ff95769903739c4a",
-      "status": "pending"
-    },
-    {
-      "criterion": "bounded-context/auth",
-      "question": "Is this subsystem a bounded context, with a model of its own?",
-      "answers": [
-        "no",
-        "yes"
-      ],
-      "evidence": [
-        "packages: example.com/cx/auth",
-        "downstream subsystems: 3"
-      ],
-      "evidenceHash": "82e36d83e0d850a69748e5421543867f71f96466da13bff7330606f7c9e323c6",
-      "status": "pending"
-    },
-    {
-      "criterion": "bounded-context/billing",
-      "question": "Is this subsystem a bounded context, with a model of its own?",
-      "answers": [
-        "no",
-        "yes"
-      ],
-      "evidence": [
-        "packages: example.com/cx/billing, example.com/cx/cmd/client",
-        "downstream subsystems: 0"
-      ],
-      "evidenceHash": "e19c33f7a2972757b1187beaa5e09afdb70962c9ddbb21d459e7859e7d00c5b6",
-      "status": "pending"
-    },
-    {
-      "criterion": "bounded-context/state",
-      "question": "Is this subsystem a bounded context, with a model of its own?",
-      "answers": [
-        "no",
-        "yes"
-      ],
-      "evidence": [
-        "packages: example.com/cx/state",
-        "downstream subsystems: 0"
-      ],
-      "evidenceHash": "942de81792fdc4468ca28f774a73ada6dc694b522085b1f93436b47916e2b65b",
-      "status": "pending"
-    },
-    {
-      "criterion": "bounded-context/web",
-      "question": "Is this subsystem a bounded context, with a model of its own?",
-      "answers": [
-        "no",
-        "yes"
-      ],
-      "evidence": [
-        "packages: example.com/cx/cmd/server, example.com/cx/web",
-        "downstream subsystems: 1"
-      ],
-      "evidenceHash": "c20869eebfa553af9a8568fc4d9f99ec71e73bc8e48a0f29a7a33a45740a8e79",
+      "undecided": "the coupling rests on candidate evidence, which a detector found but cannot confirm",
+      "evidenceHash": "75e39df676c09455f7848487bcb34ee893a83f5e619899d2520b95430c62bd1a",
       "status": "pending"
     },
     {
@@ -465,13 +407,16 @@
       "question": "Is this exported type part of the domain model or an integration contract?",
       "answers": [
         "contract",
-        "model"
+        "model",
+        "insufficient-evidence"
       ],
+      "edition": "528e4391aab2c4bcab7ac65019ab0d5b98f5f5cf3f1a17c3c4f9063ef9e3fadc",
       "evidence": [
         "type example.com/cx/auth.Credentials (struct) in package example.com/cx/auth",
         "fields: User, Password"
       ],
-      "evidenceHash": "a2e463e22847b3c5533b1b95f5020977847976e97c48e913572ebe0e832ae205",
+      "undecided": "the type plays no contract role, yet another subsystem uses it",
+      "evidenceHash": "667c9f282ed5056bb4ab1c165e774b5c6b59b3f14d2b5cb85b85cecc74279143",
       "status": "pending"
     },
     {
@@ -479,12 +424,15 @@
       "question": "Is this exported type part of the domain model or an integration contract?",
       "answers": [
         "contract",
-        "model"
+        "model",
+        "insufficient-evidence"
       ],
+      "edition": "528e4391aab2c4bcab7ac65019ab0d5b98f5f5cf3f1a17c3c4f9063ef9e3fadc",
       "evidence": [
         "type example.com/cx/auth.Role (other) in package example.com/cx/auth"
       ],
-      "evidenceHash": "f096dfb36c09357313994617759faa54d74d81faa338ec1c878213762711c098",
+      "undecided": "the type plays no contract role, yet another subsystem uses it",
+      "evidenceHash": "456c77b6eb0c6d2585a3a1807c978e29b709fa7828f8ffb2649ee2bd4ea31b9a",
       "status": "pending"
     },
     {
@@ -492,28 +440,16 @@
       "question": "Is this exported type part of the domain model or an integration contract?",
       "answers": [
         "contract",
-        "model"
+        "model",
+        "insufficient-evidence"
       ],
+      "edition": "528e4391aab2c4bcab7ac65019ab0d5b98f5f5cf3f1a17c3c4f9063ef9e3fadc",
       "evidence": [
         "type example.com/cx/auth.Secret (struct) in package example.com/cx/auth",
         "fields: token"
       ],
-      "evidenceHash": "b15115ec641110cb0fc86a53dc0e34a22a7332cc710953f5d859bdcd841ce844",
-      "status": "pending"
-    },
-    {
-      "criterion": "subdomain/audit",
-      "question": "Is this subsystem a core, supporting or generic subdomain of the business?",
-      "answers": [
-        "core",
-        "generic",
-        "supporting"
-      ],
-      "evidence": [
-        "packages: example.com/cx/audit",
-        "downstream subsystems: 0"
-      ],
-      "evidenceHash": "4541d94176135d17d2861336201c7e6ad58faa40a30315848ece524312acff9d",
+      "undecided": "the type plays no contract role, yet another subsystem uses it",
+      "evidenceHash": "f40ca14053f8404c36117d3d0fe76466a0e4fab8542349ea7515557ea094aa83",
       "status": "pending"
     },
     {
@@ -522,43 +458,16 @@
       "answers": [
         "core",
         "generic",
-        "supporting"
+        "supporting",
+        "insufficient-evidence"
       ],
+      "edition": "848cbe05244d54c882915b6c2fa8ee813b6e26df089dfc83cc1a9eee4f5ef7bd",
       "evidence": [
         "packages: example.com/cx/auth",
         "downstream subsystems: 3"
       ],
-      "evidenceHash": "e079d2329ef475c0771f05e436c10d6e20c563a427a7186e245f2a30f76d77be",
-      "status": "pending"
-    },
-    {
-      "criterion": "subdomain/billing",
-      "question": "Is this subsystem a core, supporting or generic subdomain of the business?",
-      "answers": [
-        "core",
-        "generic",
-        "supporting"
-      ],
-      "evidence": [
-        "packages: example.com/cx/billing, example.com/cx/cmd/client",
-        "downstream subsystems: 0"
-      ],
-      "evidenceHash": "a91079ed51996b5e0cb2155d6b16abd461f2b86fecdbfc90d6ab6f94b0d1bea3",
-      "status": "pending"
-    },
-    {
-      "criterion": "subdomain/state",
-      "question": "Is this subsystem a core, supporting or generic subdomain of the business?",
-      "answers": [
-        "core",
-        "generic",
-        "supporting"
-      ],
-      "evidence": [
-        "packages: example.com/cx/state",
-        "downstream subsystems: 0"
-      ],
-      "evidenceHash": "243ac8e8e774bfdf4f86bd51b5e1d626866acc3ecc487692fe80f09d15bc4bc2",
+      "undecided": "how often the business need changes is a business judgement; churn is only evidence of it",
+      "evidenceHash": "2b378bb867dc0f7177fdd50e0060751a471a61eb505114653262f269d9829b49",
       "status": "pending"
     },
     {
@@ -567,14 +476,51 @@
       "answers": [
         "core",
         "generic",
-        "supporting"
+        "supporting",
+        "insufficient-evidence"
       ],
+      "edition": "848cbe05244d54c882915b6c2fa8ee813b6e26df089dfc83cc1a9eee4f5ef7bd",
       "evidence": [
         "packages: example.com/cx/cmd/server, example.com/cx/web",
         "downstream subsystems: 1"
       ],
-      "evidenceHash": "d30aabe9d8834f5000f445b2a9ea30dacf129e0a1256ba02df32a961f413fd8b",
+      "undecided": "how often the business need changes is a business judgement; churn is only evidence of it",
+      "evidenceHash": "0c7071c191bf4b1ed6d885a45c8078e673126242b82b096461a804e598d6c42f",
       "status": "pending"
+    }
+  ],
+  "skipped": [
+    {
+      "criterion": "subdomain/billing",
+      "reason": "no subsystem depends on it and no revision range gives its churn, so its volatility decides nothing"
+    },
+    {
+      "criterion": "subdomain/state",
+      "reason": "no subsystem depends on it and no revision range gives its churn, so its volatility decides nothing"
+    },
+    {
+      "criterion": "subdomain/audit",
+      "reason": "no subsystem depends on it and no revision range gives its churn, so its volatility decides nothing"
+    },
+    {
+      "criterion": "bounded-context/auth",
+      "reason": "it shares no model with another subsystem, so whether it is a bounded context decides nothing"
+    },
+    {
+      "criterion": "bounded-context/billing",
+      "reason": "it shares no model with another subsystem, so whether it is a bounded context decides nothing"
+    },
+    {
+      "criterion": "bounded-context/web",
+      "reason": "it shares no model with another subsystem, so whether it is a bounded context decides nothing"
+    },
+    {
+      "criterion": "bounded-context/state",
+      "reason": "it shares no model with another subsystem, so whether it is a bounded context decides nothing"
+    },
+    {
+      "criterion": "bounded-context/audit",
+      "reason": "it shares no model with another subsystem, so whether it is a bounded context decides nothing"
     }
   ],
   "assumptions": [
@@ -617,6 +563,21 @@
       "id": "exposure",
       "text": "A package with 10 or more importers and an intrusive, or factual functional, upstream dependency is a finding.",
       "source": "connascence.md §9.6"
+    },
+    {
+      "id": "slot-applicability",
+      "text": "A subdomain slot opens for a subsystem another depends on, or for every subsystem when a revision range gives churn; a bounded-context slot opens for either end of a model-level pair. Each slot not opened is listed in skipped, with the reason.",
+      "source": "mmi-plan.md §9.3 H"
+    },
+    {
+      "id": "co-change",
+      "text": "Two subsystems co-change when at least 2 commits of the range changed both; their score is shared ÷ √(commits of each). A commit changing more than 40 files is a sweep and counts toward neither pair. A pair scoring 0.5 or more with no import either way is a hidden-coupling candidate. A hotspot is commits × summed cyclomatic complexity.",
+      "source": "IMPROVEMENTS.md 4.1 (gortex cochange.Mine; Tornhill's hotspots)"
+    },
+    {
+      "id": "coverage",
+      "text": "Coverage attributes each block of a go test -coverprofile profile to the function holding its first line. A package at least 3 packages import, whose tests run less than 50% of its statements, is an untested-dependency candidate.",
+      "source": "IMPROVEMENTS.md 6.4 (codegrapher coverage)"
     }
   ]
 }

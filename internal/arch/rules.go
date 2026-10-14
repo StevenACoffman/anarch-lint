@@ -86,7 +86,7 @@ func orderRule(
 		}
 		r.violations++
 		f := NewFinding(FindingID{Rule: rule, Subject: imp.From, Object: imp.To}, SeverityError)
-		f.instance = instance
+		f.ModelRule = instance
 		f.Location = SpanAt(imp.Pos)
 		f.Criterion = criterion
 		f.Message = fmt.Sprintf(
@@ -178,7 +178,7 @@ func interfaceRule(s *subject) ruleResult {
 			FindingID{Rule: RuleInterfaceBypass, Subject: imp.From, Object: imp.To},
 			SeverityError,
 		)
-		f.instance = "interfaces"
+		f.ModelRule = "interfaces"
 		f.Location = SpanAt(imp.Pos)
 		f.Criterion = "1.2.1"
 		f.Message = fmt.Sprintf("%s imports %s, which is not an interface package of subsystem %s",
@@ -219,7 +219,7 @@ func forbiddenRule(s *subject) ruleResult {
 				FindingID{Rule: RuleForbiddenImport, Subject: imp.From, Object: imp.To},
 				SeverityError,
 			)
-			f.instance = instanceName("forbiddenImports", i)
+			f.ModelRule = instanceName("forbiddenImports", i)
 			f.Location = SpanAt(imp.Pos)
 			f.Criterion = "3.4"
 			f.Message = fmt.Sprintf("%s imports %s: %s", imp.From, imp.To, fi.Reason)
@@ -246,13 +246,13 @@ func isolationRule(s *subject) []Finding {
 			}
 			allowed := make([]string, len(iso.MayImport))
 			for i, pat := range iso.MayImport {
-				allowed[i] = substitute(pat, captures)
+				allowed[i] = Substitute(pat, captures)
 			}
 			f := NewFinding(
 				FindingID{Rule: RuleIsolation, Subject: imp.From, Object: imp.To},
 				SeverityError,
 			)
-			f.instance = instanceName("isolations", j)
+			f.ModelRule = instanceName("isolations", j)
 			f.Location = SpanAt(imp.Pos)
 			f.Message = fmt.Sprintf("%s imports %s: %s", imp.From, imp.To, iso.Reason)
 			f.Fix = fmt.Sprintf("%s may import only %s; move the shared code there, or depend on "+
@@ -268,7 +268,7 @@ func isolationRule(s *subject) []Finding {
 // importing pkg.
 func isolationAllows(iso *Isolation, captures []string, pkg string) bool {
 	return slices.ContainsFunc(iso.MayImport, func(pat string) bool {
-		_, ok := matchPattern(substitute(pat, captures), pkg)
+		_, ok := matchPattern(Substitute(pat, captures), pkg)
 		return ok
 	})
 }

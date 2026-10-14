@@ -186,11 +186,12 @@ func (s *subject) checkAssigned() {
 	}
 }
 
-// checkEmptyExisting reports the selectors of the model's other rules that
-// match nothing: forbidden imports, isolations and roles (ArchUnit fails an
-// empty rule by default). Stale subsystem and layer patterns are analyze's
-// findings already. The findings are errors when the model declares fitness
-// rules, and warnings otherwise.
+// check reports the selectors of the model's other rules that match
+// nothing: forbidden imports, isolations, subsystem interfaces, roles and
+// balance's messaging clients (ArchUnit fails an empty rule by default).
+// Stale subsystem and layer patterns are analyze's findings already. The
+// findings are errors when the model declares fitness rules, and warnings
+// otherwise.
 func (e *existing) check() {
 	targets := map[string]bool{}
 	for _, imp := range e.p.Imports {
@@ -209,14 +210,43 @@ func (e *existing) check() {
 		e.emptyExisting(name, "from", countMatching(e.packages, fi.From) > 0)
 		e.emptyExisting(name, "imports", matchesTarget(fi.Imports))
 	}
-	for i, iso := range e.m.Isolations {
-		e.emptyExisting(
-			fmt.Sprintf("isolations[%d]", i),
-			"from",
-			countMatching(e.packages, []string{iso.From}) > 0,
-		)
+	for i := range e.m.Isolations {
+		iso := &e.m.Isolations[i]
+		name := fmt.Sprintf("isolations[%d]", i)
+		if !e.emptyExisting(name, "from", countMatching(e.packages, []string{iso.From}) > 0) {
+			e.emptyExisting(name, "mayImport", e.mayImportMatches(iso))
+		}
+	}
+	// An interface that matches nothing makes every import into the
+	// subsystem from another one an interface bypass.
+	for _, sub := range e.m.Subsystems {
+		if len(sub.Interface) > 0 {
+			e.emptyExisting("subsystems."+sub.Name, "interface",
+				countMatching(e.packages, sub.Interface) > 0)
+		}
+	}
+	if len(e.m.Balance.Messaging) > 0 {
+		e.emptyExisting("balance", "messaging", matchesTarget(e.m.Balance.Messaging))
 	}
 	e.emptyRoles()
+}
+
+// mayImportMatches reports whether some package an isolation constrains may
+// import some package under analysis: whether, with the captures of a
+// package matching From, one of the MayImport patterns matches a package.
+func (e *existing) mayImportMatches(iso *arch.Isolation) bool {
+	for _, from := range e.packages {
+		_, captures, ok := arch.MatchCaptures(iso.From, from)
+		if !ok {
+			continue
+		}
+		for _, pat := range iso.MayImport {
+			if countMatching(e.packages, []string{arch.Substitute(pat, captures)}) > 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // emptyRoles reports the role selectors that match nothing.
@@ -237,10 +267,10 @@ func (e *existing) emptyRoles() {
 }
 
 // emptyExisting reports one selector of an existing rule that matches
-// nothing.
-func (e *existing) emptyExisting(rule, selector string, matched bool) {
+// nothing, and returns whether it reported it.
+func (e *existing) emptyExisting(rule, selector string, matched bool) bool {
 	if matched {
-		return
+		return false
 	}
 	sev := arch.SeverityWarning
 	if e.m.Fitness.Enabled() {
@@ -250,6 +280,7 @@ func (e *existing) emptyExisting(rule, selector string, matched bool) {
 		arch.FindingID{Rule: ruleEmptySelector, Subject: rule, Object: selector},
 		sev,
 	)
+	f.ModelRule = rule
 	f.Message = fmt.Sprintf(
 		"the %s of %s match nothing, so the rule checks nothing",
 		selector,
@@ -257,6 +288,7 @@ func (e *existing) emptyExisting(rule, selector string, matched bool) {
 	)
 	f.Fix = "correct the patterns, or remove the rule"
 	e.ledger.findings = append(e.ledger.findings, f)
+	return true
 }
 
 // anyTypeExists reports whether any of the type IDs is a type of the program.

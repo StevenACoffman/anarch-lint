@@ -33,24 +33,34 @@ func TestParseDiff(t *testing.T) {
 			changed: arch.ChangedLines{"x.go": {{Start: 3, End: 3}, {Start: 11, End: 12}}},
 		},
 		"pure deletion touches nothing": {
-			diff:    "--- a/x.go\n+++ b/x.go\n@@ -4,2 +3,0 @@\n-gone\n-gone\n",
+			diff:    "diff --git a/x.go b/x.go\n--- a/x.go\n+++ b/x.go\n@@ -4,2 +3,0 @@\n-gone\n-gone\n",
 			changed: arch.ChangedLines{},
 		},
 		"deleted file contributes nothing": {
-			diff:    "--- a/x.go\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-a\n-b\n",
+			diff:    "diff --git a/x.go b/x.go\ndeleted file mode 100644\n--- a/x.go\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-a\n-b\n",
 			changed: arch.ChangedLines{},
 		},
 		"adjacent hunks merge": {
-			diff:    "--- a/x.go\n+++ b/x.go\n@@ -1 +1 @@\n-a\n+b\n@@ -2 +2,2 @@\n-c\n+d\n+e\n",
+			diff:    "diff --git a/x.go b/x.go\n--- a/x.go\n+++ b/x.go\n@@ -1 +1 @@\n-a\n+b\n@@ -2 +2,2 @@\n-c\n+d\n+e\n",
 			changed: arch.ChangedLines{"x.go": {{Start: 1, End: 3}}},
 		},
 		"no newline marker is not a line": {
-			diff:    "--- a/x.go\n+++ b/x.go\n@@ -5 +5 @@\n-a\n\\ No newline at end of file\n+b\n",
+			diff:    "diff --git a/x.go b/x.go\n--- a/x.go\n+++ b/x.go\n@@ -5 +5 @@\n-a\n\\ No newline at end of file\n+b\n",
 			changed: arch.ChangedLines{"x.go": {{Start: 5, End: 5}}},
 		},
+		"new file": {
+			diff: "diff --git a/n.go b/n.go\nnew file mode 100644\nindex 0000000..1111111\n" +
+				"--- /dev/null\n+++ b/n.go\n@@ -0,0 +1,2 @@\n+a\n+b\n",
+			changed: arch.ChangedLines{"n.go": {{Start: 1, End: 2}}},
+		},
+		"quoted path": {
+			diff: "diff --git \"a/sp\\303\\251c.go\" \"b/sp\\303\\251c.go\"\n" +
+				"--- \"a/sp\\303\\251c.go\"\n+++ \"b/sp\\303\\251c.go\"\n@@ -2 +2 @@\n-x\n+y\n",
+			changed: arch.ChangedLines{"spéc.go": {{Start: 2, End: 2}}},
+		},
 		"two files": {
-			diff: "--- a/a.go\n+++ b/a.go\n@@ -1 +1 @@\n-x\n+y\n" +
-				"--- a/b.go\n+++ b/b.go\n@@ -7 +7 @@\n-x\n+y\n",
+			diff: "diff --git a/a.go b/a.go\n--- a/a.go\n+++ b/a.go\n@@ -1 +1 @@\n-x\n+y\n" +
+				"diff --git a/b.go b/b.go\n--- a/b.go\n+++ b/b.go\n@@ -7 +7 @@\n-x\n+y\n",
 			changed: arch.ChangedLines{"a.go": {{Start: 1, End: 1}}, "b.go": {{Start: 7, End: 7}}},
 		},
 	}
@@ -68,15 +78,16 @@ func TestParseDiff(t *testing.T) {
 
 func TestParseDiffMalformed(t *testing.T) {
 	t.Parallel()
-	_, err := git.ParseDiff(strings.NewReader("+++ b/x.go\n@@ -1 +zz @@\n"))
+	_, err := git.ParseDiff(strings.NewReader(
+		"diff --git a/x.go b/x.go\n--- a/x.go\n+++ b/x.go\n@@ -1 +zz @@\n"))
 	equals(t, arch.EINVALID, arch.ErrorCode(err))
 }
 
 // FuzzParseDiff checks that no input crashes the parser, and that what it
 // returns is sorted and non-overlapping, as arch.ChangedLines requires.
 func FuzzParseDiff(f *testing.F) {
-	f.Add("--- a/x.go\n+++ b/x.go\n@@ -3 +3 @@\n-old\n+new\n")
-	f.Add("+++ b/x.go\n@@ -1,0 +1,5 @@\n")
+	f.Add("diff --git a/x.go b/x.go\n--- a/x.go\n+++ b/x.go\n@@ -3 +3 @@\n-old\n+new\n")
+	f.Add("diff --git a/x.go b/x.go\n--- a/x.go\n+++ b/x.go\n@@ -1,0 +1,5 @@\n")
 	f.Fuzz(func(t *testing.T, diff string) {
 		changed, err := git.ParseDiff(strings.NewReader(diff))
 		if err != nil {

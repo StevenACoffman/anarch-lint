@@ -41,10 +41,29 @@ type SubsystemVolatility struct {
 
 // volatility asks for each declared subsystem's subdomain and whether it is a
 // bounded context, with its packages, roles, churn and couplings as evidence.
-func (s *subject) volatility(ev []evidence) []SubsystemVolatility {
+//
+// A subsystem's volatility decides something only when another depends on
+// it or a revision range gives its churn; otherwise its slot is skipped.
+func (s *subject) volatility(
+	ev []evidence, groups map[pairKey][]evidence,
+) ([]SubsystemVolatility, []SkippedSlot) {
+	upstream := map[string]bool{}
+	for k := range groups {
+		upstream[k.to] = true
+	}
 	out := make([]SubsystemVolatility, 0, len(s.m.Subsystems))
+	var skipped []SkippedSlot
 	for _, sub := range s.m.Subsystems {
 		v := SubsystemVolatility{Name: sub.Name, Subdomain: subdomainUnjudged}
+		if s.in.Churn == nil && !upstream[sub.Name] {
+			skipped = append(skipped, SkippedSlot{
+				Criterion: "subdomain/" + sub.Name,
+				Reason: "no subsystem depends on it and no revision range gives its churn, " +
+					"so its volatility decides nothing",
+			})
+			out = append(out, v)
+			continue
+		}
 		evidence := s.subsystemEvidence(sub.Name, ev)
 		if s.in.Churn != nil {
 			n := s.commitsOf(sub.Name)
@@ -52,14 +71,44 @@ func (s *subject) volatility(ev []evidence) []SubsystemVolatility {
 			evidence = append(evidence, fmt.Sprintf("churn: %d commits from %s to %s",
 				n, short(s.in.Churn.Since), short(s.in.Churn.Head)))
 		}
-		if answer := s.slots.ask("subdomain/"+sub.Name, evidence); answer != "" {
+		if answer := s.slots.ask(&arch.SlotRequest{
+			Criterion: "subdomain/" + sub.Name, Evidence: evidence,
+		}); answer != "" {
 			v.Subdomain = answer
 		}
-		v.BoundedContext = s.slots.ask("bounded-context/"+sub.Name,
-			append(evidence, s.domains.contextEvidence(sub.Name)...))
 		out = append(out, v)
 	}
-	return out
+	return out, skipped
+}
+
+// boundedContexts asks whether each subsystem at either end of a
+// model-level pair is a bounded context, which decides whether the pair
+// leaks a model, and skips the others.
+func (s *subject) boundedContexts(r *Report, ev []evidence) []SkippedSlot {
+	ends := map[string]bool{}
+	for i := range r.Pairs {
+		if p := &r.Pairs[i]; p.Level == LevelModel {
+			ends[p.From], ends[p.To] = true, true
+		}
+	}
+	var skipped []SkippedSlot
+	for i := range r.Subsystems {
+		v := &r.Subsystems[i]
+		if !ends[v.Name] {
+			skipped = append(skipped, SkippedSlot{
+				Criterion: "bounded-context/" + v.Name,
+				Reason: "it shares no model with another subsystem, " +
+					"so whether it is a bounded context decides nothing",
+			})
+			continue
+		}
+		v.BoundedContext = s.slots.ask(&arch.SlotRequest{
+			Criterion: "bounded-context/" + v.Name,
+			Evidence: append(s.subsystemEvidence(v.Name, ev),
+				s.domains.contextEvidence(v.Name)...),
+		})
+	}
+	return skipped
 }
 
 // subsystemEvidence describes a subsystem for a reviewer: its packages, the

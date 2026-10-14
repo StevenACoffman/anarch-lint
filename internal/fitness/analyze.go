@@ -9,6 +9,7 @@ package fitness
 
 import (
 	"cmp"
+	"slices"
 
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
@@ -30,6 +31,9 @@ const (
 	StatusFailed RuleStatus = "failed"
 	StatusEmpty  RuleStatus = "empty"
 	StatusOff    RuleStatus = "off"
+	// StatusNoChange is a rule on changes measured without a change set: it
+	// had nothing to check.
+	StatusNoChange RuleStatus = "no-change"
 )
 
 // RuleStatus is a fitness rule's outcome.
@@ -48,8 +52,11 @@ type Report struct {
 	Visibility                 Visibility            `json:"visibility"`
 	ComponentDependencyMetrics []ComponentDependency `json:"componentDependencyMetrics"`
 	// Cycles lists the elementary cycles of the type and subsystem graphs.
-	Cycles      []CycleSet        `json:"cycles"`
-	Assumptions []arch.Assumption `json:"assumptions"`
+	Cycles []CycleSet `json:"cycles"`
+	// Verification says whether the import rules were checked against each
+	// other for redundancy and unusable allowances.
+	Verification Verification      `json:"verification"`
+	Assumptions  []arch.Assumption `json:"assumptions"`
 }
 
 // RuleResult is one fitness rule's outcome: how many packages or calls its
@@ -96,6 +103,9 @@ type rule struct {
 	// off rules check nothing; severity is the severity of a violation.
 	off      bool
 	severity arch.Severity
+	// quiet is the status of a rule without violations that need not match
+	// anything, such as a rule on changes; "" for every other rule.
+	quiet RuleStatus
 }
 
 // Analyze measures in's program under its model's fitness rules. It is a
@@ -106,12 +116,18 @@ type rule struct {
 // its [arch.Facts] when the model declares calls or interfacesOnly rules.
 func Analyze(in *arch.Input) Report {
 	s := newSubject(in)
-	s.checkImports(s.importConstraints())
+	constraints := s.importConstraints()
+	s.checkImports(constraints)
+	verification, overlaps := verify(constraints, s.m.ForbiddenImports, s.packagePaths(),
+		outsideTargets(s.p, &s.g))
+	s.findings = append(s.findings, overlaps...)
 	s.checkSlices()
 	s.checkCalls()
 	s.checkInterfacesOnly()
 	s.checkAssigned()
 	s.checkDomains(in.Domains)
+	checkCoChange(s.ledger, s.m.Fitness.CoChange, in.Changed)
+	checkFanOut(s.ledger, s.m.Fitness.FanOut, s.packagePaths(), importsInScope(s.p, &s.g))
 	(&existing{p: s.p, m: s.m, types: s.types, packages: s.packagePaths(), ledger: s.ledger}).check()
 	s.unexplained(s.m.Fitness.Rules())
 	rules := s.results() // closes every rule, adding the empty-rule findings
@@ -135,7 +151,8 @@ func Analyze(in *arch.Input) Report {
 			cyclesOf("types", s.g.Types),
 			cyclesOf("subsystems", s.g.Subsystems),
 		},
-		Assumptions: assumptions(),
+		Verification: verification,
+		Assumptions:  assumptions(),
 	}
 }
 
@@ -195,10 +212,20 @@ func (s *ledger) violation(r *rule, f *arch.Finding) {
 	}
 	r.result.Violations++
 	f.Severity = r.severity
+	f.ModelRule = r.modelRule()
 	if r.result.Reason != "" {
 		f.Message += ": " + r.result.Reason
 	}
 	s.findings = append(s.findings, *f)
+}
+
+// modelRule names the rule as a finding's ModelRule: its kind under fitness,
+// and its name when that differs.
+func (r *rule) modelRule() string {
+	if r.result.Name == r.result.Kind {
+		return "fitness." + r.result.Kind
+	}
+	return "fitness." + r.result.Kind + " " + r.result.Name
 }
 
 // results closes every rule: an empty rule that is not optional is a
@@ -209,6 +236,8 @@ func (s *ledger) results() []RuleResult {
 		switch {
 		case r.off:
 			r.result.Status = StatusOff
+		case r.quiet != "" && r.result.Violations == 0:
+			r.result.Status = r.quiet
 		case r.result.Matched == 0 && !r.result.Optional:
 			r.result.Status = StatusEmpty
 			s.emptyRule(r)
@@ -231,6 +260,7 @@ func (s *ledger) emptyRule(r *rule) {
 		arch.FindingID{Rule: ruleEmptySelector, Subject: r.result.Name},
 		r.severity,
 	)
+	f.ModelRule = r.modelRule()
 	f.Message = "fitness rule " + r.result.Name + " (" + r.result.Kind + ") matches nothing"
 	f.Fix = "correct the rule's patterns, or set optional if it may match nothing"
 	s.findings = append(s.findings, f)
@@ -276,6 +306,18 @@ func countMatching(packages, patterns []string) int {
 		}
 	}
 	return n
+}
+
+// outsideTargets returns the imported packages outside the analysis, sorted.
+func outsideTargets(p *arch.Program, g *arch.Graphs) []string {
+	var out []string
+	for _, imp := range p.Imports {
+		if _, in := g.SubsystemOf[imp.To]; !in {
+			out = append(out, imp.To)
+		}
+	}
+	slices.Sort(out)
+	return slices.Compact(out)
 }
 
 // packagePaths returns the in-scope packages, sorted.

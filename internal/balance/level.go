@@ -254,7 +254,9 @@ func (k *classifier) isContract(typ string) bool {
 	if k.roles[typ] == "contract" {
 		return true
 	}
-	return k.slots.ask("contract-type/"+typ, k.typeEvidence(typ)) == "contract"
+	return k.slots.ask(&arch.SlotRequest{
+		Criterion: "contract-type/" + typ, Evidence: k.typeEvidence(typ),
+	}) == "contract"
 }
 
 // typeEvidence is what a reviewer weighs to tell a model type from a

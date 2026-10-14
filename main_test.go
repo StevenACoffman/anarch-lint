@@ -7,10 +7,14 @@ import (
 	"flag"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
 
 // fixture is the fixture module, with its own anarch.json, relative to the
@@ -390,6 +394,14 @@ func TestCheckExitCodes(t *testing.T) {
 			code: 1,
 		},
 		"an unknown flag is a usage error": {args: []string{"check", "--no-such-flag"}, code: 2},
+		"new findings fail the gate in SARIF too": {
+			args: []string{"-C", fixture, "--format=sarif", "check", "--baseline", empty},
+			code: 3,
+		},
+		"SARIF is for check only": {
+			args: []string{"-C", fixture, "--format=sarif", "analyze"},
+			code: 1,
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -486,7 +498,7 @@ func TestCorpusGoDDD(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	code, out, errOut := runCLI(t, "-C", filepath.Join(*corpus, "go-ddd"), "--model", model,
+	code, out, errOut := runCLI(t, "-C", corpusClone(t, "go-ddd"), "--model", model,
 		"--format=json", "analyze", "./internal/...")
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errOut)
@@ -564,6 +576,47 @@ func TestEveryDecisionRecordIsPinned(t *testing.T) {
 	}
 }
 
+// TestADR_0012_TheCoreApprovesItsLibraries pins the allow-list of the core's
+// third-party code: the self-check's model approves each library by name,
+// for every core package, and go.mod pins each one.
+func TestADR_0012_TheCoreApprovesItsLibraries(t *testing.T) {
+	t.Parallel()
+	src, err := os.ReadFile("anarch.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := arch.DecodeModel(bytes.NewReader(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	i := slices.IndexFunc(m.Fitness.Libraries, func(l arch.LibraryRule) bool {
+		return l.Name == "core-approved-libraries"
+	})
+	if i < 0 {
+		t.Fatal("anarch.json has no libraries rule core-approved-libraries")
+	}
+	rule := m.Fitness.Libraries[i]
+	if rule.Gate != "" && rule.Gate != arch.GateFail {
+		t.Errorf("core-approved-libraries gates %q, want fail", rule.Gate)
+	}
+	const mod = "github.com/StevenACoffman/anarch-lint/internal/"
+	for _, core := range []string{"arch", "connascence", "balance", "fitness"} {
+		if !arch.MatchesAny(rule.From, mod+core) {
+			t.Errorf("core-approved-libraries does not cover %s", core)
+		}
+	}
+	gomod, err := os.ReadFile("go.mod")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, pat := range rule.Allow {
+		module := strings.TrimSuffix(pat, "/...")
+		if !strings.Contains(string(gomod), "\t"+module+" v") {
+			t.Errorf("approved library %s is not required by go.mod", module)
+		}
+	}
+}
+
 func TestRenderGolden(t *testing.T) {
 	t.Parallel()
 	out := filepath.Join(t.TempDir(), "anarch.md")
@@ -591,7 +644,7 @@ func TestCorpusSkillet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	code, out, errOut := runCLI(t, "-C", filepath.Join(*corpus, "skillet"), "--model", model,
+	code, out, errOut := runCLI(t, "-C", corpusClone(t, "skillet"), "--model", model,
 		"--format=json", "fitness", "./...")
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errOut)
@@ -619,4 +672,89 @@ func TestCorpusSkillet(t *testing.T) {
 			t.Errorf("expected %s; found %v", want, found)
 		}
 	}
+}
+
+// A coChange rule gates check --new-from-rev: a change to the schema without
+// its generated code fails, and one with it passes.
+func TestCheckCoChange(t *testing.T) {
+	t.Parallel()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("needs git")
+	}
+	dir := t.TempDir()
+	gitIn := func(args ...string) {
+		t.Helper()
+		//nolint:gosec // G204: the program is the constant "git" and every argument is a literal of this test
+		cmd := exec.CommandContext(t.Context(), "git", append([]string{
+			"-C", dir, "-c", "user.email=t@example.com",
+			"-c", "user.name=t", "-c", "commit.gpgsign=false",
+		}, args...)...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	write := func(name, content string) {
+		t.Helper()
+		path := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("go.mod", "module example.com/cc\n\ngo 1.24\n")
+	write("a/a.go", "package a\n\n// A is a.\nfunc A() {}\n")
+	write("api/schema.txt", "v1\n")
+	write("gen/schema.txt", "v1\n")
+	write("anarch.json", `{"version": 1, "fitness": {"coChange": [{"name": "regen",
+		"reason": "generated code follows the schema", "when": ["api/**"],
+		"require": ["gen/**"]}]}}`)
+	if code, _, errOut := runCLI(t, "-C", dir, "baseline"); code != 0 {
+		t.Fatalf("baseline: exit %d: %s", code, errOut)
+	}
+	gitIn("init", "-q")
+	gitIn("add", ".")
+	gitIn("commit", "-q", "-m", "init")
+
+	write("api/schema.txt", "v2\n")
+	code, out, _ := runCLI(t, "-C", dir, "check", "--new-from-rev", "HEAD")
+	if code != 3 || !strings.Contains(out, "missing-co-change") {
+		t.Fatalf("a schema change alone: exit %d, want 3 with missing-co-change\n%s", code, out)
+	}
+	write("gen/schema.txt", "v2\n")
+	if code, out, _ := runCLI(t, "-C", dir, "check", "--new-from-rev", "HEAD"); code != 0 {
+		t.Fatalf("a schema change with its code: exit %d, want 0\n%s", code, out)
+	}
+}
+
+// corpusPin is the commit a corpus test was checked against. A clone
+// elsewhere may find more or fewer violations, so the test fails rather than
+// lapse: check out the pinned commit, or recheck the test and move the pin.
+func corpusPin(name string) string {
+	switch name {
+	case "go-ddd":
+		return "1028139dacb3e850c4a282a31fb4e7cd40d80d77"
+	case "skillet":
+		return "e735cde4da04f6ad6c6c9adb984150cf09eed48f"
+	default:
+		return ""
+	}
+}
+
+// corpusClone returns the clone of a corpus under -corpus, after checking it
+// is at its pinned commit.
+func corpusClone(t *testing.T, name string) string {
+	t.Helper()
+	dir := filepath.Join(*corpus, name)
+	//nolint:gosec // G204: the program is the constant "git"; dir is the test's own -corpus flag
+	out, err := exec.CommandContext(t.Context(), "git", "-C", dir, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Fatalf("read the commit of %s: %v", dir, err)
+	}
+	if got, want := strings.TrimSpace(string(out)), corpusPin(name); got != want {
+		t.Fatalf("%s is at %s, but the test was checked against %s: check that commit out, "+
+			"or recheck the test and update corpusPin", dir, got, want)
+	}
+	return dir
 }

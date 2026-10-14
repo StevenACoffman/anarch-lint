@@ -41,8 +41,8 @@ func conformanceOf(s *subject, findings []Finding) Conformance {
 	}
 	failing := map[string]bool{}
 	for i := range findings {
-		if f := &findings[i]; f.instance != "" && f.Severity == SeverityError {
-			failing[f.instance] = true
+		if f := &findings[i]; f.ModelRule != "" && f.Severity == SeverityError {
+			failing[f.ModelRule] = true
 		}
 	}
 	for _, rule := range declaredRules(s.m) {

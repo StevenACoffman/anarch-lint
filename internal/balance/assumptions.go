@@ -4,7 +4,8 @@ import "github.com/StevenACoffman/anarch-lint/internal/arch"
 
 // assumptions lists the choices behind the Balanced Coupling measures.
 func assumptions() []arch.Assumption {
-	return append(scaleAssumptions(), inputAssumptions()...)
+	return append(append(scaleAssumptions(), inputAssumptions()...),
+		coChangeAssumption(), coverageAssumption())
 }
 
 // scaleAssumptions define the levels, the binary cuts and the numeric score.
@@ -74,6 +75,13 @@ func inputAssumptions() []arch.Assumption {
 			ID:     "exposure",
 			Text:   "A package with 10 or more importers and an intrusive, or factual functional, upstream dependency is a finding.",
 			Source: "connascence.md §9.6",
+		},
+		{
+			ID: "slot-applicability",
+			Text: "A subdomain slot opens for a subsystem another depends on, or for every subsystem " +
+				"when a revision range gives churn; a bounded-context slot opens for either end of a " +
+				"model-level pair. Each slot not opened is listed in skipped, with the reason.",
+			Source: "mmi-plan.md §9.3 H",
 		},
 	}
 }

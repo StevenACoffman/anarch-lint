@@ -59,8 +59,10 @@ func TestDomainEvidence(t *testing.T) {
 		equals(t, true, slices.Contains(slot.Evidence,
 			"described by domain model models/"+sub+".modelith.yaml"))
 		verdicts = append(verdicts, arch.Verdict{
-			Criterion: slot.Criterion, Answer: "yes", Provenance: arch.ProvenanceHuman,
-			EvidenceHash: slot.EvidenceHash, Approved: true,
+			Criterion:    slot.Criterion,
+			Answer:       "yes",
+			EvidenceHash: slot.EvidenceHash,
+			Events:       []arch.VerificationEvent{{Role: arch.RoleHuman}},
 		})
 	}
 	in.Verdicts = verdicts

@@ -63,6 +63,16 @@ type Facts struct {
 	UnsafeConvs    []UnsafeConv    `json:"unsafeConvs"`
 	ReflectByNames []ReflectByName `json:"reflectByNames"`
 	Calls          []Call          `json:"calls"`
+	Clones         []CloneGroup    `json:"clones"`
+}
+
+// CloneGroup is a run of code repeated in several places, as
+// github.com/golangci/dupl finds it over the syntax trees: each fragment is
+// one copy, the fragments sorted. A fragment may be part of a function, so
+// the group finds partial clones that a whole-body hash misses
+// (connascence.md §2.5, detector 4).
+type CloneGroup struct {
+	Fragments []Span `json:"fragments"`
 }
 
 // Use is one function's references to one declared in-scope object that is
@@ -262,6 +272,24 @@ type Churn struct {
 	// Commits maps a file, relative to the analysis root, to the sorted
 	// hashes of the commits in the range that changed it.
 	Commits map[string][]string `json:"commits"`
+}
+
+// Coverage is a test coverage profile, as go test -coverprofile writes one,
+// attributed to the program's functions. Hash identifies the profile read,
+// so two reports compare only when both read the same one.
+type Coverage struct {
+	Hash string `json:"hash"`
+	// Funcs lists, by function ID, the statements the profile instruments
+	// and how many of them ran; a function the profile does not cover is
+	// absent.
+	Funcs []FuncCoverage `json:"funcs"`
+}
+
+// FuncCoverage is one function's statement coverage.
+type FuncCoverage struct {
+	Func       string `json:"func"`
+	Statements int    `json:"statements"`
+	Covered    int    `json:"covered"`
 }
 
 // FuncPackage returns the package of a function's full name, as go/types

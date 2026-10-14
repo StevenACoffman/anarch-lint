@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+
+	"github.com/bmatcuk/doublestar/v4"
 )
 
 // Gates of a fitness rule: what a violation does.
@@ -36,8 +38,13 @@ type Fitness struct {
 	Onion          Onion            `json:"onion,omitzero"`
 	Slices         []Slices         `json:"slices,omitempty"`
 	Dependents     []Dependents     `json:"dependents,omitempty"`
+	Libraries      []LibraryRule    `json:"libraries,omitempty"`
 	Calls          []CallRule       `json:"calls,omitempty"`
 	InterfacesOnly []InterfacesOnly `json:"interfacesOnly,omitempty"`
+	// CoChange rules name files that must change together; they check
+	// only a change set, as check --new-from-rev gives one.
+	CoChange []CoChangeRule `json:"coChange,omitempty"`
+	FanOut   []FanOutRule   `json:"fanOut,omitempty"`
 	// Domains compare modelith domain models with the code that should
 	// express them (mmi-plan.md §10).
 	Domains []DomainRule `json:"domains,omitempty"`
@@ -122,6 +129,15 @@ type Dependents struct {
 	OnlyFrom []string `json:"onlyFrom,omitempty"`
 }
 
+// LibraryRule is an allow-list of third-party code: packages matching From
+// may import, beyond the standard library and the packages under analysis,
+// only packages matching Allow. Without Allow they may import none.
+type LibraryRule struct {
+	RuleOptions
+	From  []string `json:"from"`
+	Allow []string `json:"allow,omitempty"`
+}
+
 // CallRule restricts calls of functions and methods (ArchUnit's callMethod
 // and onlyBeCalled). A callee is a full name, such as "time.Now" or
 // "(*os.File).Write", or "pkg.*" for every function and method of a package.
@@ -142,6 +158,28 @@ type InterfacesOnly struct {
 	To   []string `json:"to"`
 }
 
+// CoChangeRule requires that a change touching a file matching When, and not
+// Except, also touch a file matching Require (gortex's co-change guard). The
+// patterns are globs over file paths relative to the analysis root, in
+// github.com/bmatcuk/doublestar's syntax: "*" stays within a directory and
+// "**" crosses directories, as in "api/**/*.proto". A change touches a file
+// when it adds or modifies a line of it; deleting a file touches nothing.
+type CoChangeRule struct {
+	RuleOptions
+	When    []string `json:"when"`
+	Require []string `json:"require"`
+	Except  []string `json:"except,omitempty"`
+}
+
+// FanOutRule caps the number of packages under analysis that a package
+// matching Packages may import: its efferent coupling, Martin's Ce. A package
+// that depends on many others changes whenever any of them does.
+type FanOutRule struct {
+	RuleOptions
+	Packages []string `json:"packages"`
+	Max      int      `json:"max"`
+}
+
 // declaredNames are the model's layers and subsystems, in order: all of the
 // model a fitness rule may refer to.
 type declaredNames struct {
@@ -151,11 +189,7 @@ type declaredNames struct {
 // Enabled reports whether the model declares any fitness rule, which opts the
 // fitness findings into the gate.
 func (f *Fitness) Enabled() bool {
-	return f.RequireAssigned || f.StrictLayers || len(f.LayerAccess) > 0 || f.Onion.Declared() ||
-		len(
-			f.Slices,
-		) > 0 || len(f.Dependents) > 0 || len(f.Calls) > 0 || len(f.InterfacesOnly) > 0 ||
-		len(f.Domains) > 0
+	return f.RequireAssigned || f.StrictLayers || len(f.Rules()) > 0
 }
 
 // Declared reports whether the onion names any ring.
@@ -201,12 +235,21 @@ func (f *Fitness) Rules() []DeclaredRule {
 		"dependents",
 		optionsOf(f.Dependents, func(r Dependents) RuleOptions { return r.RuleOptions }),
 	)
+	add(
+		"libraries",
+		optionsOf(f.Libraries, func(r LibraryRule) RuleOptions { return r.RuleOptions }),
+	)
 	add("calls", optionsOf(f.Calls, func(r CallRule) RuleOptions { return r.RuleOptions }))
 	add(
 		"interfacesOnly",
 		optionsOf(f.InterfacesOnly, func(r InterfacesOnly) RuleOptions { return r.RuleOptions }),
 	)
 	add("domains", optionsOf(f.Domains, func(r DomainRule) RuleOptions { return r.RuleOptions }))
+	add(
+		"coChange",
+		optionsOf(f.CoChange, func(r CoChangeRule) RuleOptions { return r.RuleOptions }),
+	)
+	add("fanOut", optionsOf(f.FanOut, func(r FanOutRule) RuleOptions { return r.RuleOptions }))
 	return out
 }
 
@@ -281,29 +324,25 @@ func (f *Fitness) validateLayers(names declaredNames, invalid func(string, ...an
 	return nil
 }
 
-// validateSelectors rejects a rule without the selectors it needs.
+// validateSelectors rejects a rule without the selectors it needs, and a
+// domains rule naming an unknown subsystem.
 func (f *Fitness) validateSelectors(names declaredNames, invalid func(string, ...any) error) error {
-	var problems []string
-	for i := range f.Slices {
-		problems = append(problems, f.Slices[i].problem())
-	}
-	for i := range f.Dependents {
-		problems = append(problems, f.Dependents[i].problem())
-	}
-	for i := range f.Calls {
-		problems = append(problems, f.Calls[i].problem())
-	}
-	for i := range f.InterfacesOnly {
-		problems = append(problems, f.InterfacesOnly[i].problem())
-	}
+	problems := slices.Concat(
+		problemsOf(f.Slices),
+		problemsOf(f.Dependents),
+		problemsOf(f.Libraries),
+		problemsOf(
+			f.Calls,
+		),
+		problemsOf(f.InterfacesOnly),
+		problemsOf(f.CoChange),
+		problemsOf(f.FanOut),
+		problemsOf(f.Domains),
+	)
 	for i := range f.Domains {
-		problems = append(problems, f.Domains[i].problem())
 		if sub := f.Domains[i].Subsystem; sub != "" && !slices.Contains(names.subsystems, sub) {
-			problems = append(
-				problems,
-				fmt.Sprintf("fitness domains rule %q names unknown subsystem %q",
-					f.Domains[i].Name, sub),
-			)
+			problems = append(problems, fmt.Sprintf(
+				"fitness domains rule %q names unknown subsystem %q", f.Domains[i].Name, sub))
 		}
 	}
 	for _, p := range problems {
@@ -312,6 +351,18 @@ func (f *Fitness) validateSelectors(names declaredNames, invalid func(string, ..
 		}
 	}
 	return nil
+}
+
+// problemsOf returns what makes each rule unusable, "" for a usable one.
+func problemsOf[T any, R interface {
+	*T
+	problem() string
+}](rules []T) []string {
+	out := make([]string, len(rules))
+	for i := range rules {
+		out[i] = R(&rules[i]).problem()
+	}
+	return out
 }
 
 // problem says what makes the rule unusable, or "".
@@ -326,6 +377,14 @@ func (s *Slices) problem() string {
 func (d *Dependents) problem() string {
 	if len(d.Packages) == 0 {
 		return fmt.Sprintf("fitness dependents rule %q names no packages", d.Name)
+	}
+	return ""
+}
+
+// problem says what makes the rule unusable, or "".
+func (l *LibraryRule) problem() string {
+	if len(l.From) == 0 {
+		return fmt.Sprintf("fitness libraries rule %q names no packages in from", l.Name)
 	}
 	return ""
 }
@@ -355,6 +414,27 @@ func (g RuleGate) String() string {
 		return string(GateFail)
 	}
 	return string(g)
+}
+
+// problem says what makes the rule unusable, or "".
+func (c *CoChangeRule) problem() string {
+	if len(c.When) == 0 || len(c.Require) == 0 {
+		return fmt.Sprintf("fitness coChange rule %q needs when and require", c.Name)
+	}
+	for _, pat := range slices.Concat(c.When, c.Require, c.Except) {
+		if !doublestar.ValidatePattern(pat) {
+			return fmt.Sprintf("fitness coChange rule %q has malformed glob %q", c.Name, pat)
+		}
+	}
+	return ""
+}
+
+// problem says what makes the rule unusable, or "".
+func (r *FanOutRule) problem() string {
+	if len(r.Packages) == 0 || r.Max < 0 {
+		return fmt.Sprintf("fitness fanOut rule %q needs packages and a max of 0 or more", r.Name)
+	}
+	return ""
 }
 
 // problem says what makes the rule unusable, or "".

@@ -50,11 +50,15 @@ Work in passes across the whole model, each one a layer you could stop at.
    isolations only for the boundaries that matter, each with a reason. Run
    `anarch-lint analyze` again.
 3. **Fitness and connascence limits.** Add fitness rules (layer access, an
-   onion, slices, dependents, calls, interface-only use, domain-model
-   conformance) and connascence limits. Every rule takes a `reason`: a rule
-   without one is a `rule-without-reason` warning, since nobody can tell
-   whether to keep it. Run `anarch-lint fitness` and fix every
-   `empty-selector` finding: a rule that matches nothing is usually a typo.
+   onion, slices, dependents, approved third-party libraries, calls,
+   interface-only use, fan-out caps, files that must change together, given
+   as doublestar globs such as `api/**/*.proto`, domain-model conformance) and
+   connascence limits. Every rule takes a `reason`: a rule without one is a
+   `rule-without-reason` warning, since nobody can tell whether to keep it.
+   Run `anarch-lint fitness` and fix every `empty-selector` finding: a rule
+   that matches nothing is usually a typo. A `redundant-rule` or
+   `unusable-allowance` warning means two rules say the same thing, or one
+   allows what others forbid; keep the one whose reason states the intent.
 
 ## The Conversation
 

@@ -99,6 +99,15 @@ func TestDecodeModel(t *testing.T) {
 			input:   `{"version": 1, "fitness": {"calls": [{"name": "c", "callees": ["f"]}]}}`,
 			message: `model: fitness calls rule "c" needs callees, and from unless only is set`,
 		},
+		"fitness coChange without require": {
+			input:   `{"version": 1, "fitness": {"coChange": [{"name": "c", "when": ["api/**"]}]}}`,
+			message: `model: fitness coChange rule "c" needs when and require`,
+		},
+		"fitness coChange with a malformed glob": {
+			input: `{"version": 1, "fitness": {"coChange": [{"name": "c", "when": ["api/[x"],
+				"require": ["gen/**"]}]}}`,
+			message: `model: fitness coChange rule "c" has malformed glob "api/[x"`,
+		},
 		"fitness strict layers with one layer": {
 			input:   `{"version": 1, "layers": [{"name": "a"}], "fitness": {"strictLayers": true}}`,
 			message: "model: fitness strictLayers needs at least two layers",
@@ -134,6 +143,7 @@ func TestModelLimitsFillDefaults(t *testing.T) {
 		MaxTypeCycleGroup: 5,
 		LargeFileLines:    800,
 		MaxNesting:        4,
+		HighCognitive:     15,
 	}, m.Limits())
 }
 

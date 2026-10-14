@@ -92,10 +92,10 @@ func matchMany(pat, segs []string, rest bool, captures []string) ([]string, bool
 	return nil, false
 }
 
-// substitute replaces "$1" to "$9" in pattern with the captures they name.
+// Substitute replaces "$1" to "$9" in pattern with the captures they name.
 // A reference past the last capture is left as it is, so it matches nothing;
 // a valid model never has one.
-func substitute(pattern string, captures []string) string {
+func Substitute(pattern string, captures []string) string {
 	for i := len(captures); i >= 1; i-- {
 		pattern = strings.ReplaceAll(pattern, "$"+strconv.Itoa(i), captures[i-1])
 	}

@@ -37,3 +37,12 @@ deepScan
 dupl
 worktree
 summary_rules
+skillsaw
+injective
+netstrings?
+Khononov('s)?
+Tornhill('s)?
+von
+gonum('s)?
+doublestar
+gocognit('s)?

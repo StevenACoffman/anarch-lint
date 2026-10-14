@@ -2,24 +2,23 @@
 // each file, by running the git command line tool. It is the only package
 // that runs git.
 //
-// The parser it uses is written here rather than borrowed: revgrep answers
-// only point queries and has known parsing faults, and golangci-lint's diff
-// processor is GPL-licensed (mmi-ref-plan.md §3).
+// Diffs are parsed by github.com/bluekeyes/go-gitdiff (MIT), not revgrep,
+// which answers only point queries and has known parsing faults, nor
+// golangci-lint's diff processor, which is GPL-licensed (mmi-ref-plan.md §3).
 package git
 
 import (
-	"bufio"
 	"bytes"
 	"cmp"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"math"
 	"os/exec"
 	"slices"
-	"strconv"
 	"strings"
+
+	"github.com/bluekeyes/go-gitdiff/gitdiff"
 
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
@@ -53,73 +52,47 @@ func ChangedLines(ctx context.Context, dir, rev string) (arch.ChangedLines, erro
 	return changed, nil
 }
 
-// ParseDiff parses a unified diff with zero lines of context, as git diff -U0
-// writes it, into the ranges of added or modified lines of each new file. A
-// deleted file contributes nothing, and "\ No newline at end of file" is not
-// a line. A malformed hunk header is EINVALID.
+// ParseDiff parses a unified diff, as git diff writes it, into the ranges of
+// added or modified lines of each new file, using
+// github.com/bluekeyes/go-gitdiff. A deleted file contributes nothing, and
+// "\ No newline at end of file" is not a line. A malformed diff is EINVALID.
 func ParseDiff(r io.Reader) (arch.ChangedLines, error) {
+	files, _, err := gitdiff.Parse(r)
+	if err != nil {
+		return nil, &arch.Error{Code: arch.EINVALID, Message: "parse diff: " + err.Error()}
+	}
 	changed := arch.ChangedLines{}
-	file := ""
-	sc := bufio.NewScanner(r)
-	sc.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
-	for sc.Scan() {
-		line := sc.Text()
-		switch {
-		case strings.HasPrefix(line, "+++ "):
-			file = newFileName(line)
-		case strings.HasPrefix(line, "@@ ") && file != "":
-			rng, err := parseHunk(line)
-			if err != nil {
-				return nil, err
-			}
-			if rng.End >= rng.Start {
-				changed[file] = append(changed[file], rng)
-			}
+	for _, f := range files {
+		if f.IsDelete {
+			continue
 		}
-	}
-	if err := sc.Err(); err != nil {
-		return nil, &arch.Error{Code: arch.EINVALID, Message: "read diff: " + err.Error()}
-	}
-	for f, ranges := range changed {
-		changed[f] = merge(ranges)
+		var ranges []arch.LineRange
+		for _, frag := range f.TextFragments {
+			ranges = append(ranges, addedLines(frag)...)
+		}
+		if len(ranges) > 0 {
+			changed[f.NewName] = merge(append(changed[f.NewName], ranges...))
+		}
 	}
 	return changed, nil
 }
 
-// newFileName returns the path of a "+++ b/path" line, or "" for a deleted
-// file ("+++ /dev/null").
-func newFileName(line string) string {
-	name := strings.TrimPrefix(line, "+++ ")
-	if name == "/dev/null" {
-		return ""
-	}
-	return strings.TrimPrefix(name, "b/")
-}
-
-// parseHunk returns the new-file line range of a hunk header
-// "@@ -a[,b] +c[,d] @@". A count of 0 marks a pure deletion, whose range is
-// empty.
-func parseHunk(line string) (arch.LineRange, error) {
-	fields := strings.Fields(line)
-	if len(fields) < 3 || !strings.HasPrefix(fields[2], "+") {
-		return arch.LineRange{}, malformed(line)
-	}
-	startText, countText, hasCount := strings.Cut(strings.TrimPrefix(fields[2], "+"), ",")
-	start, err := strconv.Atoi(startText)
-	if err != nil {
-		return arch.LineRange{}, malformed(line)
-	}
-	count := 1
-	if hasCount {
-		if count, err = strconv.Atoi(countText); err != nil {
-			return arch.LineRange{}, malformed(line)
+// addedLines returns the new-file line of each line a fragment adds, one
+// range each; merge joins them.
+func addedLines(frag *gitdiff.TextFragment) []arch.LineRange {
+	var out []arch.LineRange
+	line := int(frag.NewPosition)
+	for _, l := range frag.Lines {
+		switch l.Op {
+		case gitdiff.OpAdd:
+			out = append(out, arch.LineRange{Start: line, End: line})
+			line++
+		case gitdiff.OpContext:
+			line++
+		case gitdiff.OpDelete:
 		}
 	}
-	return arch.LineRange{Start: start, End: start + count - 1}, nil
-}
-
-func malformed(line string) error {
-	return &arch.Error{Code: arch.EINVALID, Message: fmt.Sprintf("malformed hunk header %q", line)}
+	return out
 }
 
 // merge sorts ranges and joins those that overlap or touch.

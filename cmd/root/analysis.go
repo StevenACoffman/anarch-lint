@@ -12,9 +12,11 @@ import (
 	"runtime"
 	"runtime/debug"
 	"slices"
+	"strings"
 
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 	"github.com/StevenACoffman/anarch-lint/internal/gopackages"
+	"github.com/StevenACoffman/anarch-lint/internal/sarif"
 	"github.com/StevenACoffman/anarch-lint/internal/text"
 )
 
@@ -112,9 +114,12 @@ func (cfg *Config) WriteReport(r *arch.Report) error {
 func (cfg *Config) Write(v any, writeText func(io.Writer) error) error {
 	const op = "root.Config.Write"
 	var err error
-	if cfg.Format == "json" {
+	switch cfg.Format {
+	case "json":
 		err = arch.WriteJSON(cfg.Stdout, v)
-	} else {
+	case "sarif":
+		err = &arch.Error{Code: arch.EINVALID, Message: "--format sarif is for check only"}
+	default:
 		err = writeText(cfg.Stdout)
 	}
 	if err != nil {
@@ -140,6 +145,20 @@ func (cfg *Config) readModel() (arch.Model, error) {
 		return arch.Model{}, &arch.Error{Op: op + " " + path, Err: err}
 	}
 	return m, nil
+}
+
+// SARIFOptions are what check's SARIF log records besides the result: the
+// tool's version, and the model file relative to --dir.
+func (cfg *Config) SARIFOptions() sarif.Options {
+	model := filepath.ToSlash(cfg.ModelFile())
+	if rel, err := filepath.Rel(
+		cfg.Dir,
+		cfg.ModelFile(),
+	); err == nil &&
+		!strings.HasPrefix(rel, "..") {
+		model = filepath.ToSlash(rel)
+	}
+	return sarif.Options{Version: toolVersion(), ModelPath: model}
 }
 
 // ModelFile is the model file --model names, or anarch.json in --dir.

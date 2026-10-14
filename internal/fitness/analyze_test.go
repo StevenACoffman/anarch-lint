@@ -4,11 +4,19 @@ import (
 	"cmp"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 	"github.com/StevenACoffman/anarch-lint/internal/fitness"
 )
+
+func assert(t *testing.T, condition bool, msg string) {
+	t.Helper()
+	if !condition {
+		t.Fatal(msg)
+	}
+}
 
 func equals(t *testing.T, exp, act any) {
 	t.Helper()
@@ -328,6 +336,284 @@ func TestEmptyExistingRules(t *testing.T) {
 	r := analyze(&m)
 	equals(t, []string{"empty-selector forbiddenImports[0] imports"}, rules(&r))
 	equals(t, arch.SeverityWarning, r.Findings[0].Severity) // the model declares no fitness rule
+}
+
+// A subsystem interface, an isolation's mayImport and balance's messaging
+// clients that match nothing are reported like the other empty selectors;
+// mayImport is checked only when its from matches, with from's captures.
+func TestEmptySelectorsOfOtherRules(t *testing.T) {
+	t.Parallel()
+	cases := map[string]struct {
+		edit     func(m *arch.Model)
+		findings []string
+	}{
+		"an interface that matches": {
+			edit: func(m *arch.Model) {
+				m.Subsystems = []arch.Subsystem{
+					{Name: "a", Packages: []string{"m/a/..."}, Interface: []string{"m/a/service"}},
+				}
+			},
+		},
+		"an interface that matches nothing": {
+			edit: func(m *arch.Model) {
+				m.Subsystems = []arch.Subsystem{
+					{Name: "a", Packages: []string{"m/a/..."}, Interface: []string{"m/a/api"}},
+				}
+			},
+			findings: []string{"empty-selector subsystems.a interface"},
+		},
+		"a mayImport that matches with the captures": {
+			edit: func(m *arch.Model) {
+				m.Isolations = []arch.Isolation{
+					{From: "m/$*/web", MayImport: []string{"m/$1/service"}, Reason: "r"},
+				}
+			},
+		},
+		"a mayImport that matches nothing with the captures": {
+			edit: func(m *arch.Model) {
+				m.Isolations = []arch.Isolation{
+					{From: "m/$*/web", MayImport: []string{"m/$1/api"}, Reason: "r"},
+				}
+			},
+			findings: []string{"empty-selector isolations[0] mayImport"},
+		},
+		"an empty from hides its mayImport": {
+			edit: func(m *arch.Model) {
+				m.Isolations = []arch.Isolation{
+					{From: "m/c/...", MayImport: []string{"m/c/api"}, Reason: "r"},
+				}
+			},
+			findings: []string{"empty-selector isolations[0] from"},
+		},
+		"messaging that some package imports": {
+			edit: func(m *arch.Model) { m.Balance.Messaging = []string{"database/sql"} },
+		},
+		"messaging that nothing imports": {
+			edit: func(m *arch.Model) {
+				m.Balance.Messaging = []string{"github.com/nats-io/nats.go/..."}
+			},
+			findings: []string{"empty-selector balance messaging"},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			m := layered(&arch.Fitness{})
+			tc.edit(&m)
+			r := analyze(&m)
+			equals(t, tc.findings, rules(&r))
+		})
+	}
+}
+
+// The verification compares the import rules over the packages there are: a
+// rule another forbids everything of is redundant, and an allowance other
+// rules forbid entirely is unusable.
+func TestVerifyImportRules(t *testing.T) {
+	t.Parallel()
+	webOnlyService := arch.LayerAccess{
+		RuleOptions: arch.RuleOptions{Name: "web", Reason: "r"}, Layer: "web",
+		MayOnlyAccess: []string{"service"},
+	}
+	cases := map[string]struct {
+		edit     func(m *arch.Model)
+		findings []string
+	}{
+		"rules that overlap only in part": {
+			edit: func(m *arch.Model) { m.Fitness.LayerAccess = []arch.LayerAccess{webOnlyService} },
+		},
+		"a layer access rule that strict layers already states": {
+			// Both forbid exactly web -> store; of two such rules, the later
+			// is the redundant one.
+			edit: func(m *arch.Model) {
+				m.Fitness.StrictLayers = true
+				m.Fitness.LayerAccess = []arch.LayerAccess{webOnlyService}
+			},
+			findings: []string{"redundant-rule web strictLayers"},
+		},
+		"a forbidden import inside a broader rule": {
+			edit: func(m *arch.Model) {
+				m.Fitness.LayerAccess = []arch.LayerAccess{webOnlyService}
+				m.ForbiddenImports = []arch.ForbiddenImport{
+					{From: []string{"m/a/web"}, Imports: []string{"m/a/store"}, Reason: "r"},
+				}
+			},
+			findings: []string{"redundant-rule forbiddenImports[0] web"},
+		},
+		"an allowed layer every import of which is forbidden": {
+			edit: func(m *arch.Model) {
+				m.Fitness.LayerAccess = []arch.LayerAccess{webOnlyService}
+				m.ForbiddenImports = []arch.ForbiddenImport{
+					{From: []string{"m/$*/web"}, Imports: []string{"m/$*/service"}, Reason: "r"},
+				}
+			},
+			findings: []string{"unusable-allowance web mayOnlyAccess service"},
+		},
+		"an only importer that may not import": {
+			edit: func(m *arch.Model) {
+				m.Fitness.Dependents = []arch.Dependents{{
+					RuleOptions: arch.RuleOptions{Name: "sql", Reason: "r"},
+					Packages:    []string{"database/sql"}, OnlyFrom: []string{"m/a/store"},
+				}}
+				m.ForbiddenImports = []arch.ForbiddenImport{
+					{From: []string{"m/a/store"}, Imports: []string{"database/..."}, Reason: "r"},
+				}
+			},
+			findings: []string{"unusable-allowance sql onlyFrom m/a/store"},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			m := layered(&arch.Fitness{})
+			tc.edit(&m)
+			r := analyze(&m)
+			var got []string
+			for _, f := range rules(&r) {
+				if strings.HasPrefix(f, "redundant-rule ") ||
+					strings.HasPrefix(f, "unusable-allowance ") {
+					got = append(got, f)
+				}
+			}
+			equals(t, tc.findings, got)
+			assert(t, r.Verification.Verified, "the rules were not verified")
+		})
+	}
+}
+
+// A coChange rule checks a change set: what sets it off must come with what it
+// requires. Without a change set it has nothing to check, and a change that
+// sets nothing off passes rather than counting as an empty rule.
+func TestCoChangeRule(t *testing.T) {
+	t.Parallel()
+	rule := arch.CoChangeRule{
+		RuleOptions: arch.RuleOptions{Name: "regen", Reason: "stubs follow the schema"},
+		When:        []string{"api/**"}, Require: []string{"gen/**/*.pb.go"},
+		Except: []string{"api/**/*.md"},
+	}
+	at := func(files ...string) arch.ChangedLines {
+		c := arch.ChangedLines{}
+		for _, f := range files {
+			c[f] = []arch.LineRange{{Start: 4, End: 6}}
+		}
+		return c
+	}
+	cases := map[string]struct {
+		changed  arch.ChangedLines
+		status   fitness.RuleStatus
+		matched  int
+		findings []string
+	}{
+		"no change set": {status: fitness.StatusNoChange},
+		"with what it requires": {
+			changed: at("api/x.proto", "gen/x.pb.go"),
+			status:  fitness.StatusPassed,
+			matched: 1,
+		},
+		"without it": {
+			changed: at("api/x.proto", "web/w.go"), status: fitness.StatusFailed, matched: 1,
+			findings: []string{"missing-co-change regen "},
+		},
+		"generated code of another kind": {
+			changed: at("api/x.proto", "gen/x.go"), status: fitness.StatusFailed, matched: 1,
+			findings: []string{"missing-co-change regen "},
+		},
+		"an excepted file":    {changed: at("api/v1/docs/README.md"), status: fitness.StatusPassed},
+		"nothing sets it off": {changed: at("web/w.go"), status: fitness.StatusPassed},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			m := layered(&arch.Fitness{CoChange: []arch.CoChangeRule{rule}})
+			r := fitness.Analyze(&arch.Input{Program: program(), Model: m, Changed: tc.changed})
+			equals(t, tc.status, r.Rules[0].Status)
+			equals(t, tc.matched, r.Rules[0].Matched)
+			equals(t, tc.findings, rules(&r))
+			if len(r.Findings) > 0 {
+				equals(t, &arch.Span{File: "api/x.proto", Start: 4, End: 4}, r.Findings[0].Location)
+			}
+		})
+	}
+}
+
+// A fanOut rule caps how many packages under analysis a package imports;
+// database/sql, outside the analysis, does not count.
+func TestFanOutRule(t *testing.T) {
+	t.Parallel()
+	cases := map[string]struct {
+		max      int
+		findings []string
+	}{
+		"one import each": {
+			max: 1,
+			findings: []string{
+				"fan-out m/a/service fan", // store and b/service
+				"fan-out m/a/web fan",     // service and store
+			},
+		},
+		"two imports each": {max: 2},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			m := layered(&arch.Fitness{FanOut: []arch.FanOutRule{{
+				RuleOptions: arch.RuleOptions{Name: "fan", Reason: "r"},
+				Packages:    []string{"m/..."}, Max: tc.max,
+			}}})
+			r := analyze(&m)
+			equals(t, tc.findings, rules(&r))
+			equals(t, 5, r.Rules[0].Matched)
+		})
+	}
+}
+
+// TestLibrariesRule: beyond the standard library and the packages under
+// analysis, the packages a rule names import only what it approves, and an
+// approval nothing uses is a warning.
+func TestLibrariesRule(t *testing.T) {
+	t.Parallel()
+	cases := map[string]struct {
+		allow    []string
+		findings []string
+	}{
+		"nothing approved": {
+			findings: []string{
+				"unapproved-library m/a/service libs: gonum.org/v1/gonum/graph",
+				"unapproved-library m/a/store libs: github.com/lib/pq",
+			},
+		},
+		"one approved, one unused": {
+			allow: []string{"gonum.org/v1/gonum/...", "github.com/unused/..."},
+			findings: []string{
+				"unapproved-library m/a/store libs: github.com/lib/pq",
+				"unused-approval libs github.com/unused/...",
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			p := program()
+			at := arch.Position{File: "x.go", Line: 1}
+			p.Imports = append(p.Imports,
+				arch.Import{From: "m/a/store", To: "github.com/lib/pq", Pos: at},
+				arch.Import{From: "m/a/service", To: "gonum.org/v1/gonum/graph", Pos: at},
+				arch.Import{From: "m/b/web", To: "github.com/lib/pq", Pos: at},
+			)
+			slices.SortFunc(p.Imports, func(a, b arch.Import) int {
+				return cmp.Or(cmp.Compare(a.From, b.From), cmp.Compare(a.To, b.To))
+			})
+			m := layered(&arch.Fitness{Libraries: []arch.LibraryRule{{
+				RuleOptions: arch.RuleOptions{Name: "libs", Reason: "r"},
+				From:        []string{"m/a/..."}, Allow: tc.allow,
+			}}})
+			r := fitness.Analyze(&arch.Input{Program: p, Model: m})
+			got := rules(&r)
+			slices.Sort(got)
+			equals(t, tc.findings, got)
+			equals(t, 3, r.Rules[0].Matched)
+		})
+	}
 }
 
 func TestMetrics(t *testing.T) {

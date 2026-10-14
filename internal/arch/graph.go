@@ -3,6 +3,8 @@ package arch
 import (
 	"cmp"
 	"slices"
+
+	"gonum.org/v1/gonum/graph/topo"
 )
 
 // Edge is a directed, weighted dependency between two named elements.
@@ -30,18 +32,6 @@ type Graph struct {
 // arc is an edge seen from its source: the target's position and the weight.
 type arc struct {
 	to, weight int
-}
-
-// tarjan holds the state of one run of Tarjan's strongly connected components
-// algorithm over a Graph.
-type tarjan struct {
-	g     *Graph
-	index []int  // visit order, -1 while unvisited
-	low   []int  // lowest index reachable through the DFS subtree
-	on    []bool // whether the node is on the stack
-	stack []int
-	next  int
-	comps [][]int
 }
 
 // NewGraph returns the graph with the given nodes and edges. Nodes named only
@@ -197,55 +187,17 @@ func (g Graph) subgraph(members []string) Graph {
 
 // components returns every strongly connected component, singletons
 // included, in the order Tarjan's algorithm emits them: a component comes
-// after every component it can reach. Nodes are visited in sorted order and
-// arcs in target order, so the result is deterministic.
+// after every component it can reach. It is gonum's topo.TarjanSCC over the
+// nodes in sorted order and arcs in target order, so the result is
+// deterministic.
 func (g Graph) components() [][]int {
-	t := tarjan{
-		g:     &g,
-		index: make([]int, len(g.nodes)),
-		low:   make([]int, len(g.nodes)),
-		on:    make([]bool, len(g.nodes)),
-	}
-	for v := range g.nodes {
-		t.index[v] = -1
-	}
-	for v := range g.nodes {
-		if t.index[v] < 0 {
-			t.visit(v)
+	sccs := topo.TarjanSCC(asGonum(&g))
+	comps := make([][]int, len(sccs))
+	for i, scc := range sccs {
+		comps[i] = make([]int, len(scc))
+		for j, n := range scc {
+			comps[i][j] = int(n.ID())
 		}
 	}
-	return t.comps
-}
-
-func (t *tarjan) visit(v int) {
-	t.index[v], t.low[v] = t.next, t.next
-	t.next++
-	t.stack = append(t.stack, v)
-	t.on[v] = true
-	for _, a := range t.g.out[v] {
-		switch {
-		case t.index[a.to] < 0:
-			t.visit(a.to)
-			t.low[v] = min(t.low[v], t.low[a.to])
-		case t.on[a.to]:
-			t.low[v] = min(t.low[v], t.index[a.to])
-		}
-	}
-	if t.low[v] == t.index[v] {
-		t.comps = append(t.comps, t.pop(v))
-	}
-}
-
-// pop removes and returns the component rooted at v from the stack.
-func (t *tarjan) pop(v int) []int {
-	var comp []int
-	for {
-		w := t.stack[len(t.stack)-1]
-		t.stack = t.stack[:len(t.stack)-1]
-		t.on[w] = false
-		comp = append(comp, w)
-		if w == v {
-			return comp
-		}
-	}
+	return comps
 }

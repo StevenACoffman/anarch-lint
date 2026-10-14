@@ -150,7 +150,7 @@ func (s *subject) asyncPackages() map[string]bool {
 	}
 	for pkg, via := range clients {
 		ev := []string{fmt.Sprintf("%s imports %s", pkg, strings.Join(via, ", "))}
-		if s.slots.ask("async/"+pkg, ev) == "async" {
+		if s.slots.ask(&arch.SlotRequest{Criterion: "async/" + pkg, Evidence: ev}) == "async" {
 			out[pkg] = true
 		}
 	}

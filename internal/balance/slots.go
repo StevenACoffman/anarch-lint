@@ -15,14 +15,14 @@ type slotBook struct {
 	byID     map[string]arch.JudgementSlot
 }
 
-// ask returns the approved answer to the slot id, creating the slot with
-// evidence the first time it is asked. Every caller of one ID passes the
-// same evidence, since the evidence is a function of the program alone.
-func (b *slotBook) ask(id string, evidence []string) string {
-	slot, ok := b.byID[id]
+// ask returns the approved answer to the slot req asks for, creating the
+// slot the first time it is asked. Every request for one criterion carries
+// the same evidence, since the evidence is a function of the program alone.
+func (b *slotBook) ask(req *arch.SlotRequest) string {
+	slot, ok := b.byID[req.Criterion]
 	if !ok {
-		slot = arch.NewSlot(id, evidence, b.verdicts)
-		b.byID[id] = slot
+		slot = arch.NewSlot(req, b.verdicts)
+		b.byID[req.Criterion] = slot
 	}
 	return slot.Answer()
 }
@@ -36,6 +36,16 @@ func (b *slotBook) answered(id string) string {
 		return ""
 	}
 	return slot.Answer()
+}
+
+// suppression records that the answer of the slot id lifted rule for the
+// pair. The slot must have been asked and supplied.
+func (b *slotBook) suppression(id, rule string, p *Pair) Suppression {
+	slot := b.byID[id]
+	return Suppression{
+		Rule: rule, Subject: p.From, Object: p.To, Criterion: id,
+		Answer: slot.Answer(), Events: slot.Verdict.Events,
+	}
 }
 
 // all returns every slot asked, sorted by ID.

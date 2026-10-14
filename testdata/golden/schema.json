@@ -56,6 +56,51 @@
       ],
       "type": "object"
     },
+    "CoChangeRule": {
+      "additionalProperties": false,
+      "properties": {
+        "except": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "require": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "when": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "require",
+        "when"
+      ],
+      "type": "object"
+    },
     "ConnascenceLimits": {
       "additionalProperties": false,
       "properties": {
@@ -172,12 +217,54 @@
       ],
       "type": "object"
     },
+    "FanOutRule": {
+      "additionalProperties": false,
+      "properties": {
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
+        "max": {
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "packages": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "max",
+        "packages"
+      ],
+      "type": "object"
+    },
     "Fitness": {
       "additionalProperties": false,
       "properties": {
         "calls": {
           "items": {
             "$ref": "#/$defs/CallRule"
+          },
+          "type": "array"
+        },
+        "coChange": {
+          "items": {
+            "$ref": "#/$defs/CoChangeRule"
           },
           "type": "array"
         },
@@ -193,6 +280,12 @@
           },
           "type": "array"
         },
+        "fanOut": {
+          "items": {
+            "$ref": "#/$defs/FanOutRule"
+          },
+          "type": "array"
+        },
         "interfacesOnly": {
           "items": {
             "$ref": "#/$defs/InterfacesOnly"
@@ -202,6 +295,12 @@
         "layerAccess": {
           "items": {
             "$ref": "#/$defs/LayerAccess"
+          },
+          "type": "array"
+        },
+        "libraries": {
+          "items": {
+            "$ref": "#/$defs/LibraryRule"
           },
           "type": "array"
         },
@@ -398,6 +497,44 @@
       ],
       "type": "object"
     },
+    "LibraryRule": {
+      "additionalProperties": false,
+      "properties": {
+        "allow": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "from": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "from"
+      ],
+      "type": "object"
+    },
     "Onion": {
       "additionalProperties": false,
       "properties": {
@@ -554,6 +691,9 @@
             "extended"
           ],
           "type": "string"
+        },
+        "highCognitive": {
+          "type": "integer"
         },
         "highComplexity": {
           "type": "integer"

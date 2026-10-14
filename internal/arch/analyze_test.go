@@ -211,6 +211,24 @@ func TestAnalyzeRules(t *testing.T) {
 	}
 }
 
+// A type cycle's fix names where each cut's uses are, so the reader sees
+// how hard the cut is.
+func TestTypeCycleFixNamesKinds(t *testing.T) {
+	t.Parallel()
+	p := fixtureProgram()
+	for i := range p.Refs {
+		p.Refs[i].Kinds = []arch.RefKind{arch.RefField, arch.RefBody}
+	}
+	r := arch.Analyze(&arch.Input{
+		Program: p,
+		Model:   arch.Model{Version: 1, Thresholds: arch.Thresholds{MaxTypeCycleGroup: 2}},
+	})
+	fs := findingsOf(&r, arch.RuleTypeCycleTooLarge)
+	equals(t, 1, len(fs))
+	assert(t, strings.Contains(fs[0].Fix, "uses in field and body, ") ||
+		strings.Contains(fs[0].Fix, "use in field and body, "), fs[0].Fix)
+}
+
 func TestUnmeasuredWithoutModel(t *testing.T) {
 	t.Parallel()
 	r := analyze(&arch.Model{Version: 1})
@@ -245,9 +263,8 @@ func TestJudgementSlots(t *testing.T) {
 			verdict: arch.Verdict{
 				Criterion:    "3.4",
 				Score:        7,
-				Provenance:   arch.ProvenanceHuman,
 				EvidenceHash: hash,
-				Approved:     true,
+				Events:       []arch.VerificationEvent{{Role: arch.RoleHuman}},
 			},
 			status: arch.SlotSupplied,
 			scored: true,
@@ -256,9 +273,8 @@ func TestJudgementSlots(t *testing.T) {
 			verdict: arch.Verdict{
 				Criterion:    "3.4",
 				Score:        7,
-				Provenance:   arch.ProvenanceHuman,
 				EvidenceHash: "old",
-				Approved:     true,
+				Events:       []arch.VerificationEvent{{Role: arch.RoleHuman}},
 			},
 			status: arch.SlotStale,
 		},
@@ -266,8 +282,8 @@ func TestJudgementSlots(t *testing.T) {
 			verdict: arch.Verdict{
 				Criterion:    "3.4",
 				Score:        7,
-				Provenance:   arch.ProvenanceLLM,
 				EvidenceHash: hash,
+				Events:       []arch.VerificationEvent{{Role: arch.RoleJudge, Config: "model-v1"}},
 			},
 			status: arch.SlotUnapproved,
 		},
@@ -325,7 +341,7 @@ func TestDecodeJudgements(t *testing.T) {
 			input: `{"version": 1, "verdicts": [{"criterion": "subdomain/billing",
 				"answer": "boring", "provenance": "human"}]}`,
 			message: `judgements: criterion subdomain/billing: answer "boring" is not one of ` +
-				"core, generic, supporting",
+				"core, generic, supporting, insufficient-evidence",
 		},
 		"score on a family": {
 			input: `{"version": 1, "verdicts": [{"criterion": "subdomain/billing",
@@ -335,7 +351,7 @@ func TestDecodeJudgements(t *testing.T) {
 		"answer on an MMI criterion": {
 			input: `{"version": 1, "verdicts": [{"criterion": "3.3", "score": 3,
 				"answer": "core", "provenance": "human"}]}`,
-			message: "judgements: criterion 3.3: an MMI criterion takes a score, not an answer",
+			message: "judgements: criterion 3.3: an MMI criterion takes a score, or the answer insufficient-evidence",
 		},
 		"unknown provenance": {
 			input:   `{"version": 1, "verdicts": [{"criterion": "3.3", "score": 1, "provenance": "oracle"}]}`,

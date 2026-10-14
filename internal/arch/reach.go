@@ -60,7 +60,7 @@ func (s *subject) reachFindings(fi *ForbiddenImport, instance, forbidden string)
 			FindingID{Rule: RuleForbiddenImport, Subject: pkg, Object: forbidden},
 			SeverityError,
 		)
-		f.instance = instance
+		f.ModelRule = instance
 		f.Criterion = "3.4"
 		f.Message = fmt.Sprintf("%s reaches %s through %d other packages: %s",
 			pkg, forbidden, len(path)-2, fi.Reason)
@@ -141,7 +141,7 @@ func hiddenDependencyRule(s *subject) []Finding {
 				break
 			}
 			seen[f.Fingerprint] = true
-			f.instance = instanceName("forbiddenImports", i)
+			f.ModelRule = instanceName("forbiddenImports", i)
 			f.Criterion = "3.4"
 			f.Location = SpanAt(inj.Pos)
 			f.Message = fmt.Sprintf(

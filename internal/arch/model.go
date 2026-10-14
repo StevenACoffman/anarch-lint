@@ -31,6 +31,7 @@ const (
 	defaultMaxTypeCycleGroup = 5   // von Zitzewitz's largest tolerable cycle group
 	defaultLargeFileLines    = 800 // von Zitzewitz's soft limit for a source file
 	defaultMaxNesting        = 4   // von Zitzewitz's limit on indentation depth
+	defaultHighCognitive     = 15  // SonarSource's default limit for a function
 )
 
 // CCVariant names a cyclomatic-complexity variant.
@@ -179,6 +180,7 @@ type Thresholds struct {
 	MaxTypeCycleGroup int       `json:"maxTypeCycleGroup,omitempty"`
 	LargeFileLines    int       `json:"largeFileLines,omitempty"`
 	MaxNesting        int       `json:"maxNesting,omitempty"`
+	HighCognitive     int       `json:"highCognitive,omitempty"`
 }
 
 // DecodeModel reads a model file. Unknown fields, a version other than 1,
@@ -227,6 +229,7 @@ func (m *Model) Limits() Thresholds {
 	t.MaxTypeCycleGroup = cmpOr(t.MaxTypeCycleGroup, defaultMaxTypeCycleGroup)
 	t.LargeFileLines = cmpOr(t.LargeFileLines, defaultLargeFileLines)
 	t.MaxNesting = cmpOr(t.MaxNesting, defaultMaxNesting)
+	t.HighCognitive = cmpOr(t.HighCognitive, defaultHighCognitive)
 	if t.ComplexityVariant == "" {
 		t.ComplexityVariant = CCModified
 	}
@@ -308,7 +311,7 @@ func (m *Model) validateGates(invalid func(string, ...any) error) error {
 	return nil
 }
 
-func (t Thresholds) validate(invalid func(string, ...any) error) error {
+func (t *Thresholds) validate(invalid func(string, ...any) error) error {
 	for _, limit := range []struct {
 		name  string
 		value int
@@ -320,6 +323,7 @@ func (t Thresholds) validate(invalid func(string, ...any) error) error {
 		{"maxTypeCycleGroup", t.MaxTypeCycleGroup},
 		{"largeFileLines", t.LargeFileLines},
 		{"maxNesting", t.MaxNesting},
+		{"highCognitive", t.HighCognitive},
 	} {
 		if limit.value < 0 {
 			return invalid("threshold %s is negative", limit.name)

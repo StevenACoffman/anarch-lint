@@ -12,19 +12,31 @@ import (
 	"github.com/StevenACoffman/anarch-lint/internal/balance"
 	"github.com/StevenACoffman/anarch-lint/internal/codeowners"
 	"github.com/StevenACoffman/anarch-lint/internal/connascence"
+	"github.com/StevenACoffman/anarch-lint/internal/coverage"
 	"github.com/StevenACoffman/anarch-lint/internal/fitness"
 	"github.com/StevenACoffman/anarch-lint/internal/git"
 )
 
+// History names the evidence balance may read beyond the code: the commits
+// after SinceRev, and a coverage profile; empty means none.
+type History struct {
+	SinceRev     string
+	CoverProfile string
+}
+
 // GateInput measures everything the gate compares with a baseline: the MMI
 // report always, and the fitness, connascence and Balanced Coupling reports
-// when the model opts them in.
-func (cfg *Config) GateInput(ctx context.Context, patterns []string) (arch.GateInput, error) {
+// when the model opts them in. changed is the change set a scoped check
+// measures, which the rules on changes read; nil means none.
+func (cfg *Config) GateInput(
+	ctx context.Context, patterns []string, changed arch.ChangedLines,
+) (arch.GateInput, error) {
 	const op = "root.Config.GateInput"
 	l, err := cfg.Load(ctx, patterns, GatedFacts)
 	if err != nil {
 		return arch.GateInput{}, &arch.Error{Op: op, Err: err}
 	}
+	l.Changed = changed
 	report := arch.Analyze(&l)
 	in := report.GateInput()
 	if l.Model.Fitness.Enabled() {
@@ -39,7 +51,7 @@ func (cfg *Config) GateInput(ctx context.Context, patterns []string) (arch.GateI
 		conn.AddTo(&in)
 	}
 	if l.Model.Balance.Enabled() {
-		bin, err := cfg.BalanceInput(ctx, &l, &conn, "")
+		bin, err := cfg.BalanceInput(ctx, &l, &conn, History{})
 		if err != nil {
 			return arch.GateInput{}, &arch.Error{Op: op, Err: err}
 		}
@@ -51,9 +63,9 @@ func (cfg *Config) GateInput(ctx context.Context, patterns []string) (arch.GateI
 
 // BalanceInput gathers what the Balanced Coupling measure reads beyond the
 // program: the connascence instances, the owners from CODEOWNERS, and the
-// churn since sinceRev when it is set.
+// history h names.
 func (cfg *Config) BalanceInput(
-	ctx context.Context, l *arch.Input, conn *connascence.Report, sinceRev string,
+	ctx context.Context, l *arch.Input, conn *connascence.Report, h History,
 ) (balance.Input, error) {
 	const op = "root.Config.BalanceInput"
 	in := balance.Input{
@@ -65,12 +77,23 @@ func (cfg *Config) BalanceInput(
 	if in.Owners, in.CodeownersHash, err = cfg.readOwners(&l.Program); err != nil {
 		return balance.Input{}, &arch.Error{Op: op, Err: err}
 	}
-	if sinceRev != "" {
-		churn, err := git.Churn(ctx, cfg.Dir, sinceRev)
+	if h.SinceRev != "" {
+		churn, err := git.Churn(ctx, cfg.Dir, h.SinceRev)
 		if err != nil {
 			return balance.Input{}, &arch.Error{Op: op, Err: err}
 		}
 		in.Churn = &churn
+	}
+	if h.CoverProfile != "" {
+		src, err := ReadFile(h.CoverProfile)
+		if err != nil {
+			return balance.Input{}, &arch.Error{Op: op, Err: err}
+		}
+		cov, err := coverage.Attribute(src, &l.Program)
+		if err != nil {
+			return balance.Input{}, &arch.Error{Op: op, Err: err}
+		}
+		in.Coverage = &cov
 	}
 	return in, nil
 }

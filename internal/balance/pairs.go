@@ -78,19 +78,29 @@ type pairContext struct {
 	volatility map[string]string
 }
 
-// pairs aggregates the evidence into one record per ordered pair.
-func (s *subject) pairs(ev []evidence, ctx *pairContext) []Pair {
-	type key struct{ from, to string }
-	byPair := map[key][]evidence{}
+// pairKey names an ordered pair of subsystems, downstream first.
+type pairKey struct{ from, to string }
+
+// groupPairs groups the evidence by ordered pair, leaving out a pair whose
+// evidence only grades a level, which is no coupling on its own.
+func groupPairs(ev []evidence) map[pairKey][]evidence {
+	byPair := map[pairKey][]evidence{}
 	for i := range ev {
-		k := key{ev[i].from, ev[i].to}
+		k := pairKey{ev[i].from, ev[i].to}
 		byPair[k] = append(byPair[k], ev[i])
 	}
-	out := make([]Pair, 0, len(byPair))
 	for k, items := range byPair {
 		if gradesOnly(items) {
-			continue
+			delete(byPair, k)
 		}
+	}
+	return byPair
+}
+
+// pairs builds one record per ordered pair of grouped evidence.
+func (s *subject) pairs(groups map[pairKey][]evidence, ctx *pairContext) []Pair {
+	out := make([]Pair, 0, len(groups))
+	for k, items := range groups {
 		out = append(out, s.pair(k.from, k.to, items, ctx))
 	}
 	slices.SortFunc(out, func(a, b Pair) int {

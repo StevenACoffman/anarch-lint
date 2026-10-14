@@ -1,7 +1,9 @@
 package arch
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -38,6 +40,7 @@ func subsystemCycleRule(s *subject) []Finding {
 		}
 		f.Fix = "cut " + strings.Join(steps, "; ") + ": move each importing package to the " +
 			"subsystem it serves, or invert the import through an interface"
+		f.sites = s.subsystemCycleSites(grp)
 		fs = append(fs, f)
 	}
 	return fs
@@ -72,8 +75,9 @@ func typeCycleRule(s *subject, limit int) []Finding {
 			if f.Location == nil {
 				f.Location = SpanAt(r.Pos)
 			}
-			steps = append(steps, fmt.Sprintf("%s → %s (%s, %s:%d)",
-				cut.From, cut.To, Plural(cut.Weight, "use"), r.Pos.File, r.Pos.Line))
+			steps = append(steps, fmt.Sprintf("%s → %s (%s%s, %s:%d)",
+				cut.From, cut.To, Plural(cut.Weight, "use"), kindsText(r.Kinds),
+				r.Pos.File, r.Pos.Line))
 		}
 		method := "a minimum"
 		if !exact {
@@ -82,6 +86,7 @@ func typeCycleRule(s *subject, limit int) []Finding {
 		f.Evidence = grp
 		f.Fix = fmt.Sprintf("cut these references (%s set): %s; invert each through an interface "+
 			"(dependency inversion) or move the code it needs", method, strings.Join(steps, "; "))
+		f.sites = typeCycleSites(s.p.Refs, grp)
 		fs = append(fs, f)
 	}
 	return fs
@@ -89,7 +94,7 @@ func typeCycleRule(s *subject, limit int) []Finding {
 
 // sizeRules reports functions and types above the size and complexity limits
 // (MMI 1.3.1, 1.3.2, 1.3.4).
-func sizeRules(s *subject, t Thresholds, cohesion map[string]int) []Finding {
+func sizeRules(s *subject, t *Thresholds, cohesion map[string]int) []Finding {
 	var fs []Finding
 	for i := range s.p.Funcs {
 		fn := &s.p.Funcs[i]
@@ -108,7 +113,7 @@ func sizeRules(s *subject, t Thresholds, cohesion map[string]int) []Finding {
 			f.Fix = "extract the steps that need no shared state into functions of their own"
 			fs = append(fs, f)
 		}
-		if cc := variantOf(fn.Complexity, t.ComplexityVariant); cc > t.HighComplexity {
+		if cc := fn.Complexity.Of(t.ComplexityVariant); cc > t.HighComplexity {
 			f := NewFinding(
 				FindingID{Rule: RuleComplexFunc, Subject: fn.ID, Object: ""},
 				SeverityWarning,
@@ -148,7 +153,7 @@ func sizeRules(s *subject, t Thresholds, cohesion map[string]int) []Finding {
 // lengthAndDepthRules reports source files above the length limit and functions
 // nested deeper than the indentation limit: von Zitzewitz's golden rules for
 // files of at most 800 lines and indentation of at most 4 (mmi.md §7.3).
-func lengthAndDepthRules(s *subject, t Thresholds) []Finding {
+func lengthAndDepthRules(s *subject, t *Thresholds) []Finding {
 	var fs []Finding
 	for i := range s.p.Files {
 		file := &s.p.Files[i]
@@ -188,6 +193,27 @@ func lengthAndDepthRules(s *subject, t Thresholds) []Finding {
 		f.Fix = "return early, and extract the innermost loop or branch into a named function"
 		fs = append(fs, f)
 	}
+	return append(fs, cognitiveRule(s, t)...)
+}
+
+// cognitiveRule reports functions above the cognitive-complexity limit:
+// hard to read rather than hard to test, which cyclomatic complexity
+// measures (SonarSource, "Cognitive Complexity", 2017).
+func cognitiveRule(s *subject, t *Thresholds) []Finding {
+	var fs []Finding
+	for i := range s.p.Funcs {
+		fn := &s.p.Funcs[i]
+		if fn.Cognitive <= t.HighCognitive {
+			continue
+		}
+		f := NewFinding(FindingID{Rule: RuleCognitive, Subject: fn.ID}, SeverityWarning)
+		f.Location = &fn.Span
+		f.Message = fmt.Sprintf("%s has cognitive complexity %d, above %d",
+			fn.ID, fn.Cognitive, t.HighCognitive)
+		f.Fix = "flatten nested decisions with early returns, and extract nested branches " +
+			"and long boolean chains into named functions"
+		fs = append(fs, f)
+	}
 	return fs
 }
 
@@ -203,8 +229,9 @@ func (s *subject) importsBetween(from, to string) []Import {
 	return imps
 }
 
-// variantOf returns the chosen variant of a function's complexity.
-func variantOf(c Complexity, v CCVariant) int {
+// Of returns the chosen variant of a function's complexity; the modified
+// variant when none is chosen.
+func (c Complexity) Of(v CCVariant) int {
 	switch v {
 	case CCPlain:
 		return c.Plain
@@ -223,4 +250,66 @@ func Plural(n int, noun string) string {
 		return "1 " + noun
 	}
 	return strconv.Itoa(n) + " " + noun + "s"
+}
+
+// subsystemCycleSites returns where each import between two subsystems of a
+// cycle group is: a change to any of them may have closed the cycle.
+func (s *subject) subsystemCycleSites(grp []string) []Span {
+	in := map[string]bool{}
+	for _, sub := range grp {
+		in[sub] = true
+	}
+	var at []Position
+	for _, imp := range s.inScopeImports() {
+		from, to := s.g.SubsystemAssignment.Of[imp.From], s.g.SubsystemAssignment.Of[imp.To]
+		if from != to && in[from] && in[to] {
+			at = append(at, imp.Pos)
+		}
+	}
+	return spansAt(at)
+}
+
+// typeCycleSites returns where the first use of each reference within a type
+// cycle group is.
+func typeCycleSites(refs []Ref, grp []string) []Span {
+	in := map[string]bool{}
+	for _, t := range grp {
+		in[t] = true
+	}
+	var at []Position
+	for _, r := range refs {
+		if in[r.From] && in[r.To] {
+			at = append(at, r.Pos)
+		}
+	}
+	return spansAt(at)
+}
+
+// spansAt returns the one-line spans of positions, sorted and without
+// duplicates.
+func spansAt(at []Position) []Span {
+	spans := make([]Span, 0, len(at))
+	for _, p := range at {
+		spans = append(spans, *SpanAt(p))
+	}
+	slices.SortFunc(spans, func(a, b Span) int {
+		return cmp.Or(cmp.Compare(a.File, b.File), cmp.Compare(a.Start, b.Start))
+	})
+	return slices.Compact(spans)
+}
+
+// kindsText names where a reference's uses are, " in field and body", for a
+// fix to say how hard the cut is; "" when the kinds are unknown.
+func kindsText(kinds []RefKind) string {
+	if len(kinds) == 0 {
+		return ""
+	}
+	names := make([]string, len(kinds))
+	for i, k := range kinds {
+		names[i] = string(k)
+	}
+	if len(names) == 1 {
+		return " in " + names[0]
+	}
+	return " in " + strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
 }

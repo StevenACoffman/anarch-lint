@@ -1,6 +1,10 @@
 anarch-lint report (anarch-lint.report.v1)
 patterns ./... · tags none · model 7d350c6facc1 · GOVERSION
 
+NOT MEASURED (2 files; test files are never measured)
+  gen/gen.go         generated          
+  metrics/legacy.go  build-constraints  
+
 MMI 4.04 – 7.38  (5 judgements pending, 1 criteria unmeasured)
   1.1.1  Source code allocated to subsystems (domain modules)                measured    100.00%   score 10
   1.1.2  Source code allocated to technical layers                           measured    100.00%   score 10
@@ -78,15 +82,19 @@ READ FIRST (Component Rank)
   example.com/fx/metrics.Counter          0.0228
   example.com/fx/roles.Customer           0.0228
 
+COMMUNITIES (4 groups of the import graph, advice; 0 misplaced)
+
 FINDINGS (3 errors, 3 warnings)
   warning  deep-nesting  example.com/fx/metrics.Nested  metrics/metrics.go:48
            example.com/fx/metrics.Nested nests 5 levels deep, above 4
            fix: return early, and extract the innermost loop or branch into a named function
   error    interface-bypass  example.com/fx/billing/tax  billing/tax/tax.go:4
            example.com/fx/billing/tax imports example.com/fx/shop/catalog, which is not an interface package of subsystem shop
+           model rule: interfaces
            fix: subsystem shop declares no interface: declare the packages others may import, such as example.com/fx/shop/catalog, as its interface in the model
   error    role-order-violation  example.com/fx/billing/invoice.Line  billing/invoice/invoice.go:8
            example.com/fx/billing/invoice.Line (entity) refers to example.com/fx/billing/invoice.Invoice (aggregate), against the role order
+           model rule: roles
            fix: invert the reference through an interface owned by the entity role, or give one of the types a role that fits
   error    subsystem-cycle  billing ↔ shop  billing/tax/tax.go:4
            subsystems billing ↔ shop form a cycle
@@ -101,27 +109,32 @@ FINDINGS (3 errors, 3 warnings)
 
 JUDGEMENTS (for a human expert or an adversarial LLM; never gate)
   1.1.5  pending  Does each subsystem, layer, package and type have one clear responsibility, and does its name describe it?
+                  undecided: the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers
                   evidence: coupling: example.com/fx/billing/tax imports 1 packages of other subsystems and 0 of its own
                   evidence: coupling: example.com/fx/shop/catalog imports 1 packages of other subsystems and 0 of its own
                   evidence: lcom4: example.com/fx/metrics.Counter has 2 independent groups of methods and fields
                   evidence: lcom4: example.com/fx/shop/catalog.Item has 2 independent groups of methods and fields
                   evidence: balance: largest package example.com/fx/metrics has 45 of 84 lines; smallest example.com/fx/gen has 1
-                  evidence hash: 2b15a3f4de13d72edfef185d3379e8e0c2e8b7b90decfccd3d4ee4c1cb3b4124
+                  evidence hash: d319728f8cbf8ef93533998ab0c36615fdcd46915991cde76b30dac0eb0f27d5
   1.1.6  pending  Do the packages map the technical layers and the subsystems (domain modules) of the target architecture, and is that the right mapping?
+                  undecided: the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers
                   evidence: subsystems: 3 declared; 0 packages unassigned, 0 ambiguous
                   evidence: layers: 2 declared; 0 packages unassigned, 0 ambiguous
-                  evidence hash: 709ec3e189ad22779207b81fccc52e0c9a58d59b0231bcb013c1f985e41d02d0
+                  evidence hash: 94e9310e1b3d496aaaaa4f8956bf4367f5e10cc1c4d5b8b1de5bbdb23d79cf30
   1.2.2  pending  Is each subsystem's internal interface mapped through packages that other subsystems can see and use?
+                  undecided: the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers
                   evidence: subsystems: 3 declared
                   evidence: interface-bypass: example.com/fx/billing/tax imports example.com/fx/shop/catalog, which is not an interface package of subsystem shop
                   evidence: subsystem-without-interface: subsystem shop declares no interface package
                   evidence: subsystem-without-interface: subsystem support declares no interface package
-                  evidence hash: bdd3b492d9bf87528359145f5b828bb0bbcfed2cf2571a50f0a7e871ddba0bf8
+                  evidence hash: 5478caa264ed4ca53d3fc8669c0d8726c7518de17f3f8816e45cbcdaaacdbae6
   3.3    pending  Are the patterns mapped explicitly, through type names, embedding or directives, rather than left for readers to infer?
+                  undecided: the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers
                   evidence: roles: 4 declared; of 15 types, 1 have a role by directive, 1 by embedding a marker, 1 by implementing an interface, 2 by name suffix, 0 only by package, 10 none
-                  evidence hash: 98ed7328752ccd9c6bcc7363398c66bcfd7de9ef35bbfbe33cce4a8a53486d24
+                  evidence hash: f32934a12423886b2ef2ff7072be654848854be2c973e3068ddeabb5f0df128c
   3.4    pending  Are domain and technical code separated, as DDD, Quasar or hexagonal architecture separate them?
+                  undecided: the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers
                   evidence: forbidden-import rules: 0 declared
-                  evidence hash: e8fc77dbb3638bb331012a5ec6d95999d477ff1692df1b3945c82da89adeb826
+                  evidence hash: 7a4dc8376697760778795906160012a919378ee5ff12aa1a15c3fb9b851101a7
 
-ASSUMPTIONS: 14, listed in the JSON report (--format=json)
+ASSUMPTIONS: 16, listed in the JSON report (--format=json)

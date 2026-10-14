@@ -16,7 +16,8 @@
       "complexityVariant": "modified",
       "maxTypeCycleGroup": 5,
       "largeFileLines": 800,
-      "maxNesting": 4
+      "maxNesting": 4,
+      "highCognitive": 15
     }
   },
   "rules": [
@@ -135,7 +136,8 @@
         "end": 14
       },
       "message": "example.com/cx/web calls regexp.MustCompile",
-      "fix": "take what the call provides as a parameter, so the caller no longer needs it"
+      "fix": "take what the call provides as a parameter, so the caller no longer needs it",
+      "modelRule": "fitness.calls patterns-in-billing"
     },
     {
       "fingerprint": "77d8444e49f6b9cb",
@@ -149,7 +151,8 @@
         "end": 5
       },
       "message": "example.com/cx/audit imports example.com/cx/auth: only example.com/cx/billing may import it: only billing should know roles",
-      "fix": "reach the package through one of the packages the rule allows"
+      "fix": "reach the package through one of the packages the rule allows",
+      "modelRule": "fitness.dependents auth-for-billing"
     },
     {
       "fingerprint": "b0f77377edb794f7",
@@ -163,7 +166,8 @@
         "end": 11
       },
       "message": "example.com/cx/web imports example.com/cx/auth: only example.com/cx/billing may import it: only billing should know roles",
-      "fix": "reach the package through one of the packages the rule allows"
+      "fix": "reach the package through one of the packages the rule allows",
+      "modelRule": "fitness.dependents auth-for-billing"
     },
     {
       "fingerprint": "729d440704ee4900",
@@ -172,7 +176,8 @@
       "subject": "cx.modelith.yaml:Credentials",
       "object": "example.com/cx/auth.Credentials",
       "message": "example.com/cx/auth.Credentials expresses entity Credentials, yet plays the contract role: the code speaks the fixture's domain model",
-      "fix": "keep the entity type in the model and give the contract its own type, or drop the role"
+      "fix": "keep the entity type in the model and give the contract its own type, or drop the role",
+      "modelRule": "fitness.domains cx-model"
     },
     {
       "fingerprint": "52da04cc24a4166b",
@@ -180,7 +185,8 @@
       "severity": "error",
       "subject": "cx.modelith.yaml:Session",
       "message": "domain model cx.modelith.yaml declares entity Session, and no type expresses it: the code speaks the fixture's domain model",
-      "fix": "name a type after the entity, map it in the rule's types, or remove the entity from the model"
+      "fix": "name a type after the entity, map it in the rule's types, or remove the entity from the model",
+      "modelRule": "fitness.domains cx-model"
     },
     {
       "fingerprint": "70d715da68763f90",
@@ -192,7 +198,8 @@
       "fix": "make the model's values and the type's constants the same set",
       "evidence": [
         "in the model only: Top"
-      ]
+      ],
+      "modelRule": "fitness.domains cx-model"
     },
     {
       "fingerprint": "28a57f48eba03e9f",
@@ -200,7 +207,8 @@
       "severity": "error",
       "subject": "cx.modelith.yaml:Currency",
       "message": "domain model cx.modelith.yaml declares enum Currency, and no type expresses it: the code speaks the fixture's domain model",
-      "fix": "name a type after the enum, or map it in the rule's types"
+      "fix": "name a type after the enum, or map it in the rule's types",
+      "modelRule": "fitness.domains cx-model"
     },
     {
       "fingerprint": "0e28405b533253af",
@@ -209,7 +217,8 @@
       "subject": "cx.modelith.yaml:Credentials",
       "object": "Role",
       "message": "the model relates Credentials to Role, but example.com/cx/auth.Credentials and example.com/cx/auth.Role never refer to each other: the code speaks the fixture's domain model",
-      "fix": "add the reference the relationship needs, or correct the model"
+      "fix": "add the reference the relationship needs, or correct the model",
+      "modelRule": "fitness.domains cx-model"
     },
     {
       "fingerprint": "6e7533e9b647bfa8",
@@ -218,7 +227,8 @@
       "subject": "cx.modelith.yaml:Ledger",
       "object": "example.com/cx/billing.Ledger",
       "message": "cx-model maps Ledger to example.com/cx/billing.Ledger, which is no type of the program: the code speaks the fixture's domain model",
-      "fix": "correct the type ID, or remove the mapping if the concept has no type yet"
+      "fix": "correct the type ID, or remove the mapping if the concept has no type yet",
+      "modelRule": "fitness.domains cx-model"
     },
     {
       "fingerprint": "5b06a88b357d5966",
@@ -227,7 +237,8 @@
       "subject": "forbiddenImports[0]",
       "object": "imports",
       "message": "the imports of forbiddenImports[0] match nothing, so the rule checks nothing",
-      "fix": "correct the patterns, or remove the rule"
+      "fix": "correct the patterns, or remove the rule",
+      "modelRule": "forbiddenImports[0]"
     },
     {
       "fingerprint": "b10aeaa78580e4ea",
@@ -235,7 +246,8 @@
       "severity": "error",
       "subject": "nothing-yet",
       "message": "fitness rule nothing-yet (dependents) matches nothing",
-      "fix": "correct the rule's patterns, or set optional if it may match nothing"
+      "fix": "correct the rule's patterns, or set optional if it may match nothing",
+      "modelRule": "fitness.dependents nothing-yet"
     },
     {
       "fingerprint": "4fd690880baf5f6a",
@@ -249,7 +261,8 @@
         "end": 71
       },
       "message": "example.com/cx/billing.Due calls time.Parse: inject a clock",
-      "fix": "take what the call provides as a parameter, so the caller no longer needs it"
+      "fix": "take what the call provides as a parameter, so the caller no longer needs it",
+      "modelRule": "fitness.calls no-clock-in-features"
     },
     {
       "fingerprint": "01d3b70d75f42695",
@@ -263,7 +276,8 @@
         "end": 42
       },
       "message": "example.com/cx/web.Due calls time.Parse: inject a clock",
-      "fix": "take what the call provides as a parameter, so the caller no longer needs it"
+      "fix": "take what the call provides as a parameter, so the caller no longer needs it",
+      "modelRule": "fitness.calls no-clock-in-features"
     },
     {
       "fingerprint": "7610a1f9891d484e",
@@ -277,7 +291,8 @@
         "end": 17
       },
       "message": "example.com/cx/web.Admin uses example.com/cx/auth.Role, a defined type, where only interfaces are allowed",
-      "fix": "depend on an interface the package exports, or declare one where it is used"
+      "fix": "depend on an interface the package exports, or declare one where it is used",
+      "modelRule": "fitness.interfacesOnly web-ports"
     },
     {
       "fingerprint": "9d577c6448617867",
@@ -291,7 +306,8 @@
         "end": 20
       },
       "message": "example.com/cx/web.Allowed uses example.com/cx/auth.Role, a defined type, where only interfaces are allowed",
-      "fix": "depend on an interface the package exports, or declare one where it is used"
+      "fix": "depend on an interface the package exports, or declare one where it is used",
+      "modelRule": "fitness.interfacesOnly web-ports"
     },
     {
       "fingerprint": "f947ea6088f6735b",
@@ -305,7 +321,8 @@
         "end": 26
       },
       "message": "example.com/cx/web.Peek uses example.com/cx/auth.Secret, a struct, where only interfaces are allowed",
-      "fix": "depend on an interface the package exports, or declare one where it is used"
+      "fix": "depend on an interface the package exports, or declare one where it is used",
+      "modelRule": "fitness.interfacesOnly web-ports"
     },
     {
       "fingerprint": "9005a328a418944b",
@@ -319,7 +336,21 @@
         "end": 36
       },
       "message": "example.com/cx/web.Steal uses example.com/cx/auth.Role, a defined type, where only interfaces are allowed",
-      "fix": "depend on an interface the package exports, or declare one where it is used"
+      "fix": "depend on an interface the package exports, or declare one where it is used",
+      "modelRule": "fitness.interfacesOnly web-ports"
+    },
+    {
+      "fingerprint": "aac057962f737013",
+      "rule": "redundant-rule",
+      "severity": "warning",
+      "subject": "core-from-features",
+      "object": "strictLayers",
+      "message": "every import core-from-features forbids, strictLayers forbids too",
+      "fix": "remove core-from-features, or keep it and narrow strictLayers if core-from-features states the intent",
+      "evidence": [
+        "for example example.com/cx/cmd/client → example.com/cx/auth"
+      ],
+      "modelRule": "fitness.layerAccess core-from-features"
     },
     {
       "fingerprint": "db33818f5a008eb3",
@@ -514,6 +545,11 @@
       "truncated": false
     }
   ],
+  "verification": {
+    "verified": true,
+    "classes": 7,
+    "cells": 37
+  },
   "assumptions": [
     {
       "id": "nccd",
@@ -529,6 +565,11 @@
       "id": "component-dependency",
       "text": "Unlike analyze's Martin metrics, abstractness counts exported types only and an isolated package has instability 1, as ArchUnit's ComponentDependencyMetrics has it.",
       "source": "TODO.md, Ideas from ArchUnit: Metrics"
+    },
+    {
+      "id": "verification",
+      "text": "The import rules are compared over classes of packages every rule reads alike, at most 250,000 cells (classes inside × all classes), beyond which the report says they were not verified; isolations are left out, since what they allow depends on each package's captures.",
+      "source": "IMPROVEMENTS.md 1.1 (feelc's verifier)"
     },
     {
       "id": "cycles",

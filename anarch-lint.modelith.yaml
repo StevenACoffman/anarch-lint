@@ -16,10 +16,10 @@ enums:
     values:
       - name: fact
       - name: candidate
-  Provenance:
+  EventRole:
     values:
+      - name: judge
       - name: human
-      - name: llm
   RuleGate:
     values:
       - name: fail
@@ -74,6 +74,16 @@ entities:
       - entity: Verdict
         cardinality: "1:1"
   Verdict:
-    definition: A reviewer's answer to a `JudgementSlot`, bound to its evidence.
+    definition: >
+      A reviewer's answer to a `JudgementSlot`, bound to its evidence and
+      attested by `VerificationEvent`s.
+    relationships:
+      - entity: VerificationEvent
+        cardinality: "1:n"
+        ownership: owned
+  VerificationEvent:
+    definition: >
+      One attestation of a `Verdict`, by a judge or a human, its actor taken
+      from the judgements file's signer.
   Baseline:
     definition: The findings and metrics a `Gate` compares a run against.

@@ -1,11 +1,44 @@
 package arch
 
+import (
+	"cmp"
+	"strings"
+)
+
 // Type kinds. Only struct types have an LCOM4; interfaces count as abstract.
 const (
 	KindStruct    TypeKind = "struct"
 	KindInterface TypeKind = "interface"
 	KindOther     TypeKind = "other"
 )
+
+// Reference kinds: where in the referring declaration a reference is, which
+// says how hard it is to cut, hardest first.
+const (
+	// RefEmbed is an embedded field or interface: the type is part of the
+	// referrer's own method set.
+	RefEmbed RefKind = "embed"
+	// RefField is the type of a named struct field: the referrer's layout.
+	RefField RefKind = "field"
+	// RefDefinition is the rest of a type declaration, such as the element
+	// of a slice type or a type parameter's constraint.
+	RefDefinition RefKind = "definition"
+	// RefSignature is a method's receiver, parameters and results, or an
+	// interface method's: the referrer's API.
+	RefSignature RefKind = "signature"
+	// RefBody is a method body: an implementation detail, the easiest to
+	// move behind an interface.
+	RefBody RefKind = "body"
+)
+
+// Reasons a source file of an analyzed package is left out of every measure.
+const (
+	ExcludedGenerated ExclusionReason = "generated"
+	ExcludedByBuild   ExclusionReason = "build-constraints"
+)
+
+// ExclusionReason says why no measure reads a source file.
+type ExclusionReason string
 
 // TypeKind classifies a named type by its underlying type.
 type TypeKind string
@@ -35,6 +68,9 @@ type Input struct {
 	// Domains are the domain models the model's fitness.domains rules name,
 	// in the rules' order.
 	Domains []DomainModel
+	// Changed is the change set check --new-from-rev measures, nil without
+	// one; only the rules on changes read it.
+	Changed ChangedLines
 }
 
 // Program is everything a loader extracts from the packages under analysis.
@@ -61,6 +97,9 @@ type Program struct {
 	// Facts are the connascence and Balanced Coupling facts, filled only
 	// when the loader is asked for them.
 	Facts Facts `json:"facts"`
+	// Excluded lists the source files of the packages under analysis that
+	// no measure reads, sorted by path: what the report did not see.
+	Excluded []ExcludedFile `json:"excluded"`
 }
 
 // Package is one Go package under analysis.
@@ -74,8 +113,15 @@ type Package struct {
 	Files []string `json:"files"`
 	// Lines is the package's lines of code (mmi.md §7.3).
 	Lines int `json:"lines"`
-	// Generated is the number of generated files left out of Files.
-	Generated int `json:"generated"`
+}
+
+// ExcludedFile is a source file of an analyzed package that no measure
+// reads, and why. Test files are left out by design and are not listed.
+type ExcludedFile struct {
+	// Path is relative to the analysis root.
+	Path    string          `json:"path"`
+	Package string          `json:"package"`
+	Reason  ExclusionReason `json:"reason"`
 }
 
 // File is one source file under analysis.
@@ -128,6 +174,10 @@ type Func struct {
 	Complexity Complexity `json:"complexity"`
 	// MaxNesting is the deepest block nesting inside the body.
 	MaxNesting int `json:"maxNesting"`
+	// Cognitive is SonarSource's cognitive complexity, as
+	// github.com/uudashr/gocognit computes it: a decision costs more the
+	// deeper it is nested, and a run of one boolean operator costs one.
+	Cognitive int `json:"cognitive"`
 	// Uses names the receiver's fields and methods that a method's body
 	// selects through the receiver variable, for LCOM4.
 	Uses []string `json:"uses,omitempty"`
@@ -149,14 +199,19 @@ type Complexity struct {
 	Extended int `json:"extended"`
 }
 
+// RefKind says where in the referring declaration a type reference is.
+type RefKind string
+
 // Ref is a reference from one in-scope type to another: the dissertation's use
 // relationship (mmi.md §3). Weight counts the referring identifiers; Pos is
-// the first of them.
+// the first of them. Kinds lists where the identifiers are, hardest to cut
+// first, as [RefKind.Order] orders them.
 type Ref struct {
-	From   string   `json:"from"`
-	To     string   `json:"to"`
-	Weight int      `json:"weight"`
-	Pos    Position `json:"pos"`
+	From   string    `json:"from"`
+	To     string    `json:"to"`
+	Weight int       `json:"weight"`
+	Pos    Position  `json:"pos"`
+	Kinds  []RefKind `json:"kinds,omitempty"`
 }
 
 // Injection is a call that passes a value of a concrete type to a parameter
@@ -177,4 +232,33 @@ type Import struct {
 	From string   `json:"from"`
 	To   string   `json:"to"`
 	Pos  Position `json:"pos"`
+}
+
+// IsStandard reports whether an import path is in the standard library: its
+// first element has no dot, the rule cmd/go applies.
+func IsStandard(path string) bool {
+	first, _, _ := strings.Cut(path, "/")
+	return !strings.Contains(first, ".")
+}
+
+// Order is a kind's place among the kinds, from 0 for the hardest to cut,
+// an embedding, to 4 for the easiest, a method body.
+func (k RefKind) Order() int {
+	switch k {
+	case RefEmbed:
+		return 0
+	case RefField:
+		return 1
+	case RefDefinition:
+		return 2
+	case RefSignature:
+		return 3
+	default:
+		return 4
+	}
+}
+
+// ComparePositions orders positions by file, then line.
+func ComparePositions(a, b Position) int {
+	return cmp.Or(cmp.Compare(a.File, b.File), cmp.Compare(a.Line, b.Line))
 }

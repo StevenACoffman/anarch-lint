@@ -20,8 +20,11 @@ type Config struct {
 	// SinceRev, when set, bounds the change history read as evidence of
 	// volatility: the commits after it, up to HEAD.
 	SinceRev string
-	Flags    *ff.FlagSet
-	Command  *ff.Command
+	// CoverProfile, when set, is a go test -coverprofile file whose coverage
+	// ranks the packages many import that tests rarely run.
+	CoverProfile string
+	Flags        *ff.FlagSet
+	Command      *ff.Command
 }
 
 // New creates and registers the balance command with the given parent config.
@@ -31,9 +34,11 @@ func New(parent *root.Config) *Config {
 	cfg.Flags = ff.NewFlagSet("balance").SetParent(parent.Flags)
 	cfg.Flags.StringVar(&cfg.SinceRev, 0, "since-rev", "",
 		"read the commits after this git revision as evidence of volatility")
+	cfg.Flags.StringVar(&cfg.CoverProfile, 0, "coverprofile", "",
+		"a go test -coverprofile file: rank packages many import that tests rarely run")
 	cfg.Command = &ff.Command{
 		Name:      "balance",
-		Usage:     "anarch-lint [FLAGS] balance [--since-rev REV] [PACKAGES]",
+		Usage:     "anarch-lint [FLAGS] balance [--since-rev REV] [--coverprofile FILE] [PACKAGES]",
 		ShortHelp: "report Balanced Coupling: strength, distance and volatility of every subsystem pair",
 		LongHelp: `Balance loads the packages (default ./...) and reports, deterministically, Vlad
 Khononov's Balanced Coupling for every ordered pair of subsystems
@@ -45,7 +50,9 @@ Khononov's Balanced Coupling for every ordered pair of subsystems
     boundaries, and asynchronous integration a reviewer confirmed;
   - volatility: each subsystem's subdomain, a judgement slot, with its churn
     since --since-rev as evidence;
-  - the quadrant, archfit's balance score, and package exposure.
+  - the quadrant, archfit's balance score, and package exposure;
+  - with --coverprofile, the packages many import whose tests run little
+    of them.
 
 Tight coupling on facts is a finding, an error when the model's "balance"
 section sets "gate": true. Candidates gate only once an approved verdict
@@ -65,7 +72,8 @@ func (cfg *Config) exec(ctx context.Context, args []string) error {
 		return fmt.Errorf("balance: %w", err)
 	}
 	conn := connascence.Analyze(&l)
-	in, err := cfg.BalanceInput(ctx, &l, &conn, cfg.SinceRev)
+	in, err := cfg.BalanceInput(ctx, &l, &conn,
+		root.History{SinceRev: cfg.SinceRev, CoverProfile: cfg.CoverProfile})
 	if err != nil {
 		return fmt.Errorf("balance: %w", err)
 	}

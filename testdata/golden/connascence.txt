@@ -84,44 +84,49 @@ CANDIDATES (11, 0 rejected; the first 11, strongest and farthest first)
 
 JUDGEMENTS (for a human expert or an adversarial LLM; an approved verdict confirms or rejects)
   connascence/e164877bf8defd80  pending  Must these places change together, so that the candidate is connascence?
-                                         answers: confirmed, rejected
+                                         answers: confirmed, rejected, insufficient-evidence
+                                         undecided: a detector found the shape of connascence, with high confidence that it is not chance, but not that the places must change together
                                          evidence: the time layout "2006-01-02" is written in 2 packages
-                                         evidence: basis: candidate, confidence high
-                                         evidence: strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3
+                                         evidence: strength 5 (algorithm), locality system, degree 2
                                          evidence: site: billing/invoice.go:71 (example.com/cx/billing.Due)
                                          evidence: site: web/admin.go:42 (example.com/cx/web.Due)
-                                         evidence hash: f0f33388e756c5b6968d7c1370e4a80e280bdbc0607d5438645c82819cc5f725
+                                         context, hidden from a judge: over the limits: above maxStrength.system 3
+                                         evidence hash: ca5c25c9a739984b999bf4a933463291e2241505a6e844c5aa4ac93397696042
   connascence/bf0cd162e8c9fb86  pending  Must these places change together, so that the candidate is connascence?
-                                         answers: confirmed, rejected
+                                         answers: confirmed, rejected, insufficient-evidence
+                                         undecided: a detector found the shape of connascence, with high confidence that it is not chance, but not that the places must change together
                                          evidence: the regular expression "^[A-Z]{3}-[0-9]+$" is written in 2 packages
-                                         evidence: basis: candidate, confidence high
-                                         evidence: strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3
+                                         evidence: strength 5 (algorithm), locality system, degree 2
                                          evidence: site: billing/invoice.go:16
                                          evidence: site: web/admin.go:14
-                                         evidence hash: eff70f499987ee817c31afbbf072f9adffa7936ba007cef161e0cbb51895a69a
+                                         context, hidden from a judge: over the limits: above maxStrength.system 3
+                                         evidence hash: 3d7b5a70972c1923d3a77d761b4eb71d20c044f880087dd4f68a8ef0c938a379
   connascence/39785623994321c5  pending  Must these places change together, so that the candidate is connascence?
-                                         answers: confirmed, rejected
+                                         answers: confirmed, rejected, insufficient-evidence
+                                         undecided: a detector found the shape of connascence, with low confidence that it is not chance, but not that the places must change together
                                          evidence: 2 packages call crypto/sha256
-                                         evidence: basis: candidate, confidence low
-                                         evidence: strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3
+                                         evidence: strength 5 (algorithm), locality system, degree 2
                                          evidence: site: billing/invoice.go:74 (example.com/cx/billing.Sum)
                                          evidence: site: web/admin.go:45 (example.com/cx/web.Sum)
-                                         evidence hash: 2c2881761cf50cab053091a2eb37dc2b6eb7457dfe3b90d963bd69ebf7af11f2
+                                         context, hidden from a judge: over the limits: above maxStrength.system 3
+                                         evidence hash: df957d76b9801d5aa560cb3e32dd66bf4ef20d35bfa47c1d074f812e94a9ce29
   connascence/776fd7466e2e9acd  pending  Must these places change together, so that the candidate is connascence?
-                                         answers: confirmed, rejected
+                                         answers: confirmed, rejected, insufficient-evidence
+                                         undecided: a detector found the shape of connascence, with low confidence that it is not chance, but not that the places must change together
                                          evidence: 2 functions in 2 packages have the same body shape as example.com/cx/billing.Total
-                                         evidence: basis: candidate, confidence low
-                                         evidence: strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3
+                                         evidence: strength 5 (algorithm), locality system, degree 2
                                          evidence: site: billing/invoice.go:77 (example.com/cx/billing.Total)
                                          evidence: site: web/admin.go:48 (example.com/cx/web.Tally)
-                                         evidence hash: 81934f0053caf651e32c0e1ec1e4530d4dbcd2e616b448d411dd3a13828a2264
+                                         context, hidden from a judge: over the limits: above maxStrength.system 3
+                                         evidence hash: 0f42bc3f4cce8034907d573b9ed1196d547fb08715b1ea2bb3e011d6b4f601a8
   connascence/b1236343126f63c5  pending  Must these places change together, so that the candidate is connascence?
-                                         answers: confirmed, rejected
+                                         answers: confirmed, rejected, insufficient-evidence
+                                         undecided: a detector found the shape of connascence, with high confidence that it is not chance, but not that the places must change together
                                          evidence: 2 packages declare constants of type untyped int equal to 8080
-                                         evidence: basis: candidate, confidence high
-                                         evidence: strength 8 (value), locality system, degree 2: above maxStrength.system 3
+                                         evidence: strength 8 (value), locality system, degree 2
                                          evidence: site: auth/role.go:30
                                          evidence: site: billing/invoice.go:14
-                                         evidence hash: 5f6bcd9c538031019cfec332b974df8025e5947a338f7acec11fb409854566b4
+                                         context, hidden from a judge: over the limits: above maxStrength.system 3
+                                         evidence hash: 6db1fb538159d9c167bf1348f2250a25ca4b7983c479c98b47cc16d9f7e2f9fa
 
-ASSUMPTIONS: 12, listed in the JSON report (--format=json)
+ASSUMPTIONS: 13, listed in the JSON report (--format=json)

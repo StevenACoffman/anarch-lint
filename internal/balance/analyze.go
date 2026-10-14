@@ -35,6 +35,8 @@ type Input struct {
 	CodeownersHash string
 	// Churn is the change history of a revision range, nil without one.
 	Churn *arch.Churn
+	// Coverage is a test coverage profile, nil without one.
+	Coverage *arch.Coverage
 }
 
 // Report is the complete, deterministic result of the measure.
@@ -46,17 +48,49 @@ type Report struct {
 	Pairs      []Pair                `json:"pairs"`
 	Packages   []PackageBalance      `json:"packages"`
 	Subsystems []SubsystemVolatility `json:"subsystems"`
+	// CoChange lists the subsystems that change together, and Hotspots the
+	// packages that change often and are complex; both need a revision range.
+	CoChange []CoChange `json:"coChange"`
+	Hotspots []Hotspot  `json:"hotspots"`
+	// Coverage lists the packages a coverage profile instruments, riskiest
+	// first; it needs --coverprofile.
+	Coverage []PackageCoverage `json:"coverage"`
 	// Unbound lists the packages no binary in scope contains, when some
 	// binary is in scope; their deploy boundary is unknown.
 	Unbound    []string       `json:"unbound"`
 	Findings   []arch.Finding `json:"findings"`
 	Candidates []Candidate    `json:"candidates"`
 	Rejected   []Candidate    `json:"rejected"`
+	// Suppressed lists what a verdict lifted: a tight coupling to a
+	// supporting or generic subdomain, or a model two bounded contexts share
+	// by design. Each names the slot and who attested it, for audit.
+	Suppressed []Suppression `json:"suppressed"`
 	// Judgements ask a reviewer for subdomains, bounded contexts,
 	// integration patterns, contract types, asynchrony, and the candidates
 	// that would gate if confirmed.
-	Judgements  []arch.JudgementSlot `json:"judgements"`
-	Assumptions []arch.Assumption    `json:"assumptions"`
+	Judgements []arch.JudgementSlot `json:"judgements"`
+	// Skipped lists the slots not opened because no answer would change
+	// anything, each with the reason.
+	Skipped     []SkippedSlot     `json:"skipped"`
+	Assumptions []arch.Assumption `json:"assumptions"`
+}
+
+// Suppression is a finding, or a candidate, that a verdict lifted: the rule
+// it would have broken, the pair, and the slot whose answer lifted it, with
+// the events that attest that answer.
+type Suppression struct {
+	Rule      string                   `json:"rule"`
+	Subject   string                   `json:"subject"`
+	Object    string                   `json:"object"`
+	Criterion string                   `json:"criterion"`
+	Answer    string                   `json:"answer"`
+	Events    []arch.VerificationEvent `json:"events"`
+}
+
+// SkippedSlot is a judgement slot a measure did not open, and why.
+type SkippedSlot struct {
+	Criterion string `json:"criterion"`
+	Reason    string `json:"reason"`
 }
 
 // ReportInputs are a report's inputs: the analysis inputs, and what bounds
@@ -66,6 +100,7 @@ type ReportInputs struct {
 	Codeowners string `json:"codeowners,omitempty"`
 	Since      string `json:"since,omitempty"`
 	Head       string `json:"head,omitempty"`
+	Coverage   string `json:"coverage,omitempty"`
 }
 
 // Candidate is evidence of imbalance that may be coincidence: it gates only
@@ -111,6 +146,7 @@ func Analyze(in *Input) Report {
 		Findings:    make([]arch.Finding, 0),
 		Candidates:  make([]Candidate, 0),
 		Rejected:    make([]Candidate, 0),
+		Suppressed:  make([]Suppression, 0),
 		Assumptions: assumptions(),
 	}
 	ev := s.classifier().evidence()
@@ -118,19 +154,27 @@ func Analyze(in *Input) Report {
 	deploys := s.deployUnits()
 	r.Unbound = deploys.unbound
 	async := s.asyncPackages()
-	r.Subsystems = s.volatility(ev)
+	groups := groupPairs(ev)
+	var skippedSubdomains []SkippedSlot
+	r.Subsystems, skippedSubdomains = s.volatility(ev, groups)
 	volatility := map[string]string{}
 	for _, v := range r.Subsystems {
 		volatility[v.Name] = v.Subdomain
 	}
-	r.Pairs = s.pairs(ev, &pairContext{
+	r.Pairs = s.pairs(groups, &pairContext{
 		owners: owners, deploys: deploys, async: async, volatility: volatility,
 	})
+	r.Skipped = slices.Concat(make([]SkippedSlot, 0), skippedSubdomains, s.boundedContexts(&r, ev))
 	view := &packageView{p: s.p, g: &s.g, severity: s.severity()}
 	r.Packages = view.packages(ev)
 	r.Findings = append(r.Findings, ownerFindings...)
 	r.Findings = append(r.Findings, view.exposureFindings(r.Packages)...)
 	r.Candidates = append(r.Candidates, s.churnCandidates(r.Subsystems)...)
+	h := &history{churn: in.Churn, p: s.p, g: &s.g, variant: s.m.Limits().ComplexityVariant}
+	r.CoChange, r.Hotspots = h.coChange(), h.hotspots()
+	r.Candidates = append(r.Candidates, h.hiddenCouplings(r.CoChange)...)
+	r.Coverage = coverageOf(in.Coverage, s.p, r.Packages)
+	r.Candidates = append(r.Candidates, untestedDependencies(r.Coverage)...)
 	(&judge{p: s.p, slots: s.slots, domains: s.domains, severity: s.severity()}).apply(&r)
 	r.Judgements = s.slots.all()
 	arch.SortFindings(r.Findings)
@@ -187,6 +231,9 @@ func (s *subject) reportInputs() ReportInputs {
 	out := ReportInputs{Inputs: in, Codeowners: s.in.CodeownersHash}
 	if s.in.Churn != nil {
 		out.Since, out.Head = s.in.Churn.Since, s.in.Churn.Head
+	}
+	if s.in.Coverage != nil {
+		out.Coverage = s.in.Coverage.Hash
 	}
 	return out
 }
