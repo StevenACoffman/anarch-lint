@@ -1,6 +1,6 @@
 # Architecture
 
-<!-- Rendered by anarch-lint render from the model 79a237bcdb41. Edit the model, not this file. -->
+<!-- Rendered by anarch-lint render from the model c0e16feb4594. Edit the model, not this file. -->
 
 ## Subsystems
 

@@ -365,7 +365,7 @@ func (w *factWalker) call(c *ast.CallExpr) {
 	if !ok || fn.Pkg() == nil {
 		return
 	}
-	name := fn.FullName()
+	name := calleeName(fn)
 	w.calls.add(&arch.Call{Callee: name, Count: 1, Site: w.site(c.Pos())})
 	for i, a := range c.Args {
 		w.constExpr(a, arch.ContextArgument, name, i)
@@ -408,7 +408,7 @@ func (w *factWalker) index(ix *ast.IndexExpr) {
 	switch x := ast.Unparen(ix.X).(type) {
 	case *ast.CallExpr:
 		if fn, ok := typeutil.Callee(w.info(), x).(*types.Func); ok {
-			origin = fn.FullName()
+			origin = calleeName(fn)
 		}
 	case *ast.Ident:
 		origin = w.origins[w.info().Uses[x]]
@@ -444,7 +444,7 @@ func (w *factWalker) assign(a *ast.AssignStmt) {
 	}
 	if call, ok := ast.Unparen(a.Rhs[0]).(*ast.CallExpr); ok {
 		if fn, ok := typeutil.Callee(w.info(), call).(*types.Func); ok {
-			w.origins[obj] = fn.FullName()
+			w.origins[obj] = calleeName(fn)
 			return
 		}
 	}
@@ -504,4 +504,25 @@ func (s *factSink) linknames(fc *fileContext, f *ast.File) {
 			})
 		}
 	}
+}
+
+// calleeName returns a function's full name as the fitness calls rule
+// matches it, "time.Now" or "(*os.File).Write", with a method of a generic
+// type named by the type alone: "(*p.List).Push", not FullName's
+// "(*p.List[T]).Push", whose parameter name a rule should not need to know.
+func calleeName(fn *types.Func) string {
+	fn = fn.Origin()
+	recv := fn.Signature().Recv()
+	if recv == nil {
+		return fn.FullName()
+	}
+	t, star := recv.Type(), ""
+	if p, ok := t.(*types.Pointer); ok {
+		t, star = p.Elem(), "*"
+	}
+	n, ok := t.(*types.Named)
+	if !ok || n.TypeParams().Len() == 0 || n.Obj().Pkg() == nil {
+		return fn.FullName()
+	}
+	return "(" + star + n.Obj().Pkg().Path() + "." + n.Obj().Name() + ")." + fn.Name()
 }

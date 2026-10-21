@@ -299,8 +299,8 @@ func TestRefKinds(t *testing.T) {
 }
 
 // A call is named by what it calls, not how the file spells it: aliased and
-// dot imports of time call time.Now, and a local variable named time does
-// not.
+// dot imports of time call time.Now, a local variable named time does not,
+// and a method of a generic type is named without its type parameters.
 func TestCallsAreResolvedByType(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {
@@ -320,6 +320,7 @@ func TestCallsAreResolvedByType(t *testing.T) {
 	equals(t, map[string]string{
 		pkg + "Aliased":  "time.Now",
 		pkg + "Dotted":   "time.Now",
+		pkg + "Generic":  "(*example.com/gx/calls.list).push",
 		pkg + "Shadowed": "(example.com/gx/calls.stopwatch).Now",
 	}, callees)
 }
@@ -344,4 +345,67 @@ func TestLoadFindsPartialClones(t *testing.T) {
 		files = append(files, f.File)
 	}
 	equals(t, []string{"clones/left/left.go", "clones/right/right.go"}, files)
+}
+
+// A module below the analysis is listed by its go.mod when a pattern's "..."
+// would reach it but for its module boundary: only the outermost, and none
+// that the go command skips or that no pattern walks into.
+func TestLoadListsNestedModules(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("loads and type-checks a module; skipped with -short")
+	}
+	nested := arch.ExcludedFile{
+		Path:    "modules/nested/go.mod",
+		Package: "example.com/gx/modules/nested",
+		Reason:  arch.ExcludedOtherModule,
+	}
+	tests := []struct {
+		name     string
+		patterns []string
+		want     []arch.ExcludedFile
+	}{
+		{"recursive pattern", []string{"./modules/..."}, []arch.ExcludedFile{nested}},
+		{
+			"two patterns reach it once",
+			[]string{"./...", "./modules/..."},
+			[]arch.ExcludedFile{nested},
+		},
+		{"package pattern", []string{"./modules"}, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			p, err := gopackages.Load(context.Background(),
+				gopackages.Config{Dir: "../../testdata/gx", Patterns: tt.patterns})
+			if err != nil {
+				t.Fatalf("load: %v", err)
+			}
+			var got []arch.ExcludedFile
+			for _, f := range p.Excluded {
+				if f.Reason == arch.ExcludedOtherModule {
+					got = append(got, f)
+				}
+			}
+			equals(t, tt.want, got)
+		})
+	}
+}
+
+// The imports of a file the build constraints exclude are read from its
+// source, for the package-to-package imports the build does not have.
+func TestLoadReadsImportsOfExcludedFiles(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("loads and type-checks a module; skipped with -short")
+	}
+	p, err := gopackages.Load(context.Background(),
+		gopackages.Config{Dir: "../../testdata/gx", Patterns: []string{"./platform"}})
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	equals(t, []arch.Import{{
+		From: "example.com/gx/platform", To: "os", Inactive: true,
+		Pos: arch.Position{File: "platform/platform_plan9.go", Line: 4},
+	}}, p.InactiveImports)
 }

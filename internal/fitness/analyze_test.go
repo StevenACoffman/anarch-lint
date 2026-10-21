@@ -673,3 +673,46 @@ func TestAnalyzeIgnoresInputOrder(t *testing.T) {
 	b := fitness.Analyze(&arch.Input{Program: reversed, Model: m})
 	equals(t, a, b)
 }
+
+// A dependents rule checks the imports of a file the build constraints
+// exclude, and the finding says where the import was read.
+func TestRulesCheckInactiveImports(t *testing.T) {
+	t.Parallel()
+	p := program()
+	p.InactiveImports = []arch.Import{{
+		From: "m/b/service", To: "database/sql", Inactive: true,
+		Pos: arch.Position{File: "m/b/service_windows.go", Line: 3},
+	}}
+	m := layered(&arch.Fitness{Dependents: []arch.Dependents{{
+		RuleOptions: arch.RuleOptions{Name: "sql"}, Packages: []string{"database/sql"},
+		OnlyFrom: []string{"m/a/store"},
+	}}})
+	r := fitness.Analyze(&arch.Input{Program: p, Model: m})
+	equals(t, []string{"dependent-restriction m/b/service sql: database/sql"}, rules(&r))
+	for i := range r.Findings {
+		if f := &r.Findings[i]; f.Rule == "dependent-restriction" {
+			equals(t, []string{arch.InactiveEvidence}, f.Evidence)
+		}
+	}
+}
+
+// A selector that matches nothing suggests the corrections of a misspelled
+// pattern.
+func TestEmptySelectorSuggestsCorrections(t *testing.T) {
+	t.Parallel()
+	m := layered(&arch.Fitness{})
+	m.ForbiddenImports = []arch.ForbiddenImport{{
+		From: []string{"m/a/servce"}, Imports: []string{"database/sq"}, Reason: "r",
+	}}
+	r := analyze(&m)
+	evidence := map[string][]string{}
+	for i := range r.Findings {
+		if f := &r.Findings[i]; f.Rule == "empty-selector" {
+			evidence[f.Object] = f.Evidence
+		}
+	}
+	equals(t, map[string][]string{
+		"from":    {"m/a/servce: did you mean m/a/service?"},
+		"imports": {"database/sq: did you mean database/sql?"},
+	}, evidence)
+}

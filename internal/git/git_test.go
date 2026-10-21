@@ -139,14 +139,18 @@ func TestChangedLinesInRepository(t *testing.T) {
 	gitIn("commit", "-q", "-m", "init")
 	write("a.go", "package a\n\nfunc A() { _ = 1 }\n")
 	write("new.go", "package a\n")
+	write("new file.go", "package a\n") // one path, not "new" and "file.go"
+	write("ünïcode.go", "package a\n")  // as written, not quoted
 
 	changed, err := git.ChangedLines(context.Background(), dir, "HEAD")
 	if err != nil {
 		t.Fatalf("changed lines: %v", err)
 	}
 	equals(t, arch.ChangedLines{
-		"a.go":   {{Start: 3, End: 3}},
-		"new.go": {{Start: 1, End: math.MaxInt}},
+		"a.go":        {{Start: 3, End: 3}},
+		"new.go":      {{Start: 1, End: math.MaxInt}},
+		"new file.go": {{Start: 1, End: math.MaxInt}},
+		"ünïcode.go":  {{Start: 1, End: math.MaxInt}},
 	}, changed)
 
 	_, err = git.ChangedLines(context.Background(), dir, "no-such-rev")

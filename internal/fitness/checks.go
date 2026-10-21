@@ -3,6 +3,8 @@ package fitness
 import (
 	"cmp"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
@@ -194,9 +196,10 @@ func (s *subject) checkAssigned() {
 // otherwise.
 func (e *existing) check() {
 	targets := map[string]bool{}
-	for _, imp := range e.p.Imports {
+	for _, imp := range e.p.RuleImports() {
 		targets[imp.To] = true
 	}
+	targetList := slices.Sorted(maps.Keys(targets))
 	matchesTarget := func(patterns []string) bool {
 		for t := range targets {
 			if arch.MatchesAny(patterns, t) {
@@ -207,13 +210,17 @@ func (e *existing) check() {
 	}
 	for i, fi := range e.m.ForbiddenImports {
 		name := fmt.Sprintf("forbiddenImports[%d]", i)
-		e.emptyExisting(name, "from", countMatching(e.packages, fi.From) > 0)
-		e.emptyExisting(name, "imports", matchesTarget(fi.Imports))
+		e.emptyExisting(name, "from", countMatching(e.packages, fi.From) > 0,
+			arch.Corrections(fi.From, e.packages)...)
+		e.emptyExisting(name, "imports", matchesTarget(fi.Imports),
+			arch.Corrections(fi.Imports, targetList)...)
 	}
 	for i := range e.m.Isolations {
 		iso := &e.m.Isolations[i]
 		name := fmt.Sprintf("isolations[%d]", i)
-		if !e.emptyExisting(name, "from", countMatching(e.packages, []string{iso.From}) > 0) {
+		from := []string{iso.From}
+		if !e.emptyExisting(name, "from", countMatching(e.packages, from) > 0,
+			arch.Corrections(from, e.packages)...) {
 			e.emptyExisting(name, "mayImport", e.mayImportMatches(iso))
 		}
 	}
@@ -222,11 +229,13 @@ func (e *existing) check() {
 	for _, sub := range e.m.Subsystems {
 		if len(sub.Interface) > 0 {
 			e.emptyExisting("subsystems."+sub.Name, "interface",
-				countMatching(e.packages, sub.Interface) > 0)
+				countMatching(e.packages, sub.Interface) > 0,
+				arch.Corrections(sub.Interface, e.packages)...)
 		}
 	}
 	if len(e.m.Balance.Messaging) > 0 {
-		e.emptyExisting("balance", "messaging", matchesTarget(e.m.Balance.Messaging))
+		e.emptyExisting("balance", "messaging", matchesTarget(e.m.Balance.Messaging),
+			arch.Corrections(e.m.Balance.Messaging, targetList)...)
 	}
 	e.emptyRoles()
 }
@@ -251,24 +260,29 @@ func (e *existing) mayImportMatches(iso *arch.Isolation) bool {
 
 // emptyRoles reports the role selectors that match nothing.
 func (e *existing) emptyRoles() {
+	typeIDs := slices.Sorted(maps.Keys(e.types))
 	for i := range e.m.Roles {
 		ro := &e.m.Roles[i]
 		name := "roles." + ro.Name
 		if len(ro.Packages) > 0 {
-			e.emptyExisting(name, "packages", countMatching(e.packages, ro.Packages) > 0)
+			e.emptyExisting(name, "packages", countMatching(e.packages, ro.Packages) > 0,
+				arch.Corrections(ro.Packages, e.packages)...)
 		}
 		if len(ro.Embeds) > 0 {
-			e.emptyExisting(name, "embeds", e.anyTypeExists(ro.Embeds))
+			e.emptyExisting(name, "embeds", e.anyTypeExists(ro.Embeds),
+				arch.Corrections(ro.Embeds, typeIDs)...)
 		}
 		if len(ro.Implements) > 0 {
-			e.emptyExisting(name, "implements", e.anyTypeExists(ro.Implements))
+			e.emptyExisting(name, "implements", e.anyTypeExists(ro.Implements),
+				arch.Corrections(ro.Implements, typeIDs)...)
 		}
 	}
 }
 
 // emptyExisting reports one selector of an existing rule that matches
-// nothing, and returns whether it reported it.
-func (e *existing) emptyExisting(rule, selector string, matched bool) bool {
+// nothing, with evidence such as the corrections of its patterns, and
+// returns whether it reported it.
+func (e *existing) emptyExisting(rule, selector string, matched bool, evidence ...string) bool {
 	if matched {
 		return false
 	}
@@ -287,6 +301,7 @@ func (e *existing) emptyExisting(rule, selector string, matched bool) bool {
 		rule,
 	)
 	f.Fix = "correct the patterns, or remove the rule"
+	f.Evidence = evidence
 	e.ledger.findings = append(e.ledger.findings, f)
 	return true
 }

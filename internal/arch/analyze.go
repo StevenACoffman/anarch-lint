@@ -52,9 +52,12 @@ type CouplingLevels struct {
 // that two reports can be compared only when their inputs agree. It holds no
 // clock reading and no absolute path.
 type Inputs struct {
-	Tool       string     `json:"tool"`
-	GoVersion  string     `json:"goVersion"`
-	Tags       []string   `json:"tags"`
+	Tool      string   `json:"tool"`
+	GoVersion string   `json:"goVersion"`
+	Tags      []string `json:"tags"`
+	// Platform is the platform the go command built for, "goos/goarch":
+	// with the tags, it decides which files the build constraints exclude.
+	Platform   string     `json:"platform"`
 	Patterns   []string   `json:"patterns"`
 	ModelHash  string     `json:"modelHash"`
 	Thresholds Thresholds `json:"thresholds"`
@@ -337,6 +340,13 @@ func graphAssumptions() []Assumption {
 			"either way, each split into its connected parts. A package of a subsystem with " +
 			"other packages is misplaced when another subsystem holds more of its community " +
 			"than its own. They are advice and never gate.", "IMPROVEMENTS.md 9.3; codetospec internal/communities"},
+		{"static-binding", "Dependencies are the imports and references go/types resolves in " +
+			"the build the report reads, for its platform and tags; reflection, dispatch by " +
+			"string and struct tags are not followed. The imports of files the build " +
+			"constraints exclude are read from their source and checked by the import rules " +
+			"alone: forbidden imports, isolations, and fitness's layer access, strict layers, " +
+			"onion, dependents and libraries; graphs, cycles, fan-out and metrics measure the " +
+			"build.", "go/types; techne RFC-0002"},
 		{"largest-cycle", "Criteria 2.2.3 and 2.2.4 use the largest cycle group.", "mmi.md §4"},
 		{"mmi-aggregation", "MMI = Σ weight(group) × mean(scores); unscored criteria count 0 " +
 			"toward the low bound and 10 toward the high bound.", "mmi.md §2"},

@@ -2,6 +2,7 @@ package arch
 
 import (
 	"cmp"
+	"slices"
 	"strings"
 )
 
@@ -35,7 +36,14 @@ const (
 const (
 	ExcludedGenerated ExclusionReason = "generated"
 	ExcludedByBuild   ExclusionReason = "build-constraints"
+	// ExcludedOtherModule marks the go.mod of a module below the analysis
+	// that its patterns' "..." does not cross into.
+	ExcludedOtherModule ExclusionReason = "other-module"
 )
+
+// InactiveEvidence is the evidence of a finding about an inactive import.
+const InactiveEvidence = "the import is in a file the build constraints exclude from the " +
+	"build this report reads; it is read from the file's source"
 
 // ExclusionReason says why no measure reads a source file.
 type ExclusionReason string
@@ -91,6 +99,11 @@ type Program struct {
 	// Imports are every import of an in-scope package, including imports of
 	// packages outside the scope, which only the forbidden-import rule reads.
 	Imports []Import `json:"imports"`
+	// InactiveImports are the imports of the files the build constraints
+	// exclude, read from their source, for the package-to-package imports
+	// the build does not have, sorted like Imports. Only the import rules
+	// read them, through RuleImports: the measures measure the build.
+	InactiveImports []Import `json:"inactiveImports"`
 	// Injections are the calls that hand a concrete in-scope type to a
 	// parameter of interface type, sorted.
 	Injections []Injection `json:"injections"`
@@ -116,7 +129,9 @@ type Package struct {
 }
 
 // ExcludedFile is a source file of an analyzed package that no measure
-// reads, and why. Test files are left out by design and are not listed.
+// reads, and why, or the go.mod of a module below the analysis that it does
+// not read, with the module's path as Package. Test files are left out by
+// design and are not listed.
 type ExcludedFile struct {
 	// Path is relative to the analysis root.
 	Path    string          `json:"path"`
@@ -232,6 +247,18 @@ type Import struct {
 	From string   `json:"from"`
 	To   string   `json:"to"`
 	Pos  Position `json:"pos"`
+	// Inactive marks an import of a file the build constraints exclude,
+	// read from its source rather than type-checked.
+	Inactive bool `json:"inactive,omitempty"`
+}
+
+// RuleImports returns the imports the import rules check: the build's, then
+// the inactive ones, so a forbidden import in a file of another platform is
+// found on every platform.
+//
+// Ensures: a new slice; Imports' order, then InactiveImports'.
+func (p *Program) RuleImports() []Import {
+	return slices.Concat(p.Imports, p.InactiveImports)
 }
 
 // IsStandard reports whether an import path is in the standard library: its

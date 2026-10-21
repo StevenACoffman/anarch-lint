@@ -11,7 +11,6 @@ import (
 	"cmp"
 	"context"
 	"fmt"
-	"go/ast"
 	"os"
 	"path/filepath"
 	"slices"
@@ -82,6 +81,12 @@ func Load(ctx context.Context, cfg Config) (arch.Program, error) {
 	if err != nil {
 		return arch.Program{}, &arch.Error{Op: op, Err: err}
 	}
+	nested, err := nestedModules(dir, cfg.Patterns, pkgs)
+	if err != nil {
+		return arch.Program{}, &arch.Error{Op: op, Err: err}
+	}
+	prog.Excluded = append(prog.Excluded, nested...)
+	slices.SortFunc(prog.Excluded, compareExcluded)
 	if cfg.Facts {
 		if prog.Facts.Clones, err = clonesOf(dir, &prog); err != nil {
 			return arch.Program{}, &arch.Error{Op: op, Err: err}
@@ -141,31 +146,4 @@ func relPath(dir, file string) string {
 		return filepath.ToSlash(file)
 	}
 	return filepath.ToSlash(rel)
-}
-
-// sourceFiles returns the syntax trees of p that the measures read, and the
-// files they do not: the generated ones, and those its build constraints
-// leave out, with paths relative to dir. Test files are not loaded at all.
-func sourceFiles(
-	dir string,
-	p *packages.Package,
-) (files []*ast.File, excluded []arch.ExcludedFile) {
-	for _, f := range p.Syntax {
-		if ast.IsGenerated(f) {
-			excluded = append(excluded, arch.ExcludedFile{
-				Path: relPath(dir, p.Fset.File(f.Pos()).Name()), Package: p.PkgPath,
-				Reason: arch.ExcludedGenerated,
-			})
-			continue
-		}
-		files = append(files, f)
-	}
-	for _, name := range p.IgnoredFiles {
-		if strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, "_test.go") {
-			excluded = append(excluded, arch.ExcludedFile{
-				Path: relPath(dir, name), Package: p.PkgPath, Reason: arch.ExcludedByBuild,
-			})
-		}
-	}
-	return files, excluded
 }

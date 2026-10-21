@@ -114,6 +114,23 @@ func TestWriteGate(t *testing.T) {
 				"NEW ERRORS (1)", "forbidden-import", "fixed", "old",
 			},
 		},
+		"passed over what it read": {
+			gate: arch.GateResult{Passed: true, Comparable: true, Unread: []arch.UnreadCount{
+				{Reason: arch.ExcludedByBuild, Files: 1},
+				{Reason: arch.ExcludedGenerated, Files: 2},
+				{Reason: arch.ExcludedOtherModule, Files: 1},
+			}},
+			wants: []string{"GATE PASSED\nnot read: 1 file the build constraints exclude, " +
+				"2 generated files, 1 nested module, which analyze lists\n"},
+		},
+		"against another build's baseline": {
+			gate: arch.GateResult{
+				Passed: true, Comparable: true,
+				BaselineBuild: &arch.Build{Platform: "linux/amd64"},
+			},
+			wants: []string{"note: the baseline was measured for linux/amd64 with tags none, " +
+				"another build than this one"},
+		},
 		"scoped to a change": {
 			gate:  arch.GateResult{Passed: true, Scoped: true, OutOfScope: 3},
 			wants: []string{"scoped to changed lines; 3 new findings elsewhere set aside"},

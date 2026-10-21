@@ -31,7 +31,7 @@ func libraryConstraint(l *ledger, lr *arch.LibraryRule, i int, p *arch.Program,
 		return !in && !arch.IsStandard(to)
 	}
 	if !r.off {
-		unusedApprovals(l, r, lr, p.Imports, third)
+		unusedApprovals(l, r, lr, p.RuleImports(), third)
 	}
 	return constraint{
 		rule: r, kind: ruleLibrary, anyTarget: true,

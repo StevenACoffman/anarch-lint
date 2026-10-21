@@ -2,11 +2,12 @@
 package baseline
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 
+	"github.com/google/renameio/v2/maybe"
 	"github.com/peterbourgon/ff/v4"
 
 	"github.com/StevenACoffman/anarch-lint/cmd/root"
@@ -80,19 +81,18 @@ func (cfg *Config) exec(ctx context.Context, args []string) error {
 	return nil
 }
 
-// writeBaseline writes b to path as JSON.
+// writeBaseline writes b to path as JSON. It encodes the whole baseline
+// before it writes, and renameio renames a temporary file into place, so a
+// failure leaves the old baseline whole, which --shrink has just read; on
+// Windows renameio writes in place.
 func writeBaseline(path string, b *arch.Baseline) error {
 	const op = "baseline.writeBaseline"
-	f, err := os.Create(path)
-	if err != nil {
-		return &arch.Error{Code: arch.EINVALID, Message: fmt.Sprintf("create %s: %v", path, err)}
-	}
-	if err := arch.WriteJSON(f, b); err != nil {
-		_ = f.Close()
+	var buf bytes.Buffer
+	if err := arch.WriteJSON(&buf, b); err != nil {
 		return &arch.Error{Op: op, Err: err}
 	}
-	if err := f.Close(); err != nil {
-		return &arch.Error{Code: arch.EINVALID, Message: fmt.Sprintf("close %s: %v", path, err)}
+	if err := maybe.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+		return &arch.Error{Code: arch.EINVALID, Message: fmt.Sprintf("write %s: %v", path, err)}
 	}
 	return nil
 }

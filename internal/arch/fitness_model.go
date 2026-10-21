@@ -140,7 +140,9 @@ type LibraryRule struct {
 
 // CallRule restricts calls of functions and methods (ArchUnit's callMethod
 // and onlyBeCalled). A callee is a full name, such as "time.Now" or
-// "(*os.File).Write", or "pkg.*" for every function and method of a package.
+// "(*os.File).Write", with a method of a generic type named by the type
+// alone, "(*pkg.List).Push", or "pkg.*" for every function and method of a
+// package.
 // Without Only, packages matching From may not call the callees; with it,
 // only they may.
 type CallRule struct {

@@ -1,8 +1,9 @@
 # Improvements from Neighbouring Projects
 
-This file collects ideas for anarch-lint from eight projects in
+This file collects ideas for anarch-lint from nine projects in
 `~/Documents/git`. Each was read at the revision below, and every claim was
-checked a second time against that source by an independent pass. Paths are
+checked a second time against that source by an independent pass; techne's,
+read later, were checked by reproducing each on a small module. Paths are
 relative to the project's root.
 
 | Project        | Revision   |
@@ -15,6 +16,7 @@ relative to the project's root.
 | zen-go         | `91f6a7e4` |
 | feelc          | `21a1887b` |
 | go-rule-engine | `11cd0a9a` |
+| techne         | `10397bf`  |
 
 The ideas are grouped by the anarch-lint gap they close, and ranked within each
 group. The gaps are the ones in `arch-frameworks.md` ("What None of Them
@@ -33,6 +35,7 @@ Covers") and `TODO.md`. Every idea must keep anarch-lint deterministic: no
 | codegrapher    | SQLite code graph                             | go/parser without go/types, heuristic resolution                    | Apache-2.0 | Edge provenance, annotations, coverage attribution               |
 | code-graph     | FalkorDB graph visualiser (Python)            | none: no Go analyzer                                                | MIT        | Small ideas: file-level aggregation, bounded impact              |
 | zen-go         | CGO bindings to the Rust ZEN engine           | n/a                                                                 | MIT        | Only the decision-table idea; don't depend on it                 |
+| techne         | IDE navigation and refactoring for agents     | go/packages and go/types in process, gopls, cgo tree-sitter         | MIT        | Honest coverage, cgo mapping, excluded files, nested modules     |
 
 Every one of the code graphs resolves Go more weakly than anarch-lint's
 `go/packages` and `go/types` loading. What carries over is the analyses built
@@ -127,6 +130,9 @@ need no approval.
 | `github.com/golangci/dupl`                                           | MIT                  | `internal/gopackages` | partial clones                                                                      |
 | `github.com/owenrumney/go-sarif/v2`, `github.com/google/uuid`        | Unlicense, BSD-3     | `internal/sarif`      | SARIF 2.1.0 for `check`; v2, since v3 links `net/http` through its schema validator |
 | `golang.org/x/tools/cover`                                           | BSD-3                | `internal/coverage`   | coverage profiles                                                                   |
+| `github.com/agnivade/levenshtein`                                    | MIT                  | core (approved)       | corrections of misspelled patterns                                                  |
+| `golang.org/x/mod/modfile`                                           | BSD-3                | `internal/gopackages` | the module path of a nested module                                                  |
+| `github.com/google/renameio/v2/maybe`                                | Apache-2.0           | `cmd`                 | atomic writes of the baseline and `anarch.md`; in place on Windows                  |
 | `golang.org/x/tools/go/callgraph/vta`                                | BSD-3                | not yet               | run-time wiring (`TODO.md`)                                                         |
 | `bufbuild/protocompile`, `vektah/gqlparser/v2`, `getkin/kin-openapi` | Apache-2.0, MIT, MIT | not yet               | contracts (5.1)                                                                     |
 
@@ -139,6 +145,39 @@ Kept bespoke, with the reason in the code:
 - The SDI minimum cut and its Eades–Lin–Smyth ordering: no library offers it.
 - The Plain and Modified cyclomatic variants: gocyclo computes only the
   Extended one, which remains its test oracle.
+
+## From Techne
+
+techne (`~/Documents/git/techne`, MIT) gives agents an IDE's navigation in
+ten languages. Every answer states how its names were bound (syntactic,
+indexed or resolved) and how much of its scope it read, and an empty answer
+proves absence only when both are total (its ADR-0003). Its Go engine
+type-checks in process with go/packages, as anarch-lint does. Comparing the
+two loaders found three bugs in anarch-lint and a gap, now fixed:
+
+| Found                                                                                                                                                                           | Now                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| A file that imports C was measured as nothing: the file cgo writes in its place says "Code generated", under a build-cache path that changes between runs, and imports `unsafe` | Measured as its source, at its own path and lines, importing `C` (techne's `placed` and `sourceOf`)                           |
+| A module below the patterns was dropped without a word: `./...` never crosses a `go.mod`, even under `go.work`                                                                  | Listed as excluded, `other-module`, by its `go.mod` (techne's walk and load plans)                                            |
+| A forbidden import in a file of another platform passed the gate                                                                                                                | The import rules read excluded files' imports from source (techne's `importsIn`); the measures still read only the build      |
+| The report did not say which platform it read, nor the baseline which build it recorded                                                                                         | Both record the platform and the tags; `check` notes a baseline of another build, and `baseline --shrink` leaves one as it is |
+
+Verifying them found more, also fixed: a failed baseline write truncated the
+old file; an untracked file whose name has a space became two paths; a
+method of a generic type was named with its type parameter, which a `calls`
+rule had to spell. Adopted besides: `check` says what it did not read, by
+reason, so a pass reads as "nothing new in what was read" (techne's
+completeness axis; anarch-lint needs no fidelity axis, since it refuses code
+that does not load), and a pattern that matches nothing suggests the
+correction of a misspelled segment (techne's `address.go`).
+
+Deferred:
+
+- Output budgets with a counted truncation caveat (`techne-tool/budget.go`),
+  for the judge's payloads (§7).
+- Loading each module below the root as a program of its own, as techne's
+  load plans do; the model, the baseline and the measures assume one program.
+- Test variants (`p [p.test]` and `p_test`), should tests ever count.
 
 ## 1. Verify the Model Itself
 
@@ -915,7 +954,7 @@ Of what remains, after the work in "Status":
 3. Committed corpus outputs and must-fail fixtures for every rule kind (8.1,
    8.2).
 4. The judge's mechanical checks and canaries (§7), with `mmi-plan.md` §9
-   step 7.
+   step 7, and techne's output budgets for the judge's payloads.
 5. Locked bars and reach ranking (6.1, 6.2).
 6. Contracts (5.1), with the parsers chosen in "Dependency Decisions", and
    unused API (9.2).

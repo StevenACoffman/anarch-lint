@@ -12,10 +12,12 @@ type Sizes struct {
 	Lines int `json:"lines"`
 	Types int `json:"types"`
 	Funcs int `json:"funcs"`
-	// Generated counts the generated files left out of every measure, and
-	// BuildExcluded those the build constraints leave out.
+	// Generated counts the generated files left out of every measure,
+	// BuildExcluded those the build constraints leave out, and OtherModules
+	// the modules below the analysis that it does not read.
 	Generated     int `json:"generated"`
 	BuildExcluded int `json:"buildExcluded"`
+	OtherModules  int `json:"otherModules"`
 	// LinesInLargeTypes sums the lines of types above largeTypeLines.
 	LinesInLargeTypes int `json:"linesInLargeTypes"`
 	// LinesInLargeFuncs sums the lines of functions above largeFuncLines.
@@ -57,6 +59,8 @@ func sizesOf(p *Program, g *Graphs, t *Thresholds) Sizes {
 			z.Generated++
 		case ExcludedByBuild:
 			z.BuildExcluded++
+		case ExcludedOtherModule:
+			z.OtherModules++
 		}
 	}
 	subLines, layerLines := map[string]int{}, map[string]int{}

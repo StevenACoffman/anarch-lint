@@ -81,6 +81,10 @@ func (cfg *Config) Load(
 	if err != nil {
 		return arch.Input{}, &arch.Error{Op: op, Err: err}
 	}
+	platform, err := gopackages.Platform(ctx, cfg.Dir, nil)
+	if err != nil {
+		return arch.Input{}, &arch.Error{Op: op, Err: err}
+	}
 	return arch.Input{
 		Model:    model,
 		Verdicts: verdicts,
@@ -90,6 +94,7 @@ func (cfg *Config) Load(
 			Tool:      "anarch-lint " + toolVersion(),
 			GoVersion: runtime.Version(),
 			Tags:      slices.Sorted(slices.Values(cfg.Tags)),
+			Platform:  platform,
 			Patterns:  patterns,
 		},
 	}, nil

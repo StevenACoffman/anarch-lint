@@ -46,10 +46,11 @@ func runCLI(t *testing.T, args ...string) (code int, stdout, stderr string) {
 }
 
 // golden compares got with a golden file, after replacing what legitimately
-// differs between machines: the Go toolchain's version.
+// differs between machines: the Go toolchain's version and the platform.
 func golden(t *testing.T, name, got string) {
 	t.Helper()
 	got = strings.ReplaceAll(got, runtime.Version(), "GOVERSION")
+	got = strings.ReplaceAll(got, runtime.GOOS+"/"+runtime.GOARCH, "PLATFORM")
 	path := filepath.Join("testdata", "golden", name)
 	if *update {
 		if err := os.WriteFile(path, []byte(got), 0o600); err != nil {

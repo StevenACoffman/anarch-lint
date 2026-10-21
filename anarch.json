@@ -97,7 +97,7 @@
     "libraries": [
       {"name": "core-approved-libraries",
        "from": ["github.com/StevenACoffman/anarch-lint/internal/arch", "github.com/StevenACoffman/anarch-lint/internal/connascence", "github.com/StevenACoffman/anarch-lint/internal/balance", "github.com/StevenACoffman/anarch-lint/internal/fitness"],
-       "allow": ["gonum.org/v1/gonum/...", "github.com/bmatcuk/doublestar/v4"],
+       "allow": ["gonum.org/v1/gonum/...", "github.com/bmatcuk/doublestar/v4", "github.com/agnivade/levenshtein"],
        "reason": "the core imports only pure, deterministic, well-tested libraries, each approved here (docs/adr/0012)"}
     ],
     "dependents": [

@@ -1,6 +1,6 @@
 {
   "schema": "anarch-lint.baseline.v1",
-  "modelHash": "79a237bcdb4146efc10dc8feb0e4efa1e1bde08c7118448600a6f4d2e21325da",
+  "modelHash": "c0e16feb4594cc6b147d6d7a025ba879e3f63dc8745586439a4a9efe1fa669fc",
   "findings": [],
   "metrics": [
     {
@@ -68,5 +68,9 @@
       "value": 2,
       "higherIsBetter": false
     }
-  ]
+  ],
+  "build": {
+    "platform": "darwin/arm64",
+    "tags": []
+  }
 }

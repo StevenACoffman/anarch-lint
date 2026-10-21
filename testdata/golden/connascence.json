@@ -4,6 +4,7 @@
     "tool": "anarch-lint devel",
     "goVersion": "GOVERSION",
     "tags": [],
+    "platform": "PLATFORM",
     "patterns": [
       "./..."
     ],

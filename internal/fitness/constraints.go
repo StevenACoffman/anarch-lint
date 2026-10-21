@@ -90,9 +90,10 @@ func (s *subject) importConstraints() []constraint {
 	return cs
 }
 
-// checkImports runs every constraint over every import, in sorted order.
+// checkImports runs every constraint over every import the rules check, in
+// sorted order: the build's, then those of the files it excludes.
 func (s *subject) checkImports(cs []constraint) {
-	for _, imp := range s.p.Imports {
+	for _, imp := range s.p.RuleImports() {
 		_, inScope := s.g.SubsystemOf[imp.To]
 		for _, c := range cs {
 			if !inScope && !c.anyTarget {
@@ -108,6 +109,9 @@ func (s *subject) checkImports(cs []constraint) {
 			f.Location = arch.SpanAt(imp.Pos)
 			f.Message = fmt.Sprintf("%s imports %s: %s", imp.From, imp.To, why)
 			f.Fix = c.fix
+			if imp.Inactive {
+				f.Evidence = []string{arch.InactiveEvidence}
+			}
 			s.violation(c.rule, &f)
 		}
 	}
@@ -354,7 +358,7 @@ func (s *subject) sliceOf(pattern string) map[string]string {
 func (s *subject) dependents(d *arch.Dependents, i int) constraint {
 	r := s.addRule("dependents", d.RuleOptions, arch.DefaultRuleName(d.Name, "dependents", i))
 	targets := map[string]bool{}
-	for _, imp := range s.p.Imports {
+	for _, imp := range s.p.RuleImports() {
 		if arch.MatchesAny(d.Packages, imp.To) {
 			targets[imp.To] = true
 		}

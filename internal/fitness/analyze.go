@@ -308,10 +308,11 @@ func countMatching(packages, patterns []string) int {
 	return n
 }
 
-// outsideTargets returns the imported packages outside the analysis, sorted.
+// outsideTargets returns the packages outside the analysis that the import
+// rules see imported, sorted.
 func outsideTargets(p *arch.Program, g *arch.Graphs) []string {
 	var out []string
-	for _, imp := range p.Imports {
+	for _, imp := range p.RuleImports() {
 		if _, in := g.SubsystemOf[imp.To]; !in {
 			out = append(out, imp.To)
 		}

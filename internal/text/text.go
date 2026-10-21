@@ -57,8 +57,8 @@ func writeInputs(w io.Writer, in *arch.Inputs) {
 		tags = "none"
 	}
 	_, _ = fmt.Fprintf(w, "anarch-lint report (%s)\n", arch.ReportSchema)
-	_, _ = fmt.Fprintf(w, "patterns %s · tags %s · model %s · %s\n",
-		strings.Join(in.Patterns, " "), tags, short(in.ModelHash), in.GoVersion)
+	_, _ = fmt.Fprintf(w, "patterns %s · tags %s · %s · model %s · %s\n",
+		strings.Join(in.Patterns, " "), tags, in.Platform, short(in.ModelHash), in.GoVersion)
 }
 
 // writeExcluded names the source files no measure read, and why, so a reader
@@ -339,8 +339,8 @@ func WriteGate(w io.Writer, g *arch.GateResult) error {
 	return nil
 }
 
-// writeVerdict writes whether the gate passed, why, its scope, and every
-// metric regression.
+// writeVerdict writes whether the gate passed, why, what it did not read, its
+// scope, and every metric regression.
 func writeVerdict(w io.Writer, g *arch.GateResult) {
 	verdict := "PASSED"
 	if !g.Passed {
@@ -351,6 +351,12 @@ func writeVerdict(w io.Writer, g *arch.GateResult) {
 		_, _ = fmt.Fprintf(w, ": %s", g.Reason)
 	}
 	_, _ = fmt.Fprintln(w)
+	if unread := arch.DescribeUnread(g.Unread); unread != "" {
+		_, _ = fmt.Fprintf(w, "not read: %s, which analyze lists\n", unread)
+	}
+	if b := g.BaselineBuild; b != nil {
+		_, _ = fmt.Fprintf(w, "note: %s\n", arch.DescribeOtherBuild(b))
+	}
 	if g.Scoped {
 		_, _ = fmt.Fprintf(
 			w,

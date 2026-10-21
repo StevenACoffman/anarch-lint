@@ -124,7 +124,7 @@ func (w *factWalker) stdlibCall(fn *types.Func, c *ast.CallExpr) {
 		if fn.Signature().Recv() == nil {
 			facts.TimeCalls = append(
 				facts.TimeCalls,
-				arch.TimeCall{Callee: fn.FullName(), Site: site},
+				arch.TimeCall{Callee: calleeName(fn), Site: site},
 			)
 		}
 	case "sync":
@@ -162,7 +162,7 @@ func (w *factWalker) reflectCall(fn *types.Func, c *ast.CallExpr, site arch.Site
 		name, _ = stringConst(w.info(), c.Args[0])
 	}
 	w.facts.ReflectByNames = append(w.facts.ReflectByNames, arch.ReflectByName{
-		Method: fn.FullName(), Name: name, Site: site,
+		Method: calleeName(fn), Name: name, Site: site,
 	})
 }
 

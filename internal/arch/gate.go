@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"slices"
+	"strings"
 )
 
 // BaselineSchema names the baseline format.
@@ -23,6 +25,17 @@ type Baseline struct {
 	ModelHash string            `json:"modelHash"`
 	Findings  []BaselineFinding `json:"findings"`
 	Metrics   []Metric          `json:"metrics"`
+	// Build is the build the baseline was measured in; a baseline written
+	// before it was recorded has none.
+	Build *Build `json:"build,omitempty"`
+}
+
+// Build is what decides which files a report reads besides the patterns:
+// the platform and the build tags. Two reports of one model and code in
+// different builds can measure different files.
+type Build struct {
+	Platform string   `json:"platform"`
+	Tags     []string `json:"tags"`
 }
 
 // BaselineFinding identifies an accepted finding.
@@ -52,6 +65,10 @@ type GateInput struct {
 	// Conformance holds the coverage and compliance the model's floors
 	// apply to.
 	Conformance Conformance
+	// Excluded are the files and modules the measures did not read.
+	Excluded []ExcludedFile
+	// Build is the build the report was measured in.
+	Build Build
 }
 
 // GateOptions narrow or relax a gate. The zero value, and a nil pointer,
@@ -98,6 +115,20 @@ type GateResult struct {
 	// OutOfScope counts the new findings that were set aside.
 	Scoped     bool `json:"scoped"`
 	OutOfScope int  `json:"outOfScope"`
+	// Unread counts what the measures did not read, by reason, so a pass
+	// reads as "nothing new in what was read".
+	Unread []UnreadCount `json:"unread"`
+	// BaselineBuild is the baseline's build when it differs from the
+	// report's: the two may measure different files, which explains a fixed
+	// or new finding but does not fail the gate.
+	BaselineBuild *Build `json:"baselineBuild,omitempty"`
+}
+
+// UnreadCount is the number of files, or of modules, left unread for one
+// reason.
+type UnreadCount struct {
+	Reason ExclusionReason `json:"reason"`
+	Files  int             `json:"files"`
 }
 
 // Regression is a system metric that got worse than its baseline value.
@@ -115,6 +146,11 @@ func (r *Report) GateInput() GateInput {
 		Findings:    append(make([]Finding, 0, len(r.Findings)), r.Findings...),
 		Metrics:     gateMetrics(r),
 		Conformance: r.Conformance,
+		Excluded:    append(make([]ExcludedFile, 0, len(r.Excluded)), r.Excluded...),
+		Build: Build{
+			Platform: r.Inputs.Platform,
+			Tags:     append(make([]string, 0, len(r.Inputs.Tags)), r.Inputs.Tags...),
+		},
 	}
 }
 
@@ -135,6 +171,10 @@ func NewBaseline(r *GateInput) Baseline {
 		ModelHash: r.ModelHash,
 		Findings:  make([]BaselineFinding, 0, len(r.Findings)),
 		Metrics:   append(make([]Metric, 0, len(r.Metrics)), r.Metrics...),
+		Build: &Build{
+			Platform: r.Build.Platform,
+			Tags:     append(make([]string, 0, len(r.Build.Tags)), r.Build.Tags...),
+		},
 	}
 	for i := range r.Findings {
 		f := &r.Findings[i]
@@ -239,7 +279,68 @@ func newGateResult(r *GateInput, b *Baseline, opts *GateOptions) GateResult {
 		Regressions:    make([]Regression, 0),
 		Improved:       make([]Regression, 0),
 		Shortfalls:     make([]Shortfall, 0),
+		Unread:         unreadOf(r.Excluded),
+		BaselineBuild:  otherBuild(b.Build, &r.Build),
 	}
+}
+
+// DescribeOtherBuild says in words that the baseline was measured in build
+// b, another build than the report's.
+func DescribeOtherBuild(b *Build) string {
+	tags := strings.Join(b.Tags, ",")
+	if tags == "" {
+		tags = "none"
+	}
+	return fmt.Sprintf("the baseline was measured for %s with tags %s, another build than "+
+		"this one, so each may read files the other does not", b.Platform, tags)
+}
+
+// equal reports whether two builds read the same files.
+func (b *Build) equal(o *Build) bool {
+	return b.Platform == o.Platform && slices.Equal(b.Tags, o.Tags)
+}
+
+// otherBuild returns the baseline's build when the baseline records one and
+// it differs from the report's, and nil otherwise.
+func otherBuild(baseline, report *Build) *Build {
+	if baseline == nil || baseline.equal(report) {
+		return nil
+	}
+	return baseline
+}
+
+// unreadOf counts excluded files by reason.
+//
+// Ensures: sorted by reason, each reason once, no zero count.
+func unreadOf(excluded []ExcludedFile) []UnreadCount {
+	byReason := map[ExclusionReason]int{}
+	for _, f := range excluded {
+		byReason[f.Reason]++
+	}
+	out := make([]UnreadCount, 0, len(byReason))
+	for _, reason := range slices.Sorted(maps.Keys(byReason)) {
+		out = append(out, UnreadCount{Reason: reason, Files: byReason[reason]})
+	}
+	return out
+}
+
+// DescribeUnread says in words what a gate did not read, such as "2
+// generated files, 1 nested module", or "" when it read everything.
+func DescribeUnread(unread []UnreadCount) string {
+	parts := make([]string, 0, len(unread))
+	for _, u := range unread {
+		switch u.Reason {
+		case ExcludedGenerated:
+			parts = append(parts, Plural(u.Files, "generated file"))
+		case ExcludedByBuild:
+			parts = append(parts, Plural(u.Files, "file")+" the build constraints exclude")
+		case ExcludedOtherModule:
+			parts = append(parts, Plural(u.Files, "nested module"))
+		default:
+			parts = append(parts, fmt.Sprintf("%s (%s)", Plural(u.Files, "file"), u.Reason))
+		}
+	}
+	return strings.Join(parts, ", ")
 }
 
 // classify sorts one finding the baseline does not have into the result. An

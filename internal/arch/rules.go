@@ -26,6 +26,10 @@ type subject struct {
 // ambiguously, and patterns that match nothing (MMI 1.1.1, 1.1.2, 1.1.6).
 func assignmentRules(s *subject) []Finding {
 	var fs []Finding
+	paths := make([]string, 0, len(s.p.Packages))
+	for _, pkg := range s.p.Packages {
+		paths = append(paths, pkg.Path)
+	}
 	check := func(kind string, declared bool, a Assignment) {
 		if !declared {
 			return
@@ -59,6 +63,8 @@ func assignmentRules(s *subject) []Finding {
 			)
 			f.Message = fmt.Sprintf("%s pattern %s matches no package", kind, pat)
 			f.Fix = "remove or correct the pattern: the model no longer describes the code"
+			_, pattern, _ := strings.Cut(pat, ": ") // Stale holds "group: pattern"
+			f.Evidence = Corrections([]string{pattern}, paths)
 			fs = append(fs, f)
 		}
 	}
@@ -208,7 +214,7 @@ func bypassFix(to string, iface []string, pkg string) string {
 // forbids, including imports of packages outside the analysis.
 func forbiddenRule(s *subject) ruleResult {
 	var r ruleResult
-	for _, imp := range s.p.Imports {
+	for _, imp := range s.p.RuleImports() {
 		for i := range s.m.ForbiddenImports {
 			fi := &s.m.ForbiddenImports[i]
 			if !MatchesAny(fi.From, imp.From) || !MatchesAny(fi.Imports, imp.To) {
@@ -225,6 +231,7 @@ func forbiddenRule(s *subject) ruleResult {
 			f.Message = fmt.Sprintf("%s imports %s: %s", imp.From, imp.To, fi.Reason)
 			f.Fix = fmt.Sprintf("move the use of %s into an adapter package and depend on an "+
 				"interface declared where %s needs it", imp.To, imp.From)
+			f.Evidence = importEvidence(&imp)
 			r.findings = append(r.findings, f)
 			break
 		}
@@ -237,7 +244,7 @@ func forbiddenRule(s *subject) ruleResult {
 // MayImport after substitution.
 func isolationRule(s *subject) []Finding {
 	var fs []Finding
-	for _, imp := range s.inScopeImports() {
+	for _, imp := range s.inScope(s.p.RuleImports()) {
 		for j := range s.m.Isolations {
 			iso := &s.m.Isolations[j]
 			_, captures, ok := MatchCaptures(iso.From, imp.From)
@@ -257,6 +264,7 @@ func isolationRule(s *subject) []Finding {
 			f.Message = fmt.Sprintf("%s imports %s: %s", imp.From, imp.To, iso.Reason)
 			f.Fix = fmt.Sprintf("%s may import only %s; move the shared code there, or depend on "+
 				"an interface declared in %s", imp.From, strings.Join(allowed, ", "), imp.From)
+			f.Evidence = importEvidence(&imp)
 			fs = append(fs, f)
 			break
 		}
@@ -275,13 +283,27 @@ func isolationAllows(iso *Isolation, captures []string, pkg string) bool {
 
 // inScopeImports returns the imports whose target is under analysis.
 func (s *subject) inScopeImports() []Import {
-	var imps []Import
-	for _, imp := range s.p.Imports {
+	return s.inScope(s.p.Imports)
+}
+
+// inScope returns the imports of imps whose target is under analysis.
+func (s *subject) inScope(imps []Import) []Import {
+	var out []Import
+	for _, imp := range imps {
 		if _, ok := s.g.SubsystemOf[imp.To]; ok {
-			imps = append(imps, imp)
+			out = append(out, imp)
 		}
 	}
-	return imps
+	return out
+}
+
+// importEvidence is the evidence of a finding about imp: InactiveEvidence
+// for an inactive import, and none otherwise.
+func importEvidence(imp *Import) []string {
+	if !imp.Inactive {
+		return nil
+	}
+	return []string{InactiveEvidence}
 }
 
 // MatchesAny reports whether any of the patterns matches path.

@@ -4,6 +4,7 @@
     "tool": "anarch-lint devel",
     "goVersion": "GOVERSION",
     "tags": [],
+    "platform": "PLATFORM",
     "patterns": [
       "./..."
     ],
@@ -26,6 +27,7 @@
     "funcs": 11,
     "generated": 1,
     "buildExcluded": 1,
+    "otherModules": 0,
     "linesInLargeTypes": 0,
     "linesInLargeFuncs": 0,
     "typesInLargePackages": 0,
@@ -735,6 +737,11 @@
       "id": "communities",
       "text": "Communities are gonum's Louvain communities (resolution 1, a fixed seed) of the package graph taken as undirected, an edge weighing the imports either way, each split into its connected parts. A package of a subsystem with other packages is misplaced when another subsystem holds more of its community than its own. They are advice and never gate.",
       "source": "IMPROVEMENTS.md 9.3; codetospec internal/communities"
+    },
+    {
+      "id": "static-binding",
+      "text": "Dependencies are the imports and references go/types resolves in the build the report reads, for its platform and tags; reflection, dispatch by string and struct tags are not followed. The imports of files the build constraints exclude are read from their source and checked by the import rules alone: forbidden imports, isolations, and fitness's layer access, strict layers, onion, dependents and libraries; graphs, cycles, fan-out and metrics measure the build.",
+      "source": "go/types; techne RFC-0002"
     },
     {
       "id": "largest-cycle",

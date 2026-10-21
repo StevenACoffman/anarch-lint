@@ -53,6 +53,7 @@ func TestWriteGate(t *testing.T) {
 			finding("interface-bypass", arch.SeverityError, &arch.Span{File: "a/c.go", Start: 1}),
 		},
 		Regressions: []arch.Regression{{Metric: "subsystems.inCycles", Baseline: 0, Current: 2}},
+		Unread:      []arch.UnreadCount{{Reason: arch.ExcludedOtherModule, Files: 1}},
 	}
 	var buf bytes.Buffer
 	if err := sarif.WriteGate(
@@ -108,8 +109,10 @@ func TestWriteGate(t *testing.T) {
 		{rule: "interface-bypass", level: "error", file: "a/c.go", line: 1, suppressed: true},
 	}, results)
 	notes := run.Invocations[0].ToolExecutionNotifications
-	equals(t, 1, len(notes))
-	equals(t, "subsystems.inCycles regressed from 0 to 2", *notes[0].Message.Text)
+	equals(t, 2, len(notes))
+	equals(t, "not read: 1 nested module", *notes[0].Message.Text)
+	equals(t, "note", notes[0].Level)
+	equals(t, "subsystems.inCycles regressed from 0 to 2", *notes[1].Message.Text)
 }
 
 // validate checks a log against the SARIF 2.1.0 schema in testdata, OASIS's

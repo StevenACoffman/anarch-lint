@@ -120,12 +120,26 @@ Exit status:
     every rule reads alike: a rule another forbids everything of is a
     `redundant-rule` warning, and a layer or importer a rule allows by name,
     which other rules forbid entirely, is an `unusable-allowance` warning.
-- **What it did not see**: the generated files and the files build
-  constraints leave out are listed with their reason. Test files are never
-  measured.
+- **What it did not see**: the generated files, the files build constraints
+  leave out, and the modules below the patterns that `./...` doesn't cross
+  into (`other-module`) are listed with their reason, and `check` counts them
+  under its verdict. Test files are never measured.
+  - A file that imports C is measured as its source, not as the file cgo
+    writes in its place.
+  - The imports of the files build constraints leave out are read from their
+    source. The import rules check them: forbidden imports, isolations, and
+    the fitness rules on imports. A forbidden import in a `_windows.go` file
+    fails on every platform. The measures read only the build.
+  - The report records the platform (`go env GOOS GOARCH`) and the tags, and
+    so does the baseline. `check` against a baseline of another build notes
+    the difference instead of failing, and `baseline --shrink` leaves such a
+    baseline as it is.
 
 Every finding names the rule of the model it breaks (`modelRule`), such as
-`forbiddenImports[2]` or `fitness.layerAccess web`. A type cycle's fix says
+`forbiddenImports[2]` or `fitness.layerAccess web`. A pattern that matches
+nothing (`stale-pattern`, `empty-selector`) suggests a correction when one
+segment looks misspelled: `example.com/app/servce/...: did you mean
+example.com/app/service/...?` A type cycle's fix says
 where each cut's uses are (`embed`, `field`, `definition`, `signature` or
 `body`), the hardest to remove first.
 
@@ -324,8 +338,9 @@ anarch-lint is a functional core with an imperative shell.
   from the global random source. It holds the vocabulary every measure
   shares. It may use only the third-party libraries the self-check's
   `core-approved-libraries` rule approves, each pure, deterministic and well
-  tested: gonum for graph algorithms and communities, and doublestar for file
-  globs ([ADR 0012](docs/adr/0012-the-core-approves-its-libraries.md)).
+  tested: gonum for graph algorithms and communities, doublestar for file
+  globs, and levenshtein for the corrections of misspelled patterns
+  ([ADR 0012](docs/adr/0012-the-core-approves-its-libraries.md)).
 - `internal/connascence`, `internal/balance` and `internal/fitness` are pure
   measures over
   `arch`'s facts. None imports another or any adapter; `cmd` passes the

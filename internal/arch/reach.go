@@ -98,10 +98,12 @@ func (s *subject) withSink(forbidden string) Graph {
 	return NewGraph(append(s.g.Packages.Nodes(), forbiddenSink), edges)
 }
 
-// importsDirectly reports whether pkg imports target itself.
+// importsDirectly reports whether pkg imports target itself, in the build
+// or in a file it excludes: either is the plain forbidden-import finding.
 func (s *subject) importsDirectly(pkg, target string) bool {
-	_, ok := s.firstImport(pkg, target)
-	return ok
+	return slices.ContainsFunc(s.p.RuleImports(), func(imp Import) bool {
+		return imp.From == pkg && imp.To == target
+	})
 }
 
 // firstImport returns pkg's import of target.

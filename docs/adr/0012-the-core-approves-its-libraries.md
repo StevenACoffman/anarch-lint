@@ -40,6 +40,9 @@ Approved now:
 - `gonum.org/v1/gonum/...` (BSD-3-Clause): graph algorithms and community
   detection.
 - `github.com/bmatcuk/doublestar/v4` (MIT): file globs.
+- `github.com/agnivade/levenshtein` (MIT): edit distance, for the
+  corrections a finding suggests for a pattern that matches nothing. It
+  imports only `unicode/utf8`.
 
 Adapters need no approval: they may import what they translate, such as
 `golang.org/x/tools` in the loader.

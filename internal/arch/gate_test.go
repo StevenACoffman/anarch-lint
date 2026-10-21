@@ -204,3 +204,77 @@ func TestGateReportsImprovements(t *testing.T) {
 	equals(t, true, g.Passed)
 	equals(t, []arch.Regression{{Metric: "cycles", Baseline: 4, Current: 1}}, g.Improved)
 }
+
+// A gate counts what it did not read, by reason, whatever its verdict.
+func TestGateCountsUnread(t *testing.T) {
+	t.Parallel()
+	in := arch.GateInput{ModelHash: "m", Excluded: []arch.ExcludedFile{
+		{Path: "a/gen.go", Reason: arch.ExcludedGenerated},
+		{Path: "a/x_windows.go", Reason: arch.ExcludedByBuild},
+		{Path: "b/gen.go", Reason: arch.ExcludedGenerated},
+		{Path: "sub/go.mod", Reason: arch.ExcludedOtherModule},
+	}}
+	for name, b := range map[string]arch.Baseline{
+		"comparable":     {ModelHash: "m"},
+		"not comparable": {ModelHash: "other"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := arch.Gate(&in, &b, nil)
+			equals(t, []arch.UnreadCount{
+				{Reason: arch.ExcludedByBuild, Files: 1},
+				{Reason: arch.ExcludedGenerated, Files: 2},
+				{Reason: arch.ExcludedOtherModule, Files: 1},
+			}, g.Unread)
+		})
+	}
+	equals(t, "1 file the build constraints exclude, 2 generated files, 1 nested module",
+		arch.DescribeUnread(arch.Gate(&in, &arch.Baseline{ModelHash: "m"}, nil).Unread))
+	equals(t, "", arch.DescribeUnread(nil))
+}
+
+// A baseline measured in another build is named, and does not fail the
+// gate; a baseline that records no build, or the same one, is not.
+func TestGateNamesAnotherBuild(t *testing.T) {
+	t.Parallel()
+	in := arch.GateInput{
+		ModelHash: "m",
+		Build:     arch.Build{Platform: "darwin/arm64", Tags: []string{}},
+	}
+	linux := &arch.Build{Platform: "linux/amd64", Tags: []string{}}
+	cases := map[string]struct {
+		build *arch.Build
+		want  *arch.Build
+	}{
+		"another platform": {build: linux, want: linux},
+		"other tags": {
+			build: &arch.Build{Platform: "darwin/arm64", Tags: []string{"legacy"}},
+			want:  &arch.Build{Platform: "darwin/arm64", Tags: []string{"legacy"}},
+		},
+		"the same build":    {build: &arch.Build{Platform: "darwin/arm64"}},
+		"no build recorded": {},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := arch.Gate(&in, &arch.Baseline{ModelHash: "m", Build: tc.build}, nil)
+			equals(t, true, g.Passed)
+			equals(t, tc.want, g.BaselineBuild)
+		})
+	}
+}
+
+// Shrinking a baseline of another build keeps every finding: this build
+// may not see what that one does.
+func TestShrinkKeepsAnotherBuildsBaseline(t *testing.T) {
+	t.Parallel()
+	b := arch.Baseline{
+		ModelHash: "m",
+		Build:     &arch.Build{Platform: "linux/amd64"},
+		Findings:  []arch.BaselineFinding{{Fingerprint: "f", Rule: "r"}},
+	}
+	in := arch.GateInput{ModelHash: "m", Build: arch.Build{Platform: "darwin/arm64"}}
+	equals(t, b.Findings, arch.Shrink(&b, &in).Findings)
+	in.Build.Platform = "linux/amd64"
+	equals(t, 0, len(arch.Shrink(&b, &in).Findings))
+}

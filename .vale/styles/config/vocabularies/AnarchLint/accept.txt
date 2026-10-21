@@ -46,3 +46,6 @@ von
 gonum('s)?
 doublestar
 gocognit('s)?
+cgo
+[Ll]evenshtein
+renameio

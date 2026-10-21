@@ -102,3 +102,6 @@ mutago-gitlab.json
 # Local notes, kept out of the public repository: the to-do list and the plan for it.
 TODO.md
 PLAN.md
+
+# A global ignore of "coverage" (coverage reports) would hide this source package.
+!/internal/coverage/

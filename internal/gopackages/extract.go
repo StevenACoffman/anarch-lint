@@ -2,13 +2,11 @@ package gopackages
 
 import (
 	"cmp"
-	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
 	"slices"
 	"strconv"
-	"strings"
 
 	"github.com/uudashr/gocognit"
 	"golang.org/x/tools/go/packages"
@@ -23,8 +21,11 @@ type extractor struct {
 	prog    arch.Program
 	refs    map[[2]string]*arch.Ref    // keyed by (from, to)
 	imports map[[2]string]*arch.Import // keyed by (from, to)
-	types   map[string]int             // type ID -> index into prog.Types
-	named   map[string]*types.TypeName // type ID -> its object, for interface checks
+	// inactive holds the imports of the files the build constraints
+	// exclude, keyed like imports.
+	inactive map[[2]string]*arch.Import
+	types    map[string]int             // type ID -> index into prog.Types
+	named    map[string]*types.TypeName // type ID -> its object, for interface checks
 	// facts collects the connascence facts; nil when they are not wanted.
 	facts *factSink
 }
@@ -45,12 +46,13 @@ type methodDecl struct {
 
 func newExtractor(dir string, inScope map[string]bool, facts bool) *extractor {
 	x := &extractor{
-		dir:     dir,
-		inScope: inScope,
-		refs:    map[[2]string]*arch.Ref{},
-		imports: map[[2]string]*arch.Import{},
-		types:   map[string]int{},
-		named:   map[string]*types.TypeName{},
+		dir:      dir,
+		inScope:  inScope,
+		refs:     map[[2]string]*arch.Ref{},
+		imports:  map[[2]string]*arch.Import{},
+		inactive: map[[2]string]*arch.Import{},
+		types:    map[string]int{},
+		named:    map[string]*types.TypeName{},
 	}
 	if facts {
 		x.facts = newFactSink(inScope)
@@ -60,25 +62,28 @@ func newExtractor(dir string, inScope map[string]bool, facts bool) *extractor {
 
 // addPackage extracts the facts of one package. readFile returns a source
 // file's bytes, which go/packages does not keep.
-func (x *extractor) addPackage(p *packages.Package, readFile func(string) ([]byte, error)) error {
-	files, excluded := sourceFiles(x.dir, p)
+func (x *extractor) addPackage(
+	p *packages.Package,
+	readFile func(string) ([]byte, error),
+) error {
+	files, excluded, err := sourceFiles(x.dir, p, readFile)
+	if err != nil {
+		return err
+	}
 	x.prog.Excluded = append(x.prog.Excluded, excluded...)
 	pkg := arch.Package{Path: p.PkgPath, Name: p.Name}
 	if p.Module != nil {
 		pkg.Module = p.Module.Path
 	}
 	var methods []methodDecl
-	for _, f := range files {
-		name := p.Fset.File(f.Pos()).Name()
-		src, err := readFile(name)
-		if err != nil {
-			return &arch.Error{Code: arch.EINVALID, Message: fmt.Sprintf("read %s: %v", name, err)}
-		}
+	for i := range files {
+		sf := &files[i]
+		f := sf.syntax
 		fc := fileContext{
 			pkg:   p,
 			fset:  p.Fset,
-			path:  relPath(x.dir, name),
-			lines: countCodeLines(src),
+			path:  relPath(x.dir, sf.name),
+			lines: countCodeLines(sf.src),
 		}
 		pkg.Files = append(pkg.Files, fc.path)
 		x.prog.Files = append(
@@ -86,11 +91,14 @@ func (x *extractor) addPackage(p *packages.Package, readFile func(string) ([]byt
 			arch.File{Path: fc.path, Package: p.PkgPath, Lines: fc.lines.total()},
 		)
 		pkg.Lines += fc.lines.total()
-		x.addImports(&fc, f)
+		x.addImports(&fc, sf.imports)
 		if x.facts != nil {
 			x.facts.linknames(&fc, f)
 		}
 		methods = append(methods, x.addDecls(&fc, f)...)
+	}
+	if err := x.addInactiveImports(p, readFile); err != nil {
+		return err
 	}
 	slices.Sort(pkg.Files)
 	x.prog.Packages = append(x.prog.Packages, pkg)
@@ -106,19 +114,26 @@ func (x *extractor) addPackage(p *packages.Package, readFile func(string) ([]byt
 
 // addImports records the imports of one file, keeping the first position of
 // each package-to-package import.
-func (x *extractor) addImports(fc *fileContext, f *ast.File) {
-	for _, spec := range f.Imports {
-		to := strings.Trim(spec.Path.Value, `"`)
-		key := [2]string{fc.pkg.PkgPath, to}
-		pos := fc.position(spec.Pos())
-		if imp, ok := x.imports[key]; ok {
-			if arch.ComparePositions(pos, imp.Pos) < 0 {
-				imp.Pos = pos
-			}
-			continue
-		}
-		x.imports[key] = &arch.Import{From: fc.pkg.PkgPath, To: to, Pos: pos}
+func (x *extractor) addImports(fc *fileContext, imports []importAt) {
+	for _, spec := range imports {
+		keepFirst(x.imports, arch.Import{
+			From: fc.pkg.PkgPath, To: spec.to,
+			Pos: arch.Position{File: fc.path, Line: spec.line},
+		})
 	}
+}
+
+// keepFirst records imp in imports, or moves the recorded import of the same
+// two packages to imp's position when that comes first.
+func keepFirst(imports map[[2]string]*arch.Import, imp arch.Import) {
+	key := [2]string{imp.From, imp.To}
+	if held, ok := imports[key]; ok {
+		if arch.ComparePositions(imp.Pos, held.Pos) < 0 {
+			held.Pos = imp.Pos
+		}
+		return
+	}
+	imports[key] = &imp
 }
 
 // addDecls records the types and functions a file declares, and the type
@@ -260,9 +275,7 @@ func (x *extractor) program() arch.Program {
 	slices.SortFunc(p.Funcs, func(a, b arch.Func) int { return cmp.Compare(a.ID, b.ID) })
 	slices.SortFunc(p.Files, func(a, b arch.File) int { return cmp.Compare(a.Path, b.Path) })
 	p.Excluded = append(make([]arch.ExcludedFile, 0, len(p.Excluded)), p.Excluded...)
-	slices.SortFunc(p.Excluded, func(a, b arch.ExcludedFile) int {
-		return cmp.Or(cmp.Compare(a.Path, b.Path), cmp.Compare(a.Reason, b.Reason))
-	})
+	slices.SortFunc(p.Excluded, compareExcluded)
 	slices.SortFunc(p.Injections, func(a, b arch.Injection) int {
 		return cmp.Or(
 			cmp.Compare(a.CalleePackage, b.CalleePackage),
@@ -280,9 +293,14 @@ func (x *extractor) program() arch.Program {
 	for _, imp := range x.imports {
 		p.Imports = append(p.Imports, *imp)
 	}
-	slices.SortFunc(p.Imports, func(a, b arch.Import) int {
-		return cmp.Or(cmp.Compare(a.From, b.From), cmp.Compare(a.To, b.To))
-	})
+	slices.SortFunc(p.Imports, compareImports)
+	p.InactiveImports = make([]arch.Import, 0, len(x.inactive))
+	for key, imp := range x.inactive {
+		if _, built := x.imports[key]; !built {
+			p.InactiveImports = append(p.InactiveImports, *imp)
+		}
+	}
+	slices.SortFunc(p.InactiveImports, compareImports)
 	return p
 }
 
@@ -375,4 +393,14 @@ func embeddedName(e ast.Expr) string {
 	default:
 		return ""
 	}
+}
+
+// compareExcluded orders excluded files by path, then reason.
+func compareExcluded(a, b arch.ExcludedFile) int {
+	return cmp.Or(cmp.Compare(a.Path, b.Path), cmp.Compare(a.Reason, b.Reason))
+}
+
+// compareImports orders imports by importing, then imported, package.
+func compareImports(a, b arch.Import) int {
+	return cmp.Or(cmp.Compare(a.From, b.From), cmp.Compare(a.To, b.To))
 }

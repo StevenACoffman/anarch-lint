@@ -5,15 +5,18 @@ package arch
 // It never adds a finding or a metric, so the accepted state only ever gets
 // stricter (ArchUnit's FreezingArchRule, without its refreeze). A baseline
 // measured under another model is returned as it is: its numbers mean
-// something else.
+// something else. So is one measured in another build, whose findings this
+// build may not see: shrinking it would drop them, and they would be new
+// again in their own build.
 func Shrink(b *Baseline, in *GateInput) Baseline {
 	out := Baseline{
 		Schema:    b.Schema,
 		ModelHash: b.ModelHash,
 		Findings:  make([]BaselineFinding, 0, len(b.Findings)),
 		Metrics:   append(make([]Metric, 0, len(b.Metrics)), b.Metrics...),
+		Build:     b.Build,
 	}
-	if b.ModelHash != in.ModelHash {
+	if b.ModelHash != in.ModelHash || otherBuild(b.Build, &in.Build) != nil {
 		out.Findings = append(out.Findings, b.Findings...)
 		return out
 	}

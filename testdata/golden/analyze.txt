@@ -1,5 +1,5 @@
 anarch-lint report (anarch-lint.report.v1)
-patterns ./... · tags none · model 7d350c6facc1 · GOVERSION
+patterns ./... · tags none · PLATFORM · model 7d350c6facc1 · GOVERSION
 
 NOT MEASURED (2 files; test files are never measured)
   gen/gen.go         generated          
@@ -137,4 +137,4 @@ JUDGEMENTS (for a human expert or an adversarial LLM; never gate)
                   evidence: forbidden-import rules: 0 declared
                   evidence hash: 7a4dc8376697760778795906160012a919378ee5ff12aa1a15c3fb9b851101a7
 
-ASSUMPTIONS: 16, listed in the JSON report (--format=json)
+ASSUMPTIONS: 17, listed in the JSON report (--format=json)

@@ -5,9 +5,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 
+	"github.com/google/renameio/v2/maybe"
 	"github.com/peterbourgon/ff/v4"
 
 	"github.com/StevenACoffman/anarch-lint/cmd/root"
@@ -75,7 +75,9 @@ func (cfg *Config) exec(ctx context.Context, args []string) error {
 	if cfg.Check {
 		return cfg.check(out, b.Bytes())
 	}
-	if err := os.WriteFile(out, b.Bytes(), 0o644); err != nil {
+	// renameio writes a temporary file and renames it into place, so a
+	// failed write leaves the old file whole; on Windows it writes in place.
+	if err := maybe.WriteFile(out, b.Bytes(), 0o644); err != nil {
 		return fmt.Errorf("render: %w",
 			&arch.Error{Code: arch.EINVALID, Message: fmt.Sprintf("write %s: %v", out, err)})
 	}

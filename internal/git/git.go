@@ -42,12 +42,16 @@ func ChangedLines(ctx context.Context, dir, rev string) (arch.ChangedLines, erro
 	if err != nil {
 		return nil, &arch.Error{Op: op, Err: err}
 	}
-	untracked, err := run(ctx, dir, "ls-files", "--others", "--exclude-standard")
+	// -z ends each name with NUL and leaves it unquoted, so a name with a
+	// space or a non-ASCII letter is one path, as written.
+	untracked, err := run(ctx, dir, "ls-files", "-z", "--others", "--exclude-standard")
 	if err != nil {
 		return nil, &arch.Error{Op: op, Err: err}
 	}
-	for _, file := range strings.Fields(string(untracked)) {
-		changed[file] = []arch.LineRange{{Start: 1, End: math.MaxInt}}
+	for file := range strings.SplitSeq(string(untracked), "\x00") {
+		if file != "" {
+			changed[file] = []arch.LineRange{{Start: 1, End: math.MaxInt}}
+		}
 	}
 	return changed, nil
 }

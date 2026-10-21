@@ -123,12 +123,19 @@ func level(s arch.Severity) string {
 }
 
 // invocation says whether the gate passed, with a notification for each
-// failure that has no place in the code.
+// failure that has no place in the code, and a note of what it did not read.
 func invocation(r *arch.GateResult) *sarif.Invocation {
 	inv := sarif.NewInvocation().WithExecutionSuccess(true)
-	notify := func(text string) {
+	add := func(level, text string) {
 		inv.AddTToolExecutionNotification(sarif.NewNotification().
-			WithLevel("error").WithMessage(sarif.NewTextMessage(text)))
+			WithLevel(level).WithMessage(sarif.NewTextMessage(text)))
+	}
+	notify := func(text string) { add("error", text) }
+	if unread := arch.DescribeUnread(r.Unread); unread != "" {
+		add("note", "not read: "+unread)
+	}
+	if r.BaselineBuild != nil {
+		add("note", arch.DescribeOtherBuild(r.BaselineBuild))
 	}
 	if !r.Comparable {
 		notify("the baseline is not comparable: " + r.Reason)
