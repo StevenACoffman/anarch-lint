@@ -344,21 +344,14 @@ func (w *factWalker) switchStmt(s *ast.SwitchStmt) {
 	})
 }
 
-// constExpr records e when it is constant-valued.
+// constExpr records e when it is constant-valued (constantExpr).
 func (w *factWalker) constExpr(e ast.Expr, ctx arch.ConstContext, callee string, arg int) {
-	tv := w.info().Types[e]
-	if tv.Value == nil || tv.Type == nil {
+	c, ok := constantExpr(w.info(), e, ctx)
+	if !ok {
 		return
 	}
-	w.facts.ConstExprs = append(w.facts.ConstExprs, arch.ConstExpr{
-		Type:    types.TypeString(types.Default(tv.Type), nil),
-		Value:   tv.Value.ExactString(),
-		Literal: isLiteral(e),
-		Context: ctx,
-		Callee:  callee,
-		Arg:     arg,
-		Site:    w.site(e.Pos()),
-	})
+	c.Callee, c.Arg, c.Site = callee, arg, w.site(e.Pos())
+	w.facts.ConstExprs = append(w.facts.ConstExprs, c)
 }
 
 // call records constant arguments, conversions through unsafe.Pointer, and
