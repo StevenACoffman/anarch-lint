@@ -10,5 +10,12 @@
     {"from": ["github.com/sklinkert/go-ddd/internal/interface/..."],
      "imports": ["github.com/sklinkert/go-ddd/internal/domain/..."],
      "reason": "the interface layer must not leak domain objects outward (go-ddd README)"}
-  ]
+  ],
+  "fitness": {
+    "openapi": [
+      {"name": "api-documented", "path": "api/openapi.yaml",
+       "servedBy": ["github.com/sklinkert/go-ddd/internal/interface/api/rest"],
+       "reason": "the OpenAPI document is the API's contract with its clients"}
+    ]
+  }
 }

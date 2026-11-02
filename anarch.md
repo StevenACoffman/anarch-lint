@@ -1,6 +1,6 @@
 # Architecture
 
-<!-- Rendered by anarch-lint render from the model 7ce11431a43b. Edit the model, not this file. -->
+<!-- Rendered by anarch-lint render from the model 07a59965e2f0. Edit the model, not this file. -->
 
 ## Subsystems
 
@@ -11,6 +11,7 @@
 | loading       | `github.com/StevenACoffman/anarch-lint/internal/gopackages`                                                                                                                                             | `github.com/StevenACoffman/anarch-lint/internal/gopackages`                                                                                                            |       |
 | vcs           | `github.com/StevenACoffman/anarch-lint/internal/git`                                                                                                                                                    | `github.com/StevenACoffman/anarch-lint/internal/git`                                                                                                                   |       |
 | diagrams      | `github.com/StevenACoffman/anarch-lint/internal/plantuml`                                                                                                                                               | `github.com/StevenACoffman/anarch-lint/internal/plantuml`                                                                                                              |       |
+| api-documents | `github.com/StevenACoffman/anarch-lint/internal/openapi`                                                                                                                                                | `github.com/StevenACoffman/anarch-lint/internal/openapi`                                                                                                               |       |
 | domain-models | `github.com/StevenACoffman/anarch-lint/internal/modelith`                                                                                                                                               | `github.com/StevenACoffman/anarch-lint/internal/modelith`                                                                                                              |       |
 | ownership     | `github.com/StevenACoffman/anarch-lint/internal/codeowners`                                                                                                                                             | `github.com/StevenACoffman/anarch-lint/internal/codeowners`                                                                                                            |       |
 | coverage      | `github.com/StevenACoffman/anarch-lint/internal/coverage`                                                                                                                                               | `github.com/StevenACoffman/anarch-lint/internal/coverage`                                                                                                              |       |
@@ -25,7 +26,7 @@
 From the top, which may import every layer below it:
 
 1. **command**: `github.com/StevenACoffman/anarch-lint`, `github.com/StevenACoffman/anarch-lint/cmd/...`, `github.com/StevenACoffman/anarch-lint/internal/pipeline`, `github.com/StevenACoffman/anarch-lint/anarchtest`
-2. **adapter**: `github.com/StevenACoffman/anarch-lint/internal/text`, `github.com/StevenACoffman/anarch-lint/internal/schema`, `github.com/StevenACoffman/anarch-lint/internal/sarif`, `github.com/StevenACoffman/anarch-lint/internal/gopackages`, `github.com/StevenACoffman/anarch-lint/internal/git`, `github.com/StevenACoffman/anarch-lint/internal/codeowners`, `github.com/StevenACoffman/anarch-lint/internal/modelith`, `github.com/StevenACoffman/anarch-lint/internal/coverage`, `github.com/StevenACoffman/anarch-lint/internal/plantuml`
+2. **adapter**: `github.com/StevenACoffman/anarch-lint/internal/text`, `github.com/StevenACoffman/anarch-lint/internal/schema`, `github.com/StevenACoffman/anarch-lint/internal/sarif`, `github.com/StevenACoffman/anarch-lint/internal/gopackages`, `github.com/StevenACoffman/anarch-lint/internal/git`, `github.com/StevenACoffman/anarch-lint/internal/codeowners`, `github.com/StevenACoffman/anarch-lint/internal/modelith`, `github.com/StevenACoffman/anarch-lint/internal/coverage`, `github.com/StevenACoffman/anarch-lint/internal/plantuml`, `github.com/StevenACoffman/anarch-lint/internal/openapi`
 3. **domain**: `github.com/StevenACoffman/anarch-lint/internal/arch`, `github.com/StevenACoffman/anarch-lint/internal/connascence`, `github.com/StevenACoffman/anarch-lint/internal/balance`, `github.com/StevenACoffman/anarch-lint/internal/fitness`, `github.com/StevenACoffman/anarch-lint/internal/judging`
 
 ## Subsystem Dependencies
@@ -39,41 +40,44 @@ flowchart TD
   s2["loading"]
   s3["vcs"]
   s4["diagrams"]
-  s5["domain-models"]
-  s6["ownership"]
-  s7["coverage"]
-  s8["fitness"]
-  s9["balance"]
-  s10["connascence"]
-  s11["judging"]
-  s12["domain"]
-  s9 -->|1| s12
-  s0 -->|2| s9
-  s0 -->|3| s10
-  s0 -->|1| s7
-  s0 -->|1| s4
-  s0 -->|10| s12
+  s5["api-documents"]
+  s6["domain-models"]
+  s7["ownership"]
+  s8["coverage"]
+  s9["fitness"]
+  s10["balance"]
+  s11["connascence"]
+  s12["judging"]
+  s13["domain"]
+  s5 -->|1| s13
+  s10 -->|1| s13
   s0 -->|1| s5
-  s0 -->|3| s8
-  s0 -->|1| s11
-  s0 -->|1| s2
+  s0 -->|2| s10
+  s0 -->|3| s11
+  s0 -->|1| s8
+  s0 -->|1| s4
+  s0 -->|10| s13
   s0 -->|1| s6
+  s0 -->|3| s9
+  s0 -->|1| s12
+  s0 -->|1| s2
+  s0 -->|1| s7
   s0 -->|12| s1
   s0 -->|2| s3
-  s10 -->|1| s12
-  s7 -->|1| s12
-  s4 -->|1| s12
-  s5 -->|1| s12
-  s8 -->|1| s12
-  s11 -->|1| s12
-  s2 -->|1| s12
-  s6 -->|1| s12
-  s1 -->|1| s9
+  s11 -->|1| s13
+  s8 -->|1| s13
+  s4 -->|1| s13
+  s6 -->|1| s13
+  s9 -->|1| s13
+  s12 -->|1| s13
+  s2 -->|1| s13
+  s7 -->|1| s13
   s1 -->|1| s10
-  s1 -->|3| s12
-  s1 -->|1| s8
   s1 -->|1| s11
-  s3 -->|1| s12
+  s1 -->|3| s13
+  s1 -->|1| s9
+  s1 -->|1| s12
+  s3 -->|1| s13
 ```
 
 ## Forbidden Imports
@@ -96,6 +100,7 @@ flowchart TD
 | `github.com/StevenACoffman/anarch-lint/internal/judging`     | `github.com/StevenACoffman/anarch-lint/internal/arch` | the judging layer reads arch's slots and verdicts and knows no adapter and no measure; only cmd wires it (mmi-plan.md §9.4) |
 | `github.com/StevenACoffman/anarch-lint/internal/modelith`    | `github.com/StevenACoffman/anarch-lint/internal/arch` | adapters do not import each other; only cmd wires them (summary_rules §1)                                                   |
 | `github.com/StevenACoffman/anarch-lint/internal/plantuml`    | `github.com/StevenACoffman/anarch-lint/internal/arch` | adapters do not import each other; only cmd wires them (summary_rules §1)                                                   |
+| `github.com/StevenACoffman/anarch-lint/internal/openapi`     | `github.com/StevenACoffman/anarch-lint/internal/arch` | adapters do not import each other; only cmd wires them (summary_rules §1)                                                   |
 | `github.com/StevenACoffman/anarch-lint/internal/codeowners`  | `github.com/StevenACoffman/anarch-lint/internal/arch` | adapters do not import each other; only cmd wires them (summary_rules §1)                                                   |
 | `github.com/StevenACoffman/anarch-lint/internal/coverage`    | `github.com/StevenACoffman/anarch-lint/internal/arch` | adapters do not import each other; only cmd wires them (summary_rules §1)                                                   |
 | `github.com/StevenACoffman/anarch-lint/internal/sarif`       | `github.com/StevenACoffman/anarch-lint/internal/arch` | adapters do not import each other; only cmd wires them (summary_rules §1)                                                   |
@@ -122,10 +127,10 @@ flowchart TD
 
 ## Quality Attributes
 
-| Attribute       | Rules                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| security        | `fitness.libraries core-approved-libraries`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| maintainability | `layers`, `subsystemOrder`, `interfaces`, `forbiddenImports[0]`, `forbiddenImports[1]`, `forbiddenImports[2]`, `forbiddenImports[3]`, `forbiddenImports[4]`, `isolations[0]`, `isolations[1]`, `isolations[2]`, `isolations[3]`, `isolations[4]`, `isolations[5]`, `isolations[6]`, `isolations[7]`, `isolations[8]`, `fitness.layerAccess pure-domain`, `fitness.layerAccess adapters-to-domain`, `fitness.dependents x-tools-only-in-loader`, `fitness.calls no-clock-or-os-in-core`, `fitness.unusedExports no-unused-api`, `fitness.domains core-speaks-its-model` |
+| Attribute       | Rules                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| security        | `fitness.libraries core-approved-libraries`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| maintainability | `layers`, `subsystemOrder`, `interfaces`, `forbiddenImports[0]`, `forbiddenImports[1]`, `forbiddenImports[2]`, `forbiddenImports[3]`, `forbiddenImports[4]`, `isolations[0]`, `isolations[1]`, `isolations[2]`, `isolations[3]`, `isolations[4]`, `isolations[5]`, `isolations[6]`, `isolations[7]`, `isolations[8]`, `isolations[9]`, `fitness.layerAccess pure-domain`, `fitness.layerAccess adapters-to-domain`, `fitness.dependents x-tools-only-in-loader`, `fitness.calls no-clock-or-os-in-core`, `fitness.unusedExports no-unused-api`, `fitness.domains core-speaks-its-model` |
 
 ## Domain Models
 

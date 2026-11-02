@@ -1,0 +1,21 @@
+openapi: 3.0.3
+info:
+  title: Tasks
+  version: "1"
+servers:
+  - url: "https://{host}/v1"
+    variables:
+      host:
+        default: tasks.example.com
+paths:
+  /tasks:
+    get:
+      responses:
+        "200":
+          description: the tasks
+    post:
+      responses:
+        "201":
+          description: created
+  /tasks/{taskId}:
+    $ref: "paths/task.yaml"

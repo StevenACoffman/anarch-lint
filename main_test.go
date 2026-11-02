@@ -675,6 +675,14 @@ func TestCorpusGoDDD(t *testing.T) {
 			t.Errorf("the domain leak in %s was not found; found %v", pkg, leaks)
 		}
 	}
+	// Every operation of api/openapi.yaml is an echo route, its parameters
+	// written :id where the document writes {id}, and every route is
+	// documented.
+	matched, findings := corpusOpenAPI(t, corpusClone(t, "go-ddd"), model, "./internal/...")
+	if matched != 12 || len(findings) > 0 {
+		t.Errorf("want 12 operations, all served and none undocumented; got %d and %q",
+			matched, findings)
+	}
 }
 
 func TestRenderCheck(t *testing.T) {
@@ -1028,6 +1036,52 @@ func TestCorpusTodoAPI(t *testing.T) {
 	if !slices.Equal(hidden, []string{in + "redis.Task"}) {
 		t.Errorf("want the one wired broker, %sredis.Task; found %v", in, hidden)
 	}
+	// Three of the five documented operations are registered with
+	// fmt.Sprintf of constants; the two routes that serve the document
+	// itself are not in it.
+	matched, findings := corpusOpenAPI(t,
+		corpusClone(t, "todo-api-microservice-example"), model, "./...")
+	want := []string{
+		"openapi-route-undocumented " + in + "rest: GET /openapi3.json",
+		"openapi-route-undocumented " + in + "rest: GET /openapi3.yaml",
+	}
+	if matched != 5 || !slices.Equal(findings, want) {
+		t.Errorf("want 5 operations and the findings %q; got %d and %q", want, matched, findings)
+	}
+}
+
+// corpusOpenAPI runs fitness on a corpus clone and returns its openapi
+// rule's matched operations and the openapi findings, as "rule subject".
+func corpusOpenAPI(t *testing.T, dir, model, pattern string) (matched int, findings []string) {
+	t.Helper()
+	code, out, errOut := runCLI(t, "-C", dir, "--model", model, "--format=json", "fitness", pattern)
+	if code != 0 {
+		t.Fatalf("fitness: exit %d: %s", code, errOut)
+	}
+	var r struct {
+		Rules []struct {
+			Kind    string `json:"kind"`
+			Matched int    `json:"matched"`
+		} `json:"rules"`
+		Findings []struct {
+			Rule    string `json:"rule"`
+			Subject string `json:"subject"`
+		} `json:"findings"`
+	}
+	if err := json.Unmarshal([]byte(out), &r); err != nil {
+		t.Fatal(err)
+	}
+	for _, rule := range r.Rules {
+		if rule.Kind == "openapi" {
+			matched = rule.Matched
+		}
+	}
+	for _, f := range r.Findings {
+		if strings.HasPrefix(f.Rule, "openapi-") {
+			findings = append(findings, f.Rule+" "+f.Subject)
+		}
+	}
+	return matched, findings
 }
 
 // corpusPin is the commit a corpus test was checked against. A clone

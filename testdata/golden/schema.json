@@ -496,6 +496,12 @@
         "onion": {
           "$ref": "#/$defs/Onion"
         },
+        "openapi": {
+          "items": {
+            "$ref": "#/$defs/OpenAPIRule"
+          },
+          "type": "array"
+        },
         "requireAssigned": {
           "type": "boolean"
         },
@@ -896,6 +902,58 @@
           "type": "string"
         }
       },
+      "type": "object"
+    },
+    "OpenAPIRule": {
+      "additionalProperties": false,
+      "properties": {
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "path": {
+          "type": "string"
+        },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "servedBy": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "path"
+      ],
       "type": "object"
     },
     "Role": {

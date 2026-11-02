@@ -62,7 +62,7 @@ func (o *Options) Load(
 	if len(patterns) == 0 {
 		patterns = []string{"./..."}
 	}
-	in, err := o.readInputs()
+	in, err := o.readInputs(ctx)
 	if err != nil {
 		return arch.Input{}, &arch.Error{Op: op, Err: err}
 	}
@@ -97,8 +97,8 @@ func (o *Options) Load(
 }
 
 // readInputs reads the files a measurement reads besides the code: the
-// model, the judgements and the domain models.
-func (o *Options) readInputs() (arch.Input, error) {
+// model, the judgements, the domain models and the API documents.
+func (o *Options) readInputs(ctx context.Context) (arch.Input, error) {
 	model, err := o.readModel()
 	if err != nil {
 		return arch.Input{}, err
@@ -111,7 +111,11 @@ func (o *Options) readInputs() (arch.Input, error) {
 	if err != nil {
 		return arch.Input{}, err
 	}
-	return arch.Input{Model: model, Verdicts: verdicts, Domains: domains}, nil
+	apis, err := o.readAPIs(ctx, &model)
+	if err != nil {
+		return arch.Input{}, err
+	}
+	return arch.Input{Model: model, Verdicts: verdicts, Domains: domains, APIs: apis}, nil
 }
 
 // Analyze loads the packages and measures them for the MMI report.

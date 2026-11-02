@@ -8,7 +8,7 @@
     "patterns": [
       "./internal/..."
     ],
-    "modelHash": "388a26d92f0f9a0610811c3c0c0002e7309d76e3e80e57eb829508550e7bd726",
+    "modelHash": "c31b1c716e3f20bef0c7bea6ddc6acbbc1f394adcf2e36cc0027f673c9851542",
     "thresholds": {
       "largeTypeLines": 400,
       "largeFuncLines": 60,

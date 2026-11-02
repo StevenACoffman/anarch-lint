@@ -1,0 +1,7 @@
+openapi: 3.0.3
+info:
+  title: Escape
+  version: "1"
+paths:
+  /secret:
+    $ref: "../../../secret.yaml"

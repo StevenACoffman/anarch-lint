@@ -51,6 +51,21 @@ type Fitness struct {
 	// Domains compare modelith domain models with the code that should
 	// express them (mmi-plan.md §10).
 	Domains []DomainRule `json:"domains,omitempty"`
+	// OpenAPI compares OpenAPI documents with the routes the code serves.
+	OpenAPI []OpenAPIRule `json:"openapi,omitempty"`
+}
+
+// OpenAPIRule compares one OpenAPI document with the HTTP routes the code
+// registers (IMPROVEMENTS.md §5.1): every operation it documents should be
+// served, and every route the serving packages register documented.
+type OpenAPIRule struct {
+	RuleOptions
+	// Path is the OpenAPI 3 document, YAML or JSON, relative to the analysis
+	// root; it and every file it refers to must lie within the repository.
+	Path string `json:"path"`
+	// ServedBy are the packages whose routes the document describes; empty
+	// means every package under analysis.
+	ServedBy []string `json:"servedBy,omitempty"`
 }
 
 // DomainRule compares one modelith domain model with the code: every entity
@@ -279,6 +294,7 @@ func (f *Fitness) Rules() []DeclaredRule {
 		optionsOf(f.InterfacesOnly, func(r InterfacesOnly) RuleOptions { return r.RuleOptions }),
 	)
 	add("domains", optionsOf(f.Domains, func(r DomainRule) RuleOptions { return r.RuleOptions }))
+	add("openapi", optionsOf(f.OpenAPI, func(r OpenAPIRule) RuleOptions { return r.RuleOptions }))
 	add(
 		"coChange",
 		optionsOf(f.CoChange, func(r CoChangeRule) RuleOptions { return r.RuleOptions }),
@@ -372,6 +388,7 @@ func (f *Fitness) validateSelectors(names declaredNames, invalid invalidFunc) er
 		problemsOf(f.CoChange),
 		problemsOf(f.FanOut),
 		problemsOf(f.Domains),
+		problemsOf(f.OpenAPI),
 	)
 	for i := range f.Domains {
 		if sub := f.Domains[i].Subsystem; sub != "" && !slices.Contains(names.subsystems, sub) {
@@ -496,6 +513,14 @@ func (c *CoChangeRule) problem() ruleProblem {
 func (r *FanOutRule) problem() ruleProblem {
 	if len(r.Packages) == 0 || r.Max < 0 {
 		return incomplete("fitness fanOut rule %q needs packages and a max of 0 or more", r.Name)
+	}
+	return ruleProblem{}
+}
+
+// problem says what makes the rule unusable, if anything.
+func (o *OpenAPIRule) problem() ruleProblem {
+	if o.Path == "" {
+		return incomplete("fitness openapi rule %q names no path", o.Name)
 	}
 	return ruleProblem{}
 }

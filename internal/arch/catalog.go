@@ -63,6 +63,8 @@ const (
 	RuleRedundant                = "redundant-rule"
 	RuleUnusableAllowance        = "unusable-allowance"
 	RuleFanOut                   = "fan-out"
+	RuleOperationUnserved        = "openapi-operation-unserved"
+	RuleRouteUndocumented        = "openapi-route-undocumented"
 	RuleMissingCoChange          = "missing-co-change"
 	ruleTightCouplingFunctional  = "tight-coupling-functional"
 	ruleTightCouplingIntrusive   = "tight-coupling-intrusive"
@@ -202,6 +204,8 @@ func fitnessRules() map[string]string {
 		RuleRedundant:              "a rule forbids only what other rules already forbid",
 		RuleUnusableAllowance:      "a rule allows by name what other rules forbid entirely",
 		RuleFanOut:                 "a package imports more packages than its fanOut rule allows",
+		RuleOperationUnserved:      "an OpenAPI document declares an operation no serving package registers",
+		RuleRouteUndocumented:      "a serving package registers a route its OpenAPI document does not declare",
 		RuleMissingCoChange:        "a change lacks the change its coChange rule requires",
 	}
 }

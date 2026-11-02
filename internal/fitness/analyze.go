@@ -130,6 +130,13 @@ func Analyze(in *arch.Input) Report {
 	s.checkInterfacesOnly()
 	s.checkAssigned()
 	s.checkDomains(in.Domains)
+	checkOpenAPI(
+		s.ledger,
+		s.m.Fitness.OpenAPI,
+		in.APIs,
+		&s.p.Facts,
+		s.packagePaths(),
+	)
 	checkCoChange(s.ledger, s.m.Fitness.CoChange, in.Changed)
 	checkFanOut(s.ledger, s.m.Fitness.FanOut, s.packagePaths(), importsInScope(s.p, &s.g))
 	(&existing{p: s.p, m: s.m, types: s.types, packages: s.packagePaths(), ledger: s.ledger}).check()

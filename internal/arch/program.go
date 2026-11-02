@@ -108,6 +108,9 @@ type Input struct {
 	// Domains are the domain models the model's fitness.domains rules name,
 	// in the rules' order.
 	Domains []DomainModel
+	// APIs are the OpenAPI documents the model's fitness.openapi rules
+	// name, in the rules' order.
+	APIs []APIDocument
 	// Changed is the change set check --new-from-rev measures, nil without
 	// one; only the rules on changes read it.
 	Changed ChangedLines

@@ -9,11 +9,16 @@ import (
 	"strings"
 )
 
-// The kinds and roles of a contract.
+// The kinds of a contract.
 const (
-	contractHTTP     = "http"
-	contractGRPC     = "grpc"
-	contractProvider = "provider"
+	contractHTTP = "http"
+	contractGRPC = "grpc"
+)
+
+// The roles of a contract: a provider, which ContractProvider names for the
+// packages that read contracts, or a consumer.
+const (
+	ContractProvider = "provider"
 	contractConsumer = "consumer"
 )
 
@@ -22,9 +27,6 @@ var (
 	// generates: RegisterTasksServer and NewTasksClient.
 	grpcRegister = regexp.MustCompile(`^(.+)\.Register(\w+)Server$`)
 	grpcClient   = regexp.MustCompile(`^(.+)\.New(\w+)Client$`)
-	// routeParam matches a path parameter as routers write it: {id}, :id
-	// or *rest.
-	routeParam = regexp.MustCompile(`\{[^}/]*\}|:[^/]+|\*[^/]*`)
 )
 
 // Contract is one end of an integration through a published contract: a
@@ -63,7 +65,7 @@ func ContractsOf(f *Facts) []Contract {
 	var out []Contract
 	for _, c := range f.Calls {
 		if m := grpcRegister.FindStringSubmatch(c.Callee); m != nil {
-			out = append(out, grpcContract(m, contractProvider, c.Site))
+			out = append(out, grpcContract(m, ContractProvider, c.Site))
 		}
 		if m := grpcClient.FindStringSubmatch(c.Callee); m != nil {
 			out = append(out, grpcContract(m, contractConsumer, c.Site))
@@ -132,11 +134,11 @@ func (c *call) contract() (Contract, bool) {
 	case name == "Handle" || name == "HandleFunc" || name == "Path":
 		// Go 1.22 patterns name the method: "GET /tasks/{id}".
 		if method, rest, ok := strings.Cut(path, " "); ok {
-			return httpContract(method, rest, contractProvider, c.site), true
+			return httpContract(method, rest, ContractProvider, c.site), true
 		}
-		return httpContract("*", path, contractProvider, c.site), true
+		return httpContract("*", path, ContractProvider, c.site), true
 	case slices.Contains(httpMethods(), upper):
-		return httpContract(upper, path, contractProvider, c.site), true
+		return httpContract(upper, path, ContractProvider, c.site), true
 	}
 	return Contract{}, false
 }
@@ -185,13 +187,10 @@ func urlPath(raw string) (string, bool) {
 	return u.Path, true
 }
 
-// httpContract is an HTTP contract, its path canonical: each parameter is
-// "{}" and a trailing slash is dropped, so /tasks/:id and /tasks/{id}/ match.
+// httpContract is an HTTP contract, its path canonical (NormalizeRoute), so
+// /tasks/:id and /tasks/{id}/ match.
 func httpContract(method, path, role string, site Site) Contract {
-	path = routeParam.ReplaceAllString(path, "{}")
-	if len(path) > 1 {
-		path = strings.TrimSuffix(path, "/")
-	}
+	path = NormalizeRoute(path)
 	return Contract{
 		ID: "http::" + method + "::" + path, Kind: contractHTTP, Role: role, Site: site,
 	}
@@ -209,7 +208,7 @@ func httpMethods() []string {
 func MatchContracts(cs []Contract) (pairs []ContractPair, orphans []Contract) {
 	providers := map[string][]Contract{}
 	for _, c := range cs {
-		if c.Role == contractProvider {
+		if c.Role == ContractProvider {
 			providers[routeKey(c.ID)] = append(providers[routeKey(c.ID)], c)
 		}
 	}
@@ -225,7 +224,7 @@ func MatchContracts(cs []Contract) (pairs []ContractPair, orphans []Contract) {
 		pairs = append(pairs, matched...)
 	}
 	for _, c := range cs {
-		if c.Role == contractProvider && !consumed[c.ID] {
+		if c.Role == ContractProvider && !consumed[c.ID] {
 			orphans = append(orphans, c)
 		}
 	}

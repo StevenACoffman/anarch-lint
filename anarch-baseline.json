@@ -1,6 +1,6 @@
 {
   "schema": "anarch-lint.baseline.v1",
-  "modelHash": "7ce11431a43bb8001dbda6b8065c3ee481e73fa25f32e6f846e1225444372ef4",
+  "modelHash": "07a59965e2f0f1aed9810231f425328bc7721ef59391fb394b5dca89635fb14f",
   "findings": [],
   "metrics": [
     {
@@ -50,12 +50,12 @@
     },
     {
       "name": "fitness.nccd.packages",
-      "value": 2.395349,
+      "value": 2.42963,
       "higherIsBetter": false
     },
     {
       "name": "fitness.nccd.subsystems",
-      "value": 0.97561,
+      "value": 0.955556,
       "higherIsBetter": false
     },
     {

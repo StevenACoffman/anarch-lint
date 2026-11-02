@@ -8,7 +8,7 @@
     "patterns": [
       "./..."
     ],
-    "modelHash": "a007ab43a12860288886fee33496a6ed2ed335108f0c92543ef66ca72d5b4909",
+    "modelHash": "6d865b4fc715a36762226f75a5426266e5c4b8410221660665d34a03939d451b",
     "thresholds": {
       "largeTypeLines": 400,
       "largeFuncLines": 60,

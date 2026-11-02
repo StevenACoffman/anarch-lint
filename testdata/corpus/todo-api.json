@@ -9,5 +9,12 @@
      "imports": ["github.com/MarioCarrion/todo-api/internal/redis"],
      "reason": "a planted rule the wiring breaks, so the corpus shows a VTA dispatch: the server hands the service a redis broker",
      "injected": true}
-  ]
+  ],
+  "fitness": {
+    "openapi": [
+      {"name": "api-documented", "path": "internal/rest/openapi3.yaml",
+       "servedBy": ["github.com/MarioCarrion/todo-api/internal/rest"],
+       "reason": "the OpenAPI document is the API's contract with its clients"}
+    ]
+  }
 }

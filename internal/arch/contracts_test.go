@@ -63,3 +63,21 @@ func TestContracts(t *testing.T) {
 	}
 	equals(t, []string{"http::GET::/health", "http::POST::/tasks"}, lonely)
 }
+
+// TestNormalizeRoute: a parameter is "{}" however a router or a document
+// writes it, a regular expression with braces of its own included, and a
+// trailing slash is dropped; a colon inside a segment is no parameter.
+func TestNormalizeRoute(t *testing.T) {
+	t.Parallel()
+	for in, want := range map[string]string{
+		"/tasks/{taskId}":                  "/tasks/{}",
+		"/tasks/{id:[0-9a-f]{8}-[0-9]{4}}": "/tasks/{}",
+		"/tasks/:id/":                      "/tasks/{}",
+		"/static/*filepath":                "/static/{}",
+		"/files/report.{ext}":              "/files/report.{}",
+		"/v1/tasks:search":                 "/v1/tasks:search",
+		"/":                                "/",
+	} {
+		equals(t, want, arch.NormalizeRoute(in))
+	}
+}
