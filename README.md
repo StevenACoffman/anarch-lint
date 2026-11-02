@@ -30,6 +30,10 @@ anarch-lint fitness                  # report ArchUnit-style fitness rules, metr
 anarch-lint baseline                 # record the accepted state
 anarch-lint check                    # gate against it
 anarch-lint check --new-from-rev main
+anarch-lint check --baseline-rev main # gate against main's code, measured under today's model
+anarch-lint explain example.com/app/a example.com/app/b # which rules examine an import, and why
+anarch-lint judge emit --config a=MODEL --config b=MODEL # ask judges the judgement slots
+anarch-lint diagram components.puml  # draft a model from a PlantUML diagram
 anarch-lint --format sarif check     # the gate's result as SARIF, for code scanning
 anarch-lint baseline --shrink        # remove what was fixed; accept nothing new
 anarch-lint render                   # write anarch.md, the model as Markdown
@@ -43,7 +47,7 @@ The shared flags come before the subcommand:
 | Flag           | Meaning                                                                                                                                 |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `-C`, `--dir`  | The directory to analyze. Reported paths are relative to it.                                                                            |
-| `--model`      | The model file. The default is `anarch.json` in `--dir`, if present.                                                                    |
+| `--model`      | The model file, JSON or YAML. The default is `anarch.json`, `anarch.yaml` or `anarch.yml` in `--dir`, if present.                       |
 | `--judgements` | Verdicts for the judgement slots.                                                                                                       |
 | `--codeowners` | The CODEOWNERS file, matched relative to `--dir`. The default is the first of `.github/CODEOWNERS`, `CODEOWNERS` and `docs/CODEOWNERS`. |
 | `--tags`       | A build tag (repeatable).                                                                                                               |
@@ -57,6 +61,7 @@ Exit status:
 | 1      | The run failed: packages didn't load, or a file is missing or invalid. |
 | 2      | The command line was wrong.                                            |
 | 3      | The gate failed.                                                       |
+| 4      | `judge admit`: a judge configuration missed a canary.                  |
 
 ## What It Measures
 
@@ -173,6 +178,9 @@ self-check` gates it against [`anarch-baseline.json`](anarch-baseline.json).
 }
 ```
 
+The model may be YAML instead, read as the JSON it stands for, so both
+spellings of one model hash alike.
+
 Without a model, the criteria that need one report themselves *unmeasured*,
 with the reason. They are never scored as zero.
 
@@ -191,10 +199,34 @@ following.
 | `connascence`                   | `{"maxStrength": {"package": 9, "subsystem": 5, "system": 3, "external": 2}, "maxDegree": {"system": 20}}`: the strongest kind (1 name to 9 identity) and the largest degree each locality allows. Setting either opts the connascence findings into `baseline` and `check`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `balance`                       | `{"gate": true, "messaging": ["github.com/nats-io/nats.go/..."]}`: `gate` opts the Balanced Coupling findings into `baseline` and `check`; `messaging` names message-bus clients, whose importers get an asynchrony slot.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `fitness`                       | ArchUnit-style rules, each with a `name`, a `reason`, a `gate` (`fail`, `warn` or `off`) and `optional`: `requireAssigned`, `strictLayers`, `layerAccess` (`mayOnlyBeAccessedBy`, `mayOnlyAccess`, `mayNotBeAccessedByAny`, `mayNotAccessAny`, `consideringAll`), `onion`, `slices` (`$*` groups, `freeOfCycles`, `notDependOnEachOther`), `dependents` (`onlyFrom`), `calls` (callees such as `time.Now` or `os.*`, with `only`), `interfacesOnly`, `libraries` (`from`, `allow`: the only third-party packages the `from` packages may import; an approval nothing uses is a warning), `fanOut` (`packages`, `max`: how many packages under analysis each may import), `coChange` (`when`, `require`, `except`: doublestar file globs such as `api/**/*.proto`, checked only by `check --new-from-rev`) and `domains` (see below). A rule that matches nothing fails unless optional, and so does a forbidden import, isolation (`from` or `mayImport`), role, subsystem interface or balance messaging pattern that matches nothing. |
+| `subsystems[].name` captures    | A subsystem named `$1` whose `packages` capture with `$*` (`example.com/app/$*/...`) is a template: it becomes one subsystem per distinct capture, as ArchUnit's slices.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `findingRules`                  | Gives a rule no model entry governs, such as `large-func` or `layer-order-violation`, a `gate`, a `reason` and a `qualityAttribute`. A forbidden import, isolation or fitness rule takes the same three keys and governs only its own findings.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `qualityAttribute`              | One of ISO 25010's characteristics, `functional_suitability`, `performance_efficiency`, `compatibility`, `usability`, `reliability`, `security`, `maintainability` and `portability`, or `availability`, `scalability`, `compliance` and `safety`. Findings carry it into the JSON and SARIF reports, and `anarch.md` groups rules by it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `thresholdOverrides`            | `[{"packages": ["example.com/app/gen/..."], "thresholds": {"largeFuncLines": 200}}]` gives packages their own structural limits; the first match wins, and the MMI keeps the module's.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `fitness.fields`                | `{"from": [...], "fields": ["example.com/app/order.Order.Status"], "writes": true, "only": true}` restricts reading or writing struct fields, as ArchUnit's `accessField`. A field may be `pkg.Type.*` or `pkg.*`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `fitness.unusedExports`         | `{"packages": [...]}` reports exported types, functions and constants that no other package nor external test uses, counting what is reachable through used API. Methods and package `main` are never reported.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `balance.packages`              | `true` measures Balanced Coupling between packages as well as subsystems.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `subsystems[].owner`            | The team that owns a subsystem, for the owner boundary. It takes precedence over CODEOWNERS.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 Adding or changing any section changes the model's hash, so record a new
-baseline afterwards. `anarch-lint schema` prints the model's JSON Schema,
+baseline afterwards. Reordering a list does not, except `layers`,
+`subsystemOrder`, `roles` and `thresholdOverrides`, whose order means
+something. The hash's canonical form is new in this release: every
+existing baseline is orphaned once, and needs re-recording with
+`anarch-lint baseline`.
+
+A package comment can assign its package instead of the model, with
+`//arch:subsystem NAME`, and mark it part of its subsystem's interface with
+`//arch:exposes`. The directives apply on load and leave the hash
+unchanged; two files of a package naming different subsystems fail the
+load.
+
+`check --new-from-rev` fails a change that loosens the bars it is measured
+against while also changing non-test Go code: a raised threshold, a
+lowered floor, a rule removed or its gate weakened, findings accepted into
+the baseline, or a waiver added or extended. Loosen them in a change of
+their own. Each finding carries its `reach`, how many packages depend on
+where it rests, and `check` ranks new findings by it. `anarch-lint schema` prints the model's JSON Schema,
 generated from the types anarch-lint reads; name its `$id` in the model's
 `$schema` key for editor completion.
 
@@ -213,7 +245,9 @@ An entity or enum matches the type of its name in the rule's `subsystem`
 (the whole program without one), or the type `types` maps it to where the
 names differ on purpose. The findings are `domain-entity-missing`,
 `domain-entity-ambiguous`, `domain-relationship-missing`,
-`domain-enum-missing`, `domain-enum-drift`, `domain-type-unmapped` and
+`domain-enum-missing`, `domain-enum-drift`, `domain-enum-order`,
+`domain-attribute-missing`, `domain-action-missing`,
+`domain-ownership-drift`, `domain-type-unmapped` and
 `domain-contract-entity`. The path may not leave the repository, and nothing
 is fetched over the network.
 
@@ -223,6 +257,19 @@ integration-pattern slots. It never answers them
 ([ADR 0005](docs/adr/0005-domain-inferences-are-evidence.md)). This
 repository checks itself against
 [`anarch-lint.modelith.yaml`](anarch-lint.modelith.yaml).
+
+## Inside `go test`
+
+`anarchtest` runs `check` as a test, as ArchUnit's rules run under JUnit:
+
+```go
+func TestArchitecture(t *testing.T) {
+	anarchtest.Check(t, nil)
+}
+```
+
+The zero options check `./...` against the model and baseline in the
+package's directory. Loading the packages takes seconds.
 
 ## Rendering and Agent Skills
 
@@ -315,6 +362,16 @@ attests it and its hash matches the current evidence. Otherwise the slot is:
 The first format, with `provenance` and `approved` instead of `events`,
 still reads: an approved verdict as a human event, and a draft as a judge's.
 
+`anarch-lint judge` relays the slots to judges it does not run itself, such
+as LLM agents. `judge emit` writes one prompt per pending or stale slot,
+judge configuration (at least two) and sample under `.anarch/judging/run`,
+mixing in canaries of known answer. `judge admit` parses the replies
+strictly, refuses a configuration's answers in any family whose canaries it
+missed (exit status 4), tallies the rest, and records them as judges'
+events: drafts until a human attests them. `judge report` shows the
+canaries, the gold set's agreement and calibration (`--gold`), the tallies
+and the rejected replies.
+
 A slot never gates by itself:
 
 - an MMI verdict narrows the MMI interval;
@@ -341,7 +398,8 @@ anarch-lint is a functional core with an imperative shell.
   tested: gonum for graph algorithms and communities, doublestar for file
   globs, and levenshtein for the corrections of misspelled patterns
   ([ADR 0012](docs/adr/0012-the-core-approves-its-libraries.md)).
-- `internal/connascence`, `internal/balance` and `internal/fitness` are pure
+- `internal/connascence`, `internal/balance`, `internal/fitness` and
+  `internal/judging` are pure
   measures over
   `arch`'s facts. None imports another or any adapter; `cmd` passes the
   connascence instances to `balance`. The repository's own model enforces
@@ -355,10 +413,14 @@ anarch-lint is a functional core with an imperative shell.
     `hmarr/codeowners`;
   - `internal/coverage`: coverage profiles, through `golang.org/x/tools/cover`;
   - `internal/sarif`: SARIF 2.1.0, through `owenrumney/go-sarif`;
-  - `internal/modelith`: modelith's YAML, through `sigs.k8s.io/yaml`;
+  - `internal/modelith`: modelith's YAML, through
+    `StevenACoffman/indomain`, the reader codetospec shares;
+  - `internal/plantuml`: PlantUML component diagrams, by a small parser of
+    its own, since no Go library reads them;
   - `internal/text`: `text/tabwriter`, and Markdown for `render`;
   - `internal/schema`: the model's JSON Schema, generated by reflection.
-- `cmd` wires the adapters together.
+- `internal/pipeline` wires the adapters together, for `cmd` and
+  `anarchtest` alike.
 
 Decisions a well-meant change might undo are recorded in
 [`docs/adr/`](docs/adr), each pinned by a test named after it.

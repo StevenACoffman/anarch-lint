@@ -93,24 +93,33 @@ these instead:
 Built since this file was written, with where the result departs from the
 idea:
 
-| Idea | Built                                                                                                                                                                                                                   |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1.1  | In `fitness`: `redundant-rule` and `unusable-allowance` warnings over classes of the packages there are, not declared inputs; the report's `verification` says whether the rules were checked. Isolations are left out. |
-| 1.2  | As `empty-selector` findings, beside the other model patterns, rather than `stale-pattern`.                                                                                                                             |
-| 2.1  | In part: every finding names its `modelRule`. Explaining a pass remains.                                                                                                                                                |
-| 2.3  | In part: `excluded` lists generated and build-constrained files, and `sizes` counts them; nothing gates on the share.                                                                                                   |
-| 2.4  | In part: a cycle finding is in scope when a change touches any of its edges (ADR 0011); the shortest closing path is not reported.                                                                                      |
-| 3.1  | In part: `arch.Ref.Kinds` has five kinds (`embed`, `field`, `definition`, `signature`, `body`), which a type cycle's fix names; rules on kinds remain.                                                                  |
-| 4.1  | In `balance`, with `--since-rev`: `coChange`, `hotspots`, and `hidden-coupling` candidates.                                                                                                                             |
-| 4.2  | The `coChange` fitness rule, checked by `check --new-from-rev`, over doublestar globs; the boundary guard remains.                                                                                                      |
-| 6.4  | In `balance`, with `--coverprofile`: `coverage` by package and `untested-dependency` candidates; uncovered new cross-subsystem functions remain.                                                                        |
-| 8.1  | In part: the corpus tests fail unless each clone is at its pinned commit; committing full outputs remains.                                                                                                              |
-| 8.2  | In part: `testdata/gx` pins call resolution through aliased, dot and shadowed names.                                                                                                                                    |
-| 8.3  | rapid properties: `Analyze` is byte-identical across runs, and the graph measures ignore reference order.                                                                                                               |
-| 9.1  | With `golangci/dupl`, not MinHash: `algorithm.partial-clone` candidates in `connascence`, for runs of code repeated in two or more packages.                                                                            |
-| 9.3  | In `analyze`: `communities`, gonum's Louvain split into connected parts, and `misplaced` packages; the starter model remains.                                                                                           |
-| 9.6  | With `uudashr/gocognit`: `Func.Cognitive` and `cognitive-complexity` warnings above `highCognitive` (15).                                                                                                               |
-| 9.8  | The `fanOut` fitness rule.                                                                                                                                                                                              |
+| Idea | Built                                                                                                                                                                                                                          |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1.1  | In `fitness`: `redundant-rule` and `unusable-allowance` warnings over classes of the packages there are, not declared inputs; the report's `verification` says whether the rules were checked. Isolations are left out.        |
+| 1.2  | As `empty-selector` findings, beside the other model patterns, rather than `stale-pattern`.                                                                                                                                    |
+| 1.4  | The hash reads a canonical model: every list sorted except `layers`, `subsystemOrder`, `roles` and `thresholdOverrides`. Every baseline was orphaned once.                                                                     |
+| 1.6  | `thresholdOverrides`, first match wins, for the structural rules; the MMI keeps the module's limits.                                                                                                                           |
+| 1.7  | Decided against: no rule asks for a predicate language yet, the idea's own condition.                                                                                                                                          |
+| 2.1  | Every finding names its `modelRule`, and `anarch-lint explain IMPORTER IMPORTED` lists every rule that examines an import, with why it allows or forbids it.                                                                   |
+| 2.2  | A rule catalog, one name and summary per rule, and model problem codes (`model: CODE: text`).                                                                                                                                  |
+| 2.3  | In part: `excluded` lists generated and build-constrained files, and `sizes` counts them; nothing gates on the share.                                                                                                          |
+| 2.4  | In part: a cycle finding is in scope when a change touches any of its edges (ADR 0011); the shortest closing path is not reported.                                                                                             |
+| 3.1  | `arch.Ref.Kinds` classifies body references by syntax (call, composite literal, conversion, type argument, field access, …) besides `embed`, `field`, `definition` and `signature`.                                            |
+| 3.2  | Findings carry a typed `provenance`: `types`, `source`, `injected` or `dispatch`.                                                                                                                                              |
+| 4.1  | In `balance`, with `--since-rev`: `coChange`, `hotspots`, and `hidden-coupling` candidates.                                                                                                                                    |
+| 4.2  | The `coChange` fitness rule, checked by `check --new-from-rev`, over doublestar globs; the boundary guard remains.                                                                                                             |
+| 5.1  | In part: gRPC registrations and clients, and constant HTTP routes, from the Go facts, as balance evidence. The protobuf, GraphQL and OpenAPI parsers are not adopted.                                                          |
+| 6.1  | `check --new-from-rev` fails a change that loosens its bars (model, baseline, waivers) and changes non-test Go code.                                                                                                           |
+| 6.2  | `Finding.Reach`, the packages depending on the finding's package; the text report ranks new findings by it.                                                                                                                    |
+| 6.4  | In `balance`, with `--coverprofile`: `coverage` by package and `untested-dependency` candidates; uncovered new cross-subsystem functions remain.                                                                               |
+| 8.1  | The corpus tests fail unless each clone is at its pinned commit, and compare whole reports with committed goldens.                                                                                                             |
+| 8.2  | A catalog-wide test that every rule has a failing case; `testdata/gx` pins call resolution through aliased, dot and shadowed names.                                                                                            |
+| 8.3  | rapid properties: `Analyze` is byte-identical across runs, and the graph measures ignore reference order.                                                                                                                      |
+| 9.1  | With `golangci/dupl`, not MinHash: `algorithm.partial-clone` candidates in `connascence`, for runs of code repeated in two or more packages. Bodies identical as `go/format` prints them are facts, not candidates (ADR 0013). |
+| 9.2  | `fitness.unusedExports`, counting what used API exposes as used.                                                                                                                                                               |
+| 9.3  | In `analyze`: `communities`, gonum's Louvain split into connected parts, and `misplaced` packages; the starter model remains.                                                                                                  |
+| 9.6  | With `uudashr/gocognit`: `Func.Cognitive` and `cognitive-complexity` warnings above `highCognitive` (15).                                                                                                                      |
+| 9.8  | The `fanOut` fitness rule.                                                                                                                                                                                                     |
 
 ## Dependency Decisions
 
@@ -133,8 +142,11 @@ need no approval.
 | `github.com/agnivade/levenshtein`                                    | MIT                  | core (approved)       | corrections of misspelled patterns                                                  |
 | `golang.org/x/mod/modfile`                                           | BSD-3                | `internal/gopackages` | the module path of a nested module                                                  |
 | `github.com/google/renameio/v2/maybe`                                | Apache-2.0           | `cmd`                 | atomic writes of the baseline and `anarch.md`; in place on Windows                  |
-| `golang.org/x/tools/go/callgraph/vta`                                | BSD-3                | not yet               | run-time wiring (`TODO.md`)                                                         |
-| `bufbuild/protocompile`, `vektah/gqlparser/v2`, `getkin/kin-openapi` | Apache-2.0, MIT, MIT | not yet               | contracts (5.1)                                                                     |
+| `golang.org/x/tools/go/callgraph/vta`                                | BSD-3                | `internal/gopackages` | run-time wiring: `Dispatch`es for `injected` forbidden imports                      |
+| `github.com/StevenACoffman/indomain`                                 | Apache-2.0           | `internal/modelith`   | modelith domain models, the reader codetospec shares                                |
+| `sigs.k8s.io/yaml`                                                   | MIT, BSD-3           | `internal/pipeline`   | YAML models, read as the JSON they stand for                                        |
+| `github.com/StevenACoffman/skillet`                                  | MIT                  | `cmd/judge`           | Wilson intervals and calibration of the judges; too little used for the core        |
+| `bufbuild/protocompile`, `vektah/gqlparser/v2`, `getkin/kin-openapi` | Apache-2.0, MIT, MIT | not adopted           | contract files (5.1); the Go facts cover gRPC and HTTP so far                       |
 
 Kept bespoke, with the reason in the code:
 
@@ -143,6 +155,7 @@ Kept bespoke, with the reason in the code:
 - Component Rank: gonum's `network.PageRank` stops at a tolerance and sums in
   map order, so its last digits can vary.
 - The SDI minimum cut and its Eades–Lin–Smyth ordering: no library offers it.
+- The PlantUML component-diagram parser: no Go library reads PlantUML.
 - The Plain and Modified cyclomatic variants: gocyclo computes only the
   Extended one, which remains its test oracle.
 
@@ -165,7 +178,9 @@ two loaders found three bugs in anarch-lint and a gap, now fixed:
 Verifying them found more, also fixed: a failed baseline write truncated the
 old file; an untracked file whose name has a space became two paths; a
 method of a generic type was named with its type parameter, which a `calls`
-rule had to spell. Adopted besides: `check` says what it did not read, by
+rule had to spell. Adopted besides: `judge emit` caps each prompt's exhibits by count and
+bytes, and counts what it left out (techne's output budgets);
+`check` says what it did not read, by
 reason, so a pass reads as "nothing new in what was read" (techne's
 completeness axis; anarch-lint needs no fidelity axis, since it refuses code
 that does not load), and a pattern that matches nothing suggests the
@@ -173,8 +188,6 @@ correction of a misspelled segment (techne's `address.go`).
 
 Deferred:
 
-- Output budgets with a counted truncation caveat (`techne-tool/budget.go`),
-  for the judge's payloads (§7).
 - Loading each module below the root as a program of its own, as techne's
   load plans do; the model, the baseline and the measures assume one program.
 - Test variants (`p [p.test]` and `p_test`), should tests ever count.
@@ -948,19 +961,14 @@ implements the specification; anarch-lint uses it.
 
 Of what remains, after the work in "Status":
 
-1. Provenance on references (3.2) and rules on kinds (3.1), which
-   field-access rules, file aggregation (2.5) and contracts build on.
-2. Explaining a pass (2.1) and diagnostic codes (2.2).
-3. Committed corpus outputs and must-fail fixtures for every rule kind (8.1,
-   8.2).
-4. The judge's mechanical checks and canaries (§7), with `mmi-plan.md` §9
-   step 7, and techne's output budgets for the judge's payloads.
-5. Locked bars and reach ranking (6.1, 6.2).
-6. Contracts (5.1), with the parsers chosen in "Dependency Decisions", and
-   unused API (9.2).
-7. Run-time wiring from a VTA call graph (`TODO.md`).
-8. A set-insensitive hash (1.4), per-package limits (1.6), then a predicate
-   language (1.7) if a rule calls for it.
+1. The shortest path a change closes a cycle by (2.4), and aggregating a
+   coupling by file and kind (2.5).
+2. Contract files (5.1): protobuf, GraphQL and OpenAPI, when a codebase
+   under analysis has them.
+3. The judge's promotion to `automatic`, once gold labels exist (§7.5), and
+   the adversary role.
+4. Code annotations that link to a domain model (9.4) and invariants from
+   guard shapes (9.5).
 
 ## Licensing
 
