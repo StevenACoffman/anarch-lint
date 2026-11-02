@@ -19,6 +19,11 @@ import (
 	"github.com/StevenACoffman/indomain/pkg/model"
 )
 
+// lintHint ends the message of an invalid model: anarch-lint decodes a
+// model strictly but does not lint it, and modelith's linter names every
+// problem of the file, not only the first one decoding meets.
+const lintHint = " (check the file with `modelith lint`)"
+
 // The kind and version of the one format this package reads.
 const (
 	kind    = "DomainModel"
@@ -27,10 +32,14 @@ const (
 
 // Parse reads the domain model src, the contents of the file at file. A file
 // that is not YAML, has a field the format lacks, or is not a DomainModel of
-// version v1, is EINVALID naming the file.
+// version v1, is EINVALID naming the file and pointing to `modelith lint`,
+// which checks what this strict decoding does not.
 func Parse(file string, src []byte) (arch.DomainModel, error) {
 	invalid := func(format string, args ...any) error {
-		return &arch.Error{Code: arch.EINVALID, Message: file + ": " + fmt.Sprintf(format, args...)}
+		return &arch.Error{
+			Code:    arch.EINVALID,
+			Message: file + ": " + fmt.Sprintf(format, args...) + lintHint,
+		}
 	}
 	doc, err := model.Parse(src)
 	if err != nil {

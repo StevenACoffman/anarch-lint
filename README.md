@@ -250,7 +250,10 @@ names differ on purpose. The findings are `domain-entity-missing`,
 `domain-attribute-missing`, `domain-action-missing`,
 `domain-ownership-drift`, `domain-type-unmapped` and
 `domain-contract-entity`. The path may not leave the repository, and nothing
-is fetched over the network.
+is fetched over the network. anarch-lint decodes a model strictly, so a
+field the format lacks is an error, but it does not lint the model: check
+it with `modelith lint`, which the error for an invalid model also
+suggests.
 
 A domain model is also evidence for the judgement slots: the subsystem it
 describes, and the models it imports, appear in the bounded-context and

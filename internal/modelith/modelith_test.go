@@ -2,6 +2,7 @@ package modelith_test
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
@@ -106,6 +107,9 @@ func TestParseRejects(t *testing.T) {
 			t.Parallel()
 			_, err := modelith.Parse("m.modelith.yaml", []byte(src))
 			equals(t, arch.EINVALID, arch.ErrorCode(err))
+			if msg := arch.ErrorMessage(err); !strings.Contains(msg, "modelith lint") {
+				t.Errorf("message %q does not point to modelith lint", msg)
+			}
 		})
 	}
 }
