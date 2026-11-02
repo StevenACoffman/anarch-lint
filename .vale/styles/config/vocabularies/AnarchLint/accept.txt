@@ -51,3 +51,5 @@ cgo
 renameio
 codetospec
 Jaccard
+JUnit
+unjudged
