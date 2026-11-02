@@ -768,6 +768,34 @@ func TestADR_0012_TheCoreApprovesItsLibraries(t *testing.T) {
 	}
 }
 
+// TestADR_0015_TheSelfCheckKeepsThreeLayers: the self-check model's layers
+// are command, adapter and domain, in that order, and domain holds the
+// core and every pure measure.
+func TestADR_0015_TheSelfCheckKeepsThreeLayers(t *testing.T) {
+	t.Parallel()
+	src, err := os.ReadFile("anarch.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := arch.DecodeModel(bytes.NewReader(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := make([]string, len(m.Layers))
+	for i, l := range m.Layers {
+		names[i] = l.Name
+	}
+	if want := []string{"command", "adapter", "domain"}; !slices.Equal(names, want) {
+		t.Fatalf("layers %q, want %q", names, want)
+	}
+	const mod = "github.com/StevenACoffman/anarch-lint/internal/"
+	for _, core := range []string{"arch", "connascence", "balance", "fitness", "judging"} {
+		if !arch.MatchesAny(m.Layers[2].Packages, mod+core) {
+			t.Errorf("the domain layer does not hold %s", core)
+		}
+	}
+}
+
 func TestRenderGolden(t *testing.T) {
 	t.Parallel()
 	out := filepath.Join(t.TempDir(), "anarch.md")
