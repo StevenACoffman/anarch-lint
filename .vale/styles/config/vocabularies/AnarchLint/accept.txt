@@ -49,3 +49,5 @@ gocognit('s)?
 cgo
 [Ll]evenshtein
 renameio
+codetospec
+Jaccard
