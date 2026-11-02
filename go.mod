@@ -2,7 +2,7 @@ module github.com/StevenACoffman/anarch-lint
 
 go 1.27.1
 
-toolchain go1.27.2
+toolchain go1.27.3
 
 require (
 	github.com/StevenACoffman/indomain v0.3.0
