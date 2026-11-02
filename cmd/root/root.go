@@ -7,6 +7,8 @@ import (
 	"io"
 
 	"github.com/peterbourgon/ff/v4"
+
+	"github.com/StevenACoffman/anarch-lint/internal/pipeline"
 )
 
 // ErrUsage matches any usage error through [errors.Is]: a missing or
@@ -45,19 +47,10 @@ type Config struct {
 	Flags   *ff.FlagSet
 	Command *ff.Command
 
-	// Dir is the directory to analyze, and the root of every reported path.
-	Dir string
-	// ModelPath is the target-architecture model; empty means anarch.json in
-	// Dir if it exists, and an empty model if it does not.
-	ModelPath string
-	// JudgementsPath optionally supplies verdicts for the judgement slots.
-	JudgementsPath string
-	// CodeownersPath names the CODEOWNERS file for Balanced Coupling's
-	// owner boundary; empty means the first of .github/CODEOWNERS,
-	// CODEOWNERS and docs/CODEOWNERS in Dir, if any.
-	CodeownersPath string
-	// Tags are build tags.
-	Tags []string
+	// Options are where the measurement reads its inputs, bound to the
+	// flags; their methods (Load, GateInput, ReadBaseline, ...) are the
+	// commands' shared shell.
+	pipeline.Options
 	// Format is "text" or "json".
 	Format string
 }

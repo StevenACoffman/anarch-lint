@@ -1,5 +1,5 @@
 anarch-lint fitness (anarch-lint.fitness.v1)
-patterns ./... · model 431b952e8ede · GOVERSION
+patterns ./... · model 305dda9530c9 · GOVERSION
 
 RULES
   rule                  kind             gate  matched  violations  status  reason                                      
@@ -14,9 +14,9 @@ RULES
   patterns-in-billing   calls            fail  2        1           failed  none                                        
   web-ports             interfacesOnly   fail  1        4           failed  none                                        
   requireAssigned       requireAssigned  fail  7        0           passed  none                                        
-  cx-model              domains          fail  7        6           failed  the code speaks the fixture's domain model  
+  cx-model              domains          fail  8        7           failed  the code speaks the fixture's domain model  
 
-FINDINGS (15 errors, 9 warnings)
+FINDINGS (15 errors, 11 warnings)
   error    call-restriction  example.com/cx/web  web/admin.go:14
            example.com/cx/web calls regexp.MustCompile
            model rule: fitness.calls patterns-in-billing
@@ -33,6 +33,12 @@ FINDINGS (15 errors, 9 warnings)
            example.com/cx/auth.Credentials expresses entity Credentials, yet plays the contract role: the code speaks the fixture's domain model
            model rule: fitness.domains cx-model
            fix: keep the entity type in the model and give the contract its own type, or drop the role
+  error    domain-entity-ambiguous  cx.modelith.yaml:Receipt  
+           entity Receipt matches 2 types: the code speaks the fixture's domain model
+           model rule: fitness.domains cx-model
+           evidence: example.com/cx/audit.Receipt
+           evidence: example.com/cx/billing.Receipt
+           fix: map the entity to one type in the rule's types, or rename the others
   error    domain-entity-missing  cx.modelith.yaml:Session  
            domain model cx.modelith.yaml declares entity Session, and no type expresses it: the code speaks the fixture's domain model
            model rule: fitness.domains cx-model
@@ -54,10 +60,6 @@ FINDINGS (15 errors, 9 warnings)
            cx-model maps Ledger to example.com/cx/billing.Ledger, which is no type of the program: the code speaks the fixture's domain model
            model rule: fitness.domains cx-model
            fix: correct the type ID, or remove the mapping if the concept has no type yet
-  error    empty-selector  forbiddenImports[0]  
-           the imports of forbiddenImports[0] match nothing, so the rule checks nothing
-           model rule: forbiddenImports[0]
-           fix: correct the patterns, or remove the rule
   error    empty-selector  nothing-yet  
            fitness rule nothing-yet (dependents) matches nothing
            model rule: fitness.dependents nothing-yet
@@ -94,6 +96,12 @@ FINDINGS (15 errors, 9 warnings)
   warning  rule-without-reason  areas  
            fitness rule areas (slices) gives no reason
            fix: add a reason saying what the rule protects and why
+  warning  rule-without-reason  interfaces  
+           rule interfaces gives no reason
+           fix: add a reason saying what the rule protects and why, under findingRules.interface-bypass
+  warning  rule-without-reason  layers  
+           rule layers gives no reason
+           fix: add a reason saying what the rule protects and why, under findingRules.layer-order-violation
   warning  rule-without-reason  maybe-later  
            fitness rule maybe-later (dependents) gives no reason
            fix: add a reason saying what the rule protects and why
@@ -112,11 +120,11 @@ FINDINGS (15 errors, 9 warnings)
 
 LAKOS
   level       nodes  CCD  ACD    RACD   NCCD   
-  types       8      9    1.125  0.141  0.429  
+  types       10     11   1.100  0.110  0.379  
   packages    7      14   2.000  0.286  0.824  
   subsystems  5      8    1.600  0.320  0.727  
 
-VISIBILITY (Dowalil)  ARV 0.714  GRV 0.941
+VISIBILITY (Dowalil)  ARV 0.714  GRV 0.950
 
 COMPONENT DEPENDENCY METRICS (ArchUnit's definitions)
   package                    Ca  Ce  I      A      D      

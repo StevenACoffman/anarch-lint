@@ -27,6 +27,17 @@ enums:
 entities:
   Visit:
     definition: One car's stay.
+    attributes:
+      - name: plate
+        type: string
+      - name: hours
+        type: int
+        derived: true
+        derivation: From entry to exit.
+    actions:
+      - open
+      - name: close
+        actor: Attendant
     relationships:
       - entity: Ticket
         cardinality: "1:1"
@@ -67,12 +78,15 @@ func TestParse(t *testing.T) {
 			{Scope: "payments", Path: "./payments.modelith.yaml"},
 		},
 		Glossary: []string{"Attendant", "Owner"},
-		Enums:    []arch.DomainEnum{{Name: "VisitStatus", Values: []string{"closed", "open"}}},
+		Enums:    []arch.DomainEnum{{Name: "VisitStatus", Values: []string{"open", "closed"}}},
 		Entities: []arch.DomainEntity{
 			{Name: "Ticket"},
-			{Name: "Visit", Relationships: []arch.DomainRelationship{
-				{Entity: "Ticket", Owned: true}, {Entity: "payments.PaymentMethod"},
-			}},
+			{
+				Name: "Visit", Relationships: []arch.DomainRelationship{
+					{Entity: "Ticket", Owned: true}, {Entity: "payments.PaymentMethod"},
+				},
+				Attributes: []string{"plate"}, Actions: []string{"open", "close"},
+			},
 		},
 		Invariants: []string{"one-open-visit", "paid-before-exit"},
 	}, m)
@@ -85,6 +99,7 @@ func TestParseRejects(t *testing.T) {
 		"another kind":       "kind: Something\nversion: v1\n",
 		"another version":    "kind: DomainModel\nversion: v2\n",
 		"a malformed import": "kind: DomainModel\nversion: v1\nimports:\n  - {scope: x}\n",
+		"an unknown field":   "kind: DomainModel\nversion: v1\nentities:\n  A:\n    definition: a\n    colour: red\n",
 	}
 	for name, src := range cases {
 		t.Run(name, func(t *testing.T) {

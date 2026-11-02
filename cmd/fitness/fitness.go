@@ -10,6 +10,7 @@ import (
 
 	"github.com/StevenACoffman/anarch-lint/cmd/root"
 	"github.com/StevenACoffman/anarch-lint/internal/fitness"
+	"github.com/StevenACoffman/anarch-lint/internal/pipeline"
 	"github.com/StevenACoffman/anarch-lint/internal/text"
 )
 
@@ -52,7 +53,7 @@ to gate.`,
 }
 
 func (cfg *Config) exec(ctx context.Context, args []string) error {
-	l, err := cfg.Load(ctx, args, root.AllFacts)
+	l, err := cfg.Load(ctx, args, pipeline.AllFacts)
 	if err != nil {
 		return fmt.Errorf("fitness: %w", err)
 	}

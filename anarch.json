@@ -1,7 +1,7 @@
 {
   "version": 1,
   "subsystems": [
-    {"name": "cli", "packages": ["github.com/StevenACoffman/anarch-lint", "github.com/StevenACoffman/anarch-lint/cmd/..."],
+    {"name": "cli", "packages": ["github.com/StevenACoffman/anarch-lint", "github.com/StevenACoffman/anarch-lint/cmd/...", "github.com/StevenACoffman/anarch-lint/internal/pipeline", "github.com/StevenACoffman/anarch-lint/anarchtest"],
      "interface": ["github.com/StevenACoffman/anarch-lint/cmd/root"]},
     {"name": "presentation", "packages": ["github.com/StevenACoffman/anarch-lint/internal/text", "github.com/StevenACoffman/anarch-lint/internal/schema", "github.com/StevenACoffman/anarch-lint/internal/sarif"],
      "interface": ["github.com/StevenACoffman/anarch-lint/internal/text", "github.com/StevenACoffman/anarch-lint/internal/schema", "github.com/StevenACoffman/anarch-lint/internal/sarif"]},
@@ -9,6 +9,8 @@
      "interface": ["github.com/StevenACoffman/anarch-lint/internal/gopackages"]},
     {"name": "vcs", "packages": ["github.com/StevenACoffman/anarch-lint/internal/git"],
      "interface": ["github.com/StevenACoffman/anarch-lint/internal/git"]},
+    {"name": "diagrams", "packages": ["github.com/StevenACoffman/anarch-lint/internal/plantuml"],
+     "interface": ["github.com/StevenACoffman/anarch-lint/internal/plantuml"]},
     {"name": "domain-models", "packages": ["github.com/StevenACoffman/anarch-lint/internal/modelith"],
      "interface": ["github.com/StevenACoffman/anarch-lint/internal/modelith"]},
     {"name": "ownership", "packages": ["github.com/StevenACoffman/anarch-lint/internal/codeowners"],
@@ -21,60 +23,75 @@
      "interface": ["github.com/StevenACoffman/anarch-lint/internal/balance"]},
     {"name": "connascence", "packages": ["github.com/StevenACoffman/anarch-lint/internal/connascence"],
      "interface": ["github.com/StevenACoffman/anarch-lint/internal/connascence"]},
+    {"name": "judging", "packages": ["github.com/StevenACoffman/anarch-lint/internal/judging"],
+     "interface": ["github.com/StevenACoffman/anarch-lint/internal/judging"]},
     {"name": "domain", "packages": ["github.com/StevenACoffman/anarch-lint/internal/arch"],
      "interface": ["github.com/StevenACoffman/anarch-lint/internal/arch"]}
   ],
-  "subsystemOrder": ["cli", "presentation", "loading", "vcs", "domain-models", "ownership", "coverage", "fitness", "balance", "connascence", "domain"],
+  "subsystemOrder": ["cli", "presentation", "loading", "vcs", "diagrams", "domain-models", "ownership", "coverage", "fitness", "balance", "connascence", "judging", "domain"],
   "layers": [
-    {"name": "command", "packages": ["github.com/StevenACoffman/anarch-lint", "github.com/StevenACoffman/anarch-lint/cmd/..."]},
+    {"name": "command", "packages": ["github.com/StevenACoffman/anarch-lint", "github.com/StevenACoffman/anarch-lint/cmd/...", "github.com/StevenACoffman/anarch-lint/internal/pipeline", "github.com/StevenACoffman/anarch-lint/anarchtest"]},
     {"name": "adapter", "packages": ["github.com/StevenACoffman/anarch-lint/internal/text", "github.com/StevenACoffman/anarch-lint/internal/schema", "github.com/StevenACoffman/anarch-lint/internal/sarif",
       "github.com/StevenACoffman/anarch-lint/internal/gopackages", "github.com/StevenACoffman/anarch-lint/internal/git",
-      "github.com/StevenACoffman/anarch-lint/internal/codeowners", "github.com/StevenACoffman/anarch-lint/internal/modelith", "github.com/StevenACoffman/anarch-lint/internal/coverage"]},
+      "github.com/StevenACoffman/anarch-lint/internal/codeowners", "github.com/StevenACoffman/anarch-lint/internal/modelith", "github.com/StevenACoffman/anarch-lint/internal/coverage",
+      "github.com/StevenACoffman/anarch-lint/internal/plantuml"]},
     {"name": "domain", "packages": ["github.com/StevenACoffman/anarch-lint/internal/arch",
       "github.com/StevenACoffman/anarch-lint/internal/connascence",
       "github.com/StevenACoffman/anarch-lint/internal/balance",
-      "github.com/StevenACoffman/anarch-lint/internal/fitness"]}
+      "github.com/StevenACoffman/anarch-lint/internal/fitness",
+      "github.com/StevenACoffman/anarch-lint/internal/judging"]}
   ],
   "isolations": [
     {"from": "github.com/StevenACoffman/anarch-lint/internal/connascence",
      "mayImport": ["github.com/StevenACoffman/anarch-lint/internal/arch"],
-     "reason": "a measure reads arch's facts and knows no adapter and no other measure; only cmd wires them (summary_rules §1, §5)"},
+     "reason": "a measure reads arch's facts and knows no adapter and no other measure; only cmd wires them (summary_rules §1, §5)", "qualityAttribute": "maintainability"},
     {"from": "github.com/StevenACoffman/anarch-lint/internal/balance",
      "mayImport": ["github.com/StevenACoffman/anarch-lint/internal/arch"],
-     "reason": "a measure reads arch's facts and knows no adapter and no other measure; only cmd wires them (summary_rules §1, §5)"},
+     "reason": "a measure reads arch's facts and knows no adapter and no other measure; only cmd wires them (summary_rules §1, §5)", "qualityAttribute": "maintainability"},
     {"from": "github.com/StevenACoffman/anarch-lint/internal/fitness",
      "mayImport": ["github.com/StevenACoffman/anarch-lint/internal/arch"],
-     "reason": "a measure reads arch's facts and knows no adapter and no other measure; only cmd wires them (summary_rules §1, §5)"},
+     "reason": "a measure reads arch's facts and knows no adapter and no other measure; only cmd wires them (summary_rules §1, §5)", "qualityAttribute": "maintainability"},
+    {"from": "github.com/StevenACoffman/anarch-lint/internal/judging",
+     "mayImport": ["github.com/StevenACoffman/anarch-lint/internal/arch"],
+     "reason": "the judging layer reads arch's slots and verdicts and knows no adapter and no measure; only cmd wires it (mmi-plan.md §9.4)", "qualityAttribute": "maintainability"},
     {"from": "github.com/StevenACoffman/anarch-lint/internal/modelith",
      "mayImport": ["github.com/StevenACoffman/anarch-lint/internal/arch"],
-     "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)"},
+     "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)", "qualityAttribute": "maintainability"},
+    {"from": "github.com/StevenACoffman/anarch-lint/internal/plantuml",
+     "mayImport": ["github.com/StevenACoffman/anarch-lint/internal/arch"],
+     "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)", "qualityAttribute": "maintainability"},
     {"from": "github.com/StevenACoffman/anarch-lint/internal/codeowners",
      "mayImport": ["github.com/StevenACoffman/anarch-lint/internal/arch"],
-     "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)"},
+     "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)", "qualityAttribute": "maintainability"},
     {"from": "github.com/StevenACoffman/anarch-lint/internal/coverage",
      "mayImport": ["github.com/StevenACoffman/anarch-lint/internal/arch"],
-     "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)"},
+     "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)", "qualityAttribute": "maintainability"},
     {"from": "github.com/StevenACoffman/anarch-lint/internal/sarif",
      "mayImport": ["github.com/StevenACoffman/anarch-lint/internal/arch"],
-     "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)"}
+     "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)", "qualityAttribute": "maintainability"}
   ],
   "forbiddenImports": [
     {"from": ["github.com/StevenACoffman/anarch-lint/internal/arch"],
      "imports": ["os", "os/...", "time", "math/rand"],
-     "reason": "the domain is a pure functional core: no I/O, no clock, no global randomness (mmi-plan.md §2); a seeded math/rand/v2 source is deterministic, and its libraries are approved by core-approved-libraries (docs/adr/0012)"},
-    {"from": ["github.com/StevenACoffman/anarch-lint/internal/connascence", "github.com/StevenACoffman/anarch-lint/internal/balance", "github.com/StevenACoffman/anarch-lint/internal/fitness"],
+     "reason": "the domain is a pure functional core: no I/O, no clock, no global randomness (mmi-plan.md §2); a seeded math/rand/v2 source is deterministic, and its libraries are approved by core-approved-libraries (docs/adr/0012)", "qualityAttribute": "maintainability"},
+    {"from": ["github.com/StevenACoffman/anarch-lint/internal/connascence", "github.com/StevenACoffman/anarch-lint/internal/balance", "github.com/StevenACoffman/anarch-lint/internal/fitness", "github.com/StevenACoffman/anarch-lint/internal/judging"],
      "imports": ["os", "os/...", "time", "math/rand"],
-     "reason": "a measure is a pure functional core like the domain: no I/O, no clock, no global randomness (mmi-plan.md §2); its libraries are approved by core-approved-libraries (docs/adr/0012)"},
+     "reason": "a measure is a pure functional core like the domain: no I/O, no clock, no global randomness (mmi-plan.md §2); its libraries are approved by core-approved-libraries (docs/adr/0012)", "qualityAttribute": "maintainability"},
     {"from": ["github.com/StevenACoffman/anarch-lint/internal/gopackages"],
      "imports": ["github.com/StevenACoffman/anarch-lint/internal/git", "github.com/StevenACoffman/anarch-lint/internal/text", "github.com/StevenACoffman/anarch-lint/internal/codeowners", "github.com/StevenACoffman/anarch-lint/internal/modelith", "github.com/StevenACoffman/anarch-lint/internal/sarif", "github.com/StevenACoffman/anarch-lint/internal/coverage"],
-     "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)"},
+     "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)", "qualityAttribute": "maintainability"},
     {"from": ["github.com/StevenACoffman/anarch-lint/internal/git"],
      "imports": ["github.com/StevenACoffman/anarch-lint/internal/gopackages", "github.com/StevenACoffman/anarch-lint/internal/text", "github.com/StevenACoffman/anarch-lint/internal/codeowners", "github.com/StevenACoffman/anarch-lint/internal/modelith", "github.com/StevenACoffman/anarch-lint/internal/sarif", "github.com/StevenACoffman/anarch-lint/internal/coverage"],
-     "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)"},
+     "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)", "qualityAttribute": "maintainability"},
     {"from": ["github.com/StevenACoffman/anarch-lint/internal/text"],
      "imports": ["github.com/StevenACoffman/anarch-lint/internal/gopackages", "github.com/StevenACoffman/anarch-lint/internal/git", "github.com/StevenACoffman/anarch-lint/internal/codeowners", "github.com/StevenACoffman/anarch-lint/internal/modelith", "github.com/StevenACoffman/anarch-lint/internal/sarif", "github.com/StevenACoffman/anarch-lint/internal/coverage"],
-     "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)"}
+     "reason": "adapters do not import each other; only cmd wires them (summary_rules §1)", "qualityAttribute": "maintainability"}
   ],
+  "findingRules": {
+    "layer-order-violation": {"reason": "a command wires adapters to the domain, an adapter translates for the domain, and the domain depends on neither (summary_rules §1, §5)", "qualityAttribute": "maintainability"},
+    "subsystem-order-violation": {"reason": "subsystems depend downward only, so each can be understood and tested with what lies below it", "qualityAttribute": "maintainability"},
+    "interface-bypass": {"reason": "a subsystem is used only through the packages it exposes, so its insides can change freely", "qualityAttribute": "maintainability"}
+  },
   "connascence": {
     "maxStrength": {"package": 9, "subsystem": 5, "system": 3, "external": 2}
   },
@@ -83,31 +100,35 @@
     "requireAssigned": true,
     "layerAccess": [
       {"name": "pure-domain", "layer": "domain", "mayNotAccessAny": true, "consideringAll": true,
-       "reason": "the domain and the measures depend on nothing but themselves (summary_rules §5)"},
+       "reason": "the domain and the measures depend on nothing but themselves (summary_rules §5)", "qualityAttribute": "maintainability"},
       {"name": "adapters-to-domain", "layer": "adapter", "mayOnlyAccess": ["domain"],
-       "reason": "an adapter translates for the domain and knows no command (summary_rules §1)"}
+       "reason": "an adapter translates for the domain and knows no command (summary_rules §1)", "qualityAttribute": "maintainability"}
     ],
     "calls": [
       {"name": "no-clock-or-os-in-core",
-       "from": ["github.com/StevenACoffman/anarch-lint/internal/arch", "github.com/StevenACoffman/anarch-lint/internal/connascence", "github.com/StevenACoffman/anarch-lint/internal/balance", "github.com/StevenACoffman/anarch-lint/internal/fitness"],
+       "from": ["github.com/StevenACoffman/anarch-lint/internal/arch", "github.com/StevenACoffman/anarch-lint/internal/connascence", "github.com/StevenACoffman/anarch-lint/internal/balance", "github.com/StevenACoffman/anarch-lint/internal/fitness", "github.com/StevenACoffman/anarch-lint/internal/judging"],
        "callees": ["time.Now", "time.Since", "os.*", "(*os.File).*", "math/rand.*",
          "math/rand/v2.ExpFloat64", "math/rand/v2.Float32", "math/rand/v2.Float64", "math/rand/v2.Int", "math/rand/v2.Int32", "math/rand/v2.Int32N", "math/rand/v2.Int64", "math/rand/v2.Int64N", "math/rand/v2.IntN", "math/rand/v2.N", "math/rand/v2.NormFloat64", "math/rand/v2.Perm", "math/rand/v2.Shuffle", "math/rand/v2.Uint", "math/rand/v2.Uint32", "math/rand/v2.Uint32N", "math/rand/v2.Uint64", "math/rand/v2.Uint64N", "math/rand/v2.UintN"],
-       "reason": "the functional core reads no clock, does no I/O and draws nothing from the global random source; a source seeded with constants, as Louvain's, is deterministic"}
+       "reason": "the functional core reads no clock, does no I/O and draws nothing from the global random source; a source seeded with constants, as Louvain's, is deterministic", "qualityAttribute": "maintainability"}
     ],
     "libraries": [
       {"name": "core-approved-libraries",
-       "from": ["github.com/StevenACoffman/anarch-lint/internal/arch", "github.com/StevenACoffman/anarch-lint/internal/connascence", "github.com/StevenACoffman/anarch-lint/internal/balance", "github.com/StevenACoffman/anarch-lint/internal/fitness"],
+       "from": ["github.com/StevenACoffman/anarch-lint/internal/arch", "github.com/StevenACoffman/anarch-lint/internal/connascence", "github.com/StevenACoffman/anarch-lint/internal/balance", "github.com/StevenACoffman/anarch-lint/internal/fitness", "github.com/StevenACoffman/anarch-lint/internal/judging"],
        "allow": ["gonum.org/v1/gonum/...", "github.com/bmatcuk/doublestar/v4", "github.com/agnivade/levenshtein"],
-       "reason": "the core imports only pure, deterministic, well-tested libraries, each approved here (docs/adr/0012)"}
+       "reason": "the core imports only pure, deterministic, well-tested libraries, each approved here (docs/adr/0012)", "qualityAttribute": "security"}
     ],
     "dependents": [
       {"name": "x-tools-only-in-loader", "packages": ["golang.org/x/tools/..."],
        "onlyFrom": ["github.com/StevenACoffman/anarch-lint/internal/gopackages", "github.com/StevenACoffman/anarch-lint/internal/coverage"],
-       "reason": "go/packages is the loader's dependency, and cover the coverage reader's (summary_rules §1)"}
+       "reason": "go/packages is the loader's dependency, and cover the coverage reader's (summary_rules §1)", "qualityAttribute": "maintainability"}
+    ],
+    "unusedExports": [
+      {"name": "no-unused-api", "packages": ["github.com/StevenACoffman/anarch-lint/internal/..."],
+       "reason": "an identifier exported for no other package widens the API and the visibility metrics for nothing; unexport it (IMPROVEMENTS.md §9.2)", "qualityAttribute": "maintainability"}
     ],
     "domains": [
       {"name": "core-speaks-its-model", "path": "anarch-lint.modelith.yaml", "subsystem": "domain",
-       "reason": "the functional core keeps the vocabulary of its domain model (docs/adr/0005)"}
+       "reason": "the functional core keeps the vocabulary of its domain model (docs/adr/0005)", "qualityAttribute": "maintainability"}
     ]
   }
 }

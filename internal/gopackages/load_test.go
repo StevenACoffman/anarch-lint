@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -271,7 +272,7 @@ func TestLoadInjections(t *testing.T) {
 }
 
 // Each reference records where its uses are: embedded, a field, a type's
-// definition, a signature or a method body.
+// definition, a signature, or what a method body does with the type.
 func TestRefKinds(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {
@@ -293,8 +294,13 @@ func TestRefKinds(t *testing.T) {
 		k + "Spec -> " + k + "Item":    {arch.RefDefinition},
 		k + "Reader -> " + k + "Item":  {arch.RefSignature},
 		k + "Service -> " + k + "Base": {arch.RefSignature},
-		k + "Service -> " + k + "Item": {arch.RefSignature, arch.RefBody},
+		k + "Service -> " + k + "Item": {arch.RefSignature, arch.RefLiteral},
 		k + "Service -> " + k + "Spec": {arch.RefBody},
+		k + "Worker -> " + k + "Counter": {
+			arch.RefFieldWrite, arch.RefFieldRead, arch.RefLiteral, arch.RefCall,
+		},
+		k + "Worker -> " + k + "Box":     {arch.RefLiteral},
+		k + "Worker -> " + k + "Celsius": {arch.RefConversion, arch.RefTypeArgument},
 	}, got)
 }
 
@@ -408,4 +414,77 @@ func TestLoadReadsImportsOfExcludedFiles(t *testing.T) {
 		From: "example.com/gx/platform", To: "os", Inactive: true,
 		Pos: arch.Position{File: "platform/platform_plan9.go", Line: 4},
 	}}, p.InactiveImports)
+}
+
+// TestDispatches: the VTA call graph resolves app's call through the port to
+// the memory store the server wires, and not to the disk store, which CHA
+// would link because it implements the port too.
+func TestDispatches(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("loads and type-checks a module; skipped with -short")
+	}
+	p, err := gopackages.Load(context.Background(), gopackages.Config{
+		Dir: "../../testdata/gx", Patterns: []string{"./wiring/..."}, Dispatches: true,
+	})
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	const w = "example.com/gx/wiring/"
+	equals(t, []arch.Dispatch{{
+		Caller: w + "app.Record", CallerPackage: w + "app",
+		Callee: w + "memory.Store.Save", Concrete: w + "memory.Store",
+		Pos: arch.Position{File: "wiring/app/app.go", Line: 7},
+	}}, p.Dispatches)
+}
+
+// A struct's wire names are what its tags name its fields in each encoding.
+func TestWireNames(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("loads and type-checks a module; skipped with -short")
+	}
+	p, err := gopackages.Load(context.Background(),
+		gopackages.Config{Dir: "../../testdata/gx", Patterns: []string{"./kinds"}})
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	for _, typ := range p.Types {
+		if typ.Name == "Message" {
+			equals(t, []string{"json:body", "json:id", "protobuf:message_id"}, typ.WireNames)
+			return
+		}
+	}
+	t.Fatal("no type Message")
+}
+
+// A package comment's directives place the package; two files that name
+// different subsystems fail the load.
+func TestPackageDirectives(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("loads and type-checks a module; skipped with -short")
+	}
+	p, err := gopackages.Load(context.Background(), gopackages.Config{
+		Dir: "../../testdata/gx", Patterns: []string{"./declared/orders"},
+	})
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	equals(t, "orders", p.Packages[0].Subsystem)
+	equals(t, true, p.Packages[0].Exposes)
+	conflict := t.TempDir()
+	for name, src := range map[string]string{
+		"go.mod": "module example.com/conflict\n\ngo 1.24\n",
+		"a.go":   "// Package conflict names two subsystems.\n//\n//arch:subsystem one\npackage conflict\n",
+		"b.go":   "//arch:subsystem two\npackage conflict\n",
+	} {
+		if err := os.WriteFile(filepath.Join(conflict, name), []byte(src), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err = gopackages.Load(context.Background(), gopackages.Config{
+		Dir: conflict, Patterns: []string{"./..."},
+	})
+	equals(t, arch.EINVALID, arch.ErrorCode(err))
 }

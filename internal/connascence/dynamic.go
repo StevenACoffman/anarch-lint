@@ -182,6 +182,42 @@ func timeCallDetector(s *subject) []arch.Connascence {
 	return out
 }
 
+// noDeadlineDetector reports outbound HTTP calls through the net/http
+// helpers that use the default client, which has no timeout: the caller
+// waits as long as the remote takes, connascence of timing with a service
+// it does not control (connascence.md §9.7, runtime coupling). A fact, one
+// instance per calling function.
+func noDeadlineDetector(s *subject) []arch.Connascence {
+	helpers := map[string]bool{
+		"net/http.Get": true, "net/http.Head": true, "net/http.Post": true,
+		"net/http.PostForm": true,
+	}
+	var out []arch.Connascence
+	for _, g := range grouped(s.p.Facts.Calls, func(c arch.Call) (string, bool) {
+		return c.Site.Func, helpers[c.Callee] && c.Site.Func != ""
+	}) {
+		sites := make([]arch.Site, len(g))
+		callees := map[string]bool{}
+		for i := range g {
+			sites[i], callees[g[i].Callee] = g[i].Site, true
+		}
+		out = append(out, s.instance(&instanceSpec{
+			kind:       arch.StrengthTiming,
+			detector:   "timing.no-deadline",
+			subject:    g[0].Site.Func,
+			basis:      arch.BasisFact,
+			confidence: arch.ConfidenceHigh,
+			sites:      sites,
+			message: fmt.Sprintf("%s calls %s, whose default client has no timeout, so it waits "+
+				"as long as the remote takes", g[0].Site.Func,
+				strings.Join(slices.Sorted(maps.Keys(callees)), ", ")),
+			fix: "send the request through an http.Client with a Timeout, or with a context " +
+				"that has a deadline",
+		}))
+	}
+	return out
+}
+
 // equalDurationDetector reports duration constants with one value in two or
 // more packages, such as a client's and a server's timeout
 // (connascence.md §3.2).

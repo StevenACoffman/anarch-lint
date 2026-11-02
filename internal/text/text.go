@@ -256,7 +256,27 @@ func WriteFinding(w io.Writer, f *arch.Finding) {
 	for _, e := range f.Evidence {
 		_, _ = fmt.Fprintf(w, "  \tevidence: %s\n", e)
 	}
+	switch {
+	case f.Reach == 1:
+		_, _ = fmt.Fprintln(w, "  \treach: 1 package depends on it")
+	case f.Reach > 1:
+		_, _ = fmt.Fprintf(w, "  \treach: %d packages depend on it\n", f.Reach)
+	}
+	if why, ok := provenanceNotes()[f.Provenance]; ok {
+		_, _ = fmt.Fprintf(w, "  \tprovenance: %s (%s)\n", f.Provenance, why)
+	}
 	_, _ = fmt.Fprintf(w, "  \tfix: %s\n", f.Fix)
+}
+
+// provenanceNotes explains each provenance a reader should know about; an
+// edge the type checker resolved, the usual case, goes unremarked.
+func provenanceNotes() map[arch.Provenance]string {
+	return map[arch.Provenance]string{
+		arch.ProvenanceSource: "read without type-checking, from a file the build " +
+			"constraints exclude",
+		arch.ProvenanceInjected: "a value passed in through an interface parameter at run time",
+		arch.ProvenanceDispatch: "a call through an interface, resolved by a VTA call graph",
+	}
 }
 
 func writeJudgements(w io.Writer, slots []arch.JudgementSlot) {
@@ -372,6 +392,21 @@ func writeVerdict(w io.Writer, g *arch.GateResult) {
 		sf := &g.Shortfalls[i]
 		_, _ = fmt.Fprintf(w, "  below floor\t%s\t%g < %g\n", sf.Gate, sf.Actual, sf.Minimum)
 	}
+	writeBars(w, g)
+}
+
+// writeBars writes each bar the change loosens while changing code, or why
+// the bars were not compared.
+func writeBars(w io.Writer, g *arch.GateResult) {
+	for _, l := range g.Loosened {
+		_, _ = fmt.Fprintf(w, "  loosened\t%s\n", l)
+	}
+	if len(g.Loosened) > 0 {
+		_, _ = fmt.Fprintln(w, "loosen the bars in a change of their own, without code")
+	}
+	if g.BarsUnchecked != "" {
+		_, _ = fmt.Fprintf(w, "note: %s\n", g.BarsUnchecked)
+	}
 }
 
 // writeWaivers writes what waivers did: the findings they accepted, the
@@ -411,7 +446,9 @@ func writeFindingList(w io.Writer, title string, fs []arch.Finding) {
 		return
 	}
 	_, _ = fmt.Fprintf(w, "\n%s (%d)\n", title, len(fs))
-	for i := range fs {
-		WriteFinding(w, &fs[i])
+	ranked := slices.Clone(fs)
+	slices.SortStableFunc(ranked, func(a, b arch.Finding) int { return b.Reach - a.Reach })
+	for i := range ranked {
+		WriteFinding(w, &ranked[i])
 	}
 }

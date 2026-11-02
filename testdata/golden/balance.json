@@ -8,7 +8,7 @@
     "patterns": [
       "./..."
     ],
-    "modelHash": "5ced60b0ed00dc8be754060dce8101c13cd45414d6810bef94e0542c3099b08b",
+    "modelHash": "dc5e1dfdbfd132a91b1a2267d9ea7d4839572097684fddf68eaa2c0a404eecb2",
     "thresholds": {
       "largeTypeLines": 400,
       "largeFuncLines": 60,
@@ -49,6 +49,34 @@
         "line": 8,
         "package": "example.com/cx/audit",
         "func": "example.com/cx/audit.Record"
+      }
+    },
+    {
+      "from": "audit",
+      "to": "web",
+      "level": "functional",
+      "basis": "candidate",
+      "kind": "algorithm",
+      "symmetric": false,
+      "locality": "system",
+      "ownerBoundary": true,
+      "deployBoundary": false,
+      "async": false,
+      "distance": 7,
+      "volatility": "unjudged",
+      "quadrant": "tight-coupling",
+      "score": 2,
+      "levelEvidence": 1,
+      "evidenceCount": 2,
+      "evidence": [
+        "algorithm.clone candidate: 2 functions in 2 packages have the same body shape as example.com/cx/audit.Count",
+        "example.com/cx/audit.Invoices consumes http::GET::/invoices, which example.com/cx/web provides"
+      ],
+      "site": {
+        "file": "audit/count.go",
+        "line": 5,
+        "package": "example.com/cx/audit",
+        "func": "example.com/cx/audit.Count"
       }
     },
     {
@@ -97,6 +125,33 @@
     },
     {
       "from": "billing",
+      "to": "state",
+      "level": "functional",
+      "basis": "fact",
+      "kind": "algorithm",
+      "symmetric": true,
+      "locality": "system",
+      "ownerBoundary": true,
+      "deployBoundary": false,
+      "async": false,
+      "distance": 7,
+      "volatility": "unjudged",
+      "quadrant": "tight-coupling",
+      "score": 3,
+      "levelEvidence": 1,
+      "evidenceCount": 1,
+      "evidence": [
+        "algorithm.clone fact: 2 functions in 2 packages have a copy of the body of example.com/cx/billing.Total"
+      ],
+      "site": {
+        "file": "billing/invoice.go",
+        "line": 77,
+        "package": "example.com/cx/billing",
+        "func": "example.com/cx/billing.Total"
+      }
+    },
+    {
+      "from": "billing",
       "to": "web",
       "level": "functional",
       "basis": "candidate",
@@ -110,13 +165,12 @@
       "volatility": "unjudged",
       "quadrant": "tight-coupling",
       "score": 1,
-      "levelEvidence": 4,
-      "evidenceCount": 4,
+      "levelEvidence": 3,
+      "evidenceCount": 3,
       "evidence": [
         "algorithm.same-pattern candidate: the regular expression \"^[A-Z]{3}-[0-9]+$\" is written in 2 packages",
         "algorithm.same-layout candidate: the time layout \"2006-01-02\" is written in 2 packages",
-        "algorithm.same-algorithm candidate: 2 packages call crypto/sha256",
-        "algorithm.clone candidate: 2 functions in 2 packages have the same body shape as example.com/cx/billing.Total"
+        "algorithm.same-algorithm candidate: 2 packages call crypto/sha256"
       ],
       "site": {
         "file": "billing/invoice.go",
@@ -138,10 +192,11 @@
       "volatility": "unjudged",
       "quadrant": "tight-coupling",
       "score": 4,
-      "levelEvidence": 2,
-      "evidenceCount": 16,
+      "levelEvidence": 3,
+      "evidenceCount": 17,
       "evidence": [
         "example.com/cx/web.Peek converts example.com/cx/auth.Secret through unsafe.Pointer",
+        "example.com/cx/web.Peek looks up example.com/cx/auth.Secret's unexported \"token\" by reflection",
         "example.com/cx/web links Steal to example.com/cx/auth.check, bypassing its interface",
         "identity.shared-variable fact: 2 packages use the package variable example.com/cx/auth.Sessions",
         "example.com/cx/web.Admin uses type example.com/cx/auth.Role: it exposes the model type example.com/cx/auth.Role",
@@ -171,8 +226,8 @@
       "path": "example.com/cx/audit",
       "ca": 0,
       "ce": 1,
-      "upstream": "contract",
-      "upstreamBasis": "fact",
+      "upstream": "functional",
+      "upstreamBasis": "candidate",
       "weightedInstability": 1,
       "dependents": 0
     },
@@ -224,7 +279,7 @@
       "ce": 1,
       "upstream": "intrusive",
       "upstreamBasis": "fact",
-      "weightedInstability": 0.555556,
+      "weightedInstability": 0.384615,
       "dependents": 1
     }
   ],
@@ -306,6 +361,24 @@
       ]
     },
     {
+      "fingerprint": "0df9a136192ba0db",
+      "rule": "tight-coupling-functional",
+      "severity": "error",
+      "subject": "billing",
+      "object": "state",
+      "location": {
+        "file": "billing/invoice.go",
+        "start": 77,
+        "end": 77
+      },
+      "message": "billing couples to state at the functional level across a distance of 7, and state's volatility is unjudged, so it counts as core: a step toward a distributed monolith",
+      "fix": "co-locate the shared functionality, or replace the duplicated knowledge with a published event or a contract",
+      "evidence": [
+        "strength functional (fact), distance 7 (locality system, owner boundary true, deploy boundary false, async false), volatility unjudged, balance 3",
+        "algorithm.clone fact: 2 functions in 2 packages have a copy of the body of example.com/cx/billing.Total"
+      ]
+    },
+    {
       "fingerprint": "8c3443d6b2119a11",
       "rule": "tight-coupling-intrusive",
       "severity": "error",
@@ -321,6 +394,7 @@
       "evidence": [
         "strength intrusive (fact), distance 7 (locality system, owner boundary true, deploy boundary false, async false), volatility unjudged, balance 4",
         "example.com/cx/web.Peek converts example.com/cx/auth.Secret through unsafe.Pointer",
+        "example.com/cx/web.Peek looks up example.com/cx/auth.Secret's unexported \"token\" by reflection",
         "example.com/cx/web links Steal to example.com/cx/auth.check, bypassing its interface",
         "identity.shared-variable fact: 2 packages use the package variable example.com/cx/auth.Sessions",
         "example.com/cx/web.Admin uses type example.com/cx/auth.Role: it exposes the model type example.com/cx/auth.Role",
@@ -341,18 +415,46 @@
   ],
   "candidates": [
     {
-      "fingerprint": "4cccb590c5cbd238",
-      "rule": "intrusive-reflection",
+      "fingerprint": "d288d4711619a03d",
+      "rule": "low-cohesion",
+      "subject": "example.com/cx/audit",
+      "message": "no file of example.com/cx/audit refers to a name another of its files declares",
+      "fix": "split the package by file, or name what its files have in common",
+      "evidence": null
+    },
+    {
+      "fingerprint": "f83c3d5f3adf3395",
+      "rule": "low-cohesion",
+      "subject": "example.com/cx/state",
+      "message": "no file of example.com/cx/state refers to a name another of its files declares",
+      "fix": "split the package by file, or name what its files have in common",
+      "evidence": null
+    },
+    {
+      "fingerprint": "1d877e56f21dae60",
+      "rule": "low-cohesion",
       "subject": "example.com/cx/web",
-      "object": "token",
-      "message": "example.com/cx/web.Peek looks up the unexported name \"token\" with reflect.Value.FieldByName",
-      "fix": "ask the owning package for the value through its interface",
-      "evidence": null,
+      "message": "no file of example.com/cx/web refers to a name another of its files declares",
+      "fix": "split the package by file, or name what its files have in common",
+      "evidence": null
+    },
+    {
+      "fingerprint": "9a9f6efb399ec7ca",
+      "rule": "tight-coupling-functional",
+      "subject": "audit",
+      "object": "web",
+      "message": "audit couples to web at the functional level across a distance of 7, and web's volatility is unjudged, so it counts as core: a step toward a distributed monolith",
+      "fix": "co-locate the shared functionality, or replace the duplicated knowledge with a published event or a contract",
+      "evidence": [
+        "strength functional (candidate), distance 7 (locality system, owner boundary true, deploy boundary false, async false), volatility unjudged, balance 2",
+        "algorithm.clone candidate: 2 functions in 2 packages have the same body shape as example.com/cx/audit.Count",
+        "example.com/cx/audit.Invoices consumes http::GET::/invoices, which example.com/cx/web provides"
+      ],
       "site": {
-        "file": "web/admin.go",
-        "line": 29,
-        "package": "example.com/cx/web",
-        "func": "example.com/cx/web.Peek"
+        "file": "audit/count.go",
+        "line": 5,
+        "package": "example.com/cx/audit",
+        "func": "example.com/cx/audit.Count"
       }
     },
     {
@@ -366,8 +468,7 @@
         "strength functional (candidate), distance 9 (locality system, owner boundary true, deploy boundary true, async false), volatility unjudged, balance 1",
         "algorithm.same-pattern candidate: the regular expression \"^[A-Z]{3}-[0-9]+$\" is written in 2 packages",
         "algorithm.same-layout candidate: the time layout \"2006-01-02\" is written in 2 packages",
-        "algorithm.same-algorithm candidate: 2 packages call crypto/sha256",
-        "algorithm.clone candidate: 2 functions in 2 packages have the same body shape as example.com/cx/billing.Total"
+        "algorithm.same-algorithm candidate: 2 packages call crypto/sha256"
       ],
       "site": {
         "file": "billing/invoice.go",
@@ -378,7 +479,70 @@
   ],
   "rejected": [],
   "suppressed": [],
+  "contracts": [
+    {
+      "id": "http::GET::/invoices",
+      "kind": "http",
+      "role": "consumer",
+      "site": {
+        "file": "audit/fetch.go",
+        "line": 6,
+        "package": "example.com/cx/audit",
+        "func": "example.com/cx/audit.Invoices"
+      }
+    },
+    {
+      "id": "http::GET::/invoices",
+      "kind": "http",
+      "role": "provider",
+      "site": {
+        "file": "web/routes.go",
+        "line": 8,
+        "package": "example.com/cx/web",
+        "func": "example.com/cx/web.Routes"
+      }
+    }
+  ],
+  "contractPairs": [
+    {
+      "id": "http::GET::/invoices",
+      "consumer": {
+        "file": "audit/fetch.go",
+        "line": 6,
+        "package": "example.com/cx/audit",
+        "func": "example.com/cx/audit.Invoices"
+      },
+      "provider": {
+        "file": "web/routes.go",
+        "line": 8,
+        "package": "example.com/cx/web",
+        "func": "example.com/cx/web.Routes"
+      }
+    }
+  ],
   "judgements": [
+    {
+      "criterion": "balance/9a9f6efb399ec7ca",
+      "question": "Is this Balanced Coupling candidate real?",
+      "answers": [
+        "confirmed",
+        "rejected",
+        "insufficient-evidence"
+      ],
+      "edition": "9236d4c2a2f2ee98965375ab9cef9eb9c4dcda8442172ccaf1821d6e81df31e5",
+      "evidence": [
+        "audit depends on web at the functional level",
+        "algorithm.clone candidate: 2 functions in 2 packages have the same body shape as example.com/cx/audit.Count",
+        "example.com/cx/audit.Invoices consumes http::GET::/invoices, which example.com/cx/web provides"
+      ],
+      "context": [
+        "tight-coupling-functional: audit couples to web at the functional level across a distance of 7, and web's volatility is unjudged, so it counts as core: a step toward a distributed monolith",
+        "strength functional (candidate), distance 7 (locality system, owner boundary true, deploy boundary false, async false), volatility unjudged, balance 2"
+      ],
+      "undecided": "the coupling rests on candidate evidence, which a detector found but cannot confirm",
+      "evidenceHash": "87844956e97a52c499d5129fa5bf66616aa8fda8916ca2e0ebfd5c0675fcc798",
+      "status": "pending"
+    },
     {
       "criterion": "balance/b8a015bc0a8d61d4",
       "question": "Is this Balanced Coupling candidate real?",
@@ -392,15 +556,14 @@
         "billing depends on web at the functional level",
         "algorithm.same-pattern candidate: the regular expression \"^[A-Z]{3}-[0-9]+$\" is written in 2 packages",
         "algorithm.same-layout candidate: the time layout \"2006-01-02\" is written in 2 packages",
-        "algorithm.same-algorithm candidate: 2 packages call crypto/sha256",
-        "algorithm.clone candidate: 2 functions in 2 packages have the same body shape as example.com/cx/billing.Total"
+        "algorithm.same-algorithm candidate: 2 packages call crypto/sha256"
       ],
       "context": [
         "tight-coupling-functional: billing couples to web at the functional level across a distance of 9, and web's volatility is unjudged, so it counts as core: a step toward a distributed monolith",
         "strength functional (candidate), distance 9 (locality system, owner boundary true, deploy boundary true, async false), volatility unjudged, balance 1"
       ],
       "undecided": "the coupling rests on candidate evidence, which a detector found but cannot confirm",
-      "evidenceHash": "75e39df676c09455f7848487bcb34ee893a83f5e619899d2520b95430c62bd1a",
+      "evidenceHash": "bb85b6f4b74d3619ffdda0c6cdec1fd1cf54dba87d3e3bb85264068c94888d78",
       "status": "pending"
     },
     {
@@ -472,6 +635,24 @@
       "status": "pending"
     },
     {
+      "criterion": "subdomain/state",
+      "question": "Is this subsystem a core, supporting or generic subdomain of the business?",
+      "answers": [
+        "core",
+        "generic",
+        "supporting",
+        "insufficient-evidence"
+      ],
+      "edition": "848cbe05244d54c882915b6c2fa8ee813b6e26df089dfc83cc1a9eee4f5ef7bd",
+      "evidence": [
+        "packages: example.com/cx/state",
+        "downstream subsystems: 1"
+      ],
+      "undecided": "how often the business need changes is a business judgement; churn is only evidence of it",
+      "evidenceHash": "428c1b4cd87744549a970e5e638ca55cac7e748e5503434e0ff930a24f65626e",
+      "status": "pending"
+    },
+    {
       "criterion": "subdomain/web",
       "question": "Is this subsystem a core, supporting or generic subdomain of the business?",
       "answers": [
@@ -483,20 +664,16 @@
       "edition": "848cbe05244d54c882915b6c2fa8ee813b6e26df089dfc83cc1a9eee4f5ef7bd",
       "evidence": [
         "packages: example.com/cx/cmd/server, example.com/cx/web",
-        "downstream subsystems: 1"
+        "downstream subsystems: 2"
       ],
       "undecided": "how often the business need changes is a business judgement; churn is only evidence of it",
-      "evidenceHash": "0c7071c191bf4b1ed6d885a45c8078e673126242b82b096461a804e598d6c42f",
+      "evidenceHash": "85726a56df86a472a4c53c2050b9bc6859189b2b39397c1a6664d2283ee51083",
       "status": "pending"
     }
   ],
   "skipped": [
     {
       "criterion": "subdomain/billing",
-      "reason": "no subsystem depends on it and no revision range gives its churn, so its volatility decides nothing"
-    },
-    {
-      "criterion": "subdomain/state",
       "reason": "no subsystem depends on it and no revision range gives its churn, so its volatility decides nothing"
     },
     {

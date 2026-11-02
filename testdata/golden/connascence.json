@@ -8,7 +8,7 @@
     "patterns": [
       "./..."
     ],
-    "modelHash": "5ced60b0ed00dc8be754060dce8101c13cd45414d6810bef94e0542c3099b08b",
+    "modelHash": "dc5e1dfdbfd132a91b1a2267d9ea7d4839572097684fddf68eaa2c0a404eecb2",
     "thresholds": {
       "largeTypeLines": 400,
       "largeFuncLines": 60,
@@ -74,9 +74,9 @@
     {
       "kind": "algorithm",
       "locality": "system",
-      "facts": 0,
+      "facts": 1,
       "candidates": 4,
-      "degree": 8
+      "degree": 10
     },
     {
       "kind": "execution",
@@ -88,9 +88,9 @@
     {
       "kind": "timing",
       "locality": "function",
-      "facts": 0,
+      "facts": 1,
       "candidates": 1,
-      "degree": 1
+      "degree": 2
     },
     {
       "kind": "value",
@@ -628,6 +628,56 @@
       "fix": "return a named struct, so callers select results by name"
     },
     {
+      "fingerprint": "776fd7466e2e9acd",
+      "kind": "algorithm",
+      "strength": 5,
+      "detector": "algorithm.clone",
+      "subject": "example.com/cx/billing.Total",
+      "basis": "fact",
+      "confidence": "high",
+      "locality": "system",
+      "degree": 2,
+      "siteCount": 2,
+      "sites": [
+        {
+          "file": "billing/invoice.go",
+          "line": 77,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.Total"
+        },
+        {
+          "file": "state/total.go",
+          "line": 5,
+          "package": "example.com/cx/state",
+          "func": "example.com/cx/state.Total"
+        }
+      ],
+      "message": "2 functions in 2 packages have a copy of the body of example.com/cx/billing.Total",
+      "fix": "keep one copy and call it from the others"
+    },
+    {
+      "fingerprint": "e9c4010f8e506a62",
+      "kind": "timing",
+      "strength": 7,
+      "detector": "timing.no-deadline",
+      "subject": "example.com/cx/audit.Invoices",
+      "basis": "fact",
+      "confidence": "high",
+      "locality": "function",
+      "degree": 1,
+      "siteCount": 1,
+      "sites": [
+        {
+          "file": "audit/fetch.go",
+          "line": 6,
+          "package": "example.com/cx/audit",
+          "func": "example.com/cx/audit.Invoices"
+        }
+      ],
+      "message": "example.com/cx/audit.Invoices calls net/http.Get, whose default client has no timeout, so it waits as long as the remote takes",
+      "fix": "send the request through an http.Client with a Timeout, or with a context that has a deadline"
+    },
+    {
       "fingerprint": "8e6d3b3c8352b279",
       "kind": "value",
       "strength": 8,
@@ -864,11 +914,11 @@
       "fix": "let one function own the algorithm and call it from both sides"
     },
     {
-      "fingerprint": "776fd7466e2e9acd",
+      "fingerprint": "77ed473549a4415c",
       "kind": "algorithm",
       "strength": 5,
       "detector": "algorithm.clone",
-      "subject": "example.com/cx/billing.Total",
+      "subject": "example.com/cx/audit.Count",
       "basis": "candidate",
       "confidence": "low",
       "locality": "system",
@@ -876,10 +926,10 @@
       "siteCount": 2,
       "sites": [
         {
-          "file": "billing/invoice.go",
-          "line": 77,
-          "package": "example.com/cx/billing",
-          "func": "example.com/cx/billing.Total"
+          "file": "audit/count.go",
+          "line": 5,
+          "package": "example.com/cx/audit",
+          "func": "example.com/cx/audit.Count"
         },
         {
           "file": "web/admin.go",
@@ -888,7 +938,7 @@
           "func": "example.com/cx/web.Tally"
         }
       ],
-      "message": "2 functions in 2 packages have the same body shape as example.com/cx/billing.Total",
+      "message": "2 functions in 2 packages have the same body shape as example.com/cx/audit.Count",
       "fix": "keep one copy and call it, or confirm that the copies may evolve apart"
     },
     {
@@ -994,6 +1044,25 @@
   ],
   "rejected": [],
   "findings": [
+    {
+      "fingerprint": "776fd7466e2e9acd",
+      "rule": "connascence-algorithm",
+      "severity": "error",
+      "subject": "example.com/cx/billing.Total",
+      "object": "algorithm.clone",
+      "location": {
+        "file": "billing/invoice.go",
+        "start": 77,
+        "end": 77
+      },
+      "message": "2 functions in 2 packages have a copy of the body of example.com/cx/billing.Total",
+      "fix": "keep one copy and call it from the others",
+      "evidence": [
+        "strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3",
+        "site: billing/invoice.go:77 (example.com/cx/billing.Total)",
+        "site: state/total.go:5 (example.com/cx/state.Total)"
+      ]
+    },
     {
       "fingerprint": "15930a342d24dd74",
       "rule": "connascence-identity",
@@ -1122,7 +1191,7 @@
       "status": "pending"
     },
     {
-      "criterion": "connascence/776fd7466e2e9acd",
+      "criterion": "connascence/77ed473549a4415c",
       "question": "Must these places change together, so that the candidate is connascence?",
       "answers": [
         "confirmed",
@@ -1131,16 +1200,16 @@
       ],
       "edition": "5f293ed8552eb4d2f7f0d2996de2db7731b15ff7ec975b012dbe8503fabb354a",
       "evidence": [
-        "2 functions in 2 packages have the same body shape as example.com/cx/billing.Total",
+        "2 functions in 2 packages have the same body shape as example.com/cx/audit.Count",
         "strength 5 (algorithm), locality system, degree 2",
-        "site: billing/invoice.go:77 (example.com/cx/billing.Total)",
+        "site: audit/count.go:5 (example.com/cx/audit.Count)",
         "site: web/admin.go:48 (example.com/cx/web.Tally)"
       ],
       "context": [
         "over the limits: above maxStrength.system 3"
       ],
       "undecided": "a detector found the shape of connascence, with low confidence that it is not chance, but not that the places must change together",
-      "evidenceHash": "0f42bc3f4cce8034907d573b9ed1196d547fb08715b1ea2bb3e011d6b4f601a8",
+      "evidenceHash": "488c5b8da76710594dc1ecd4703b5ca44969fb7bae0dab9838e8f5993579f071",
       "status": "pending"
     },
     {

@@ -282,3 +282,28 @@ func TestPartialClones(t *testing.T) {
 		})
 	}
 }
+
+// Two struct types in different packages whose tags give the same JSON
+// names to three or more fields copy one wire format; two names are too few
+// to tell from chance.
+func TestWireTags(t *testing.T) {
+	t.Parallel()
+	typ := func(pkg, name string, wire ...string) arch.Type {
+		return arch.Type{
+			ID: pkg + "." + name, Package: pkg, Name: name, WireNames: wire,
+			Span: arch.Span{File: name + ".go", Start: 1, End: 5},
+		}
+	}
+	order := []string{"json:id", "json:total", "json:when"}
+	p := program()
+	p.Types = append(p.Types,
+		typ("m/billing", "Order", order...), typ("m/web", "OrderView", order...),
+		typ("m/billing", "Pair", "json:a", "json:b"), typ("m/web", "PairView", "json:a", "json:b"))
+	var found []string
+	for _, c := range connascence.Instances(p, model(false)) {
+		if c.Detector == "meaning.wire-tags" {
+			found = append(found, c.Subject+" "+c.Object)
+		}
+	}
+	equals(t, []string{"m/billing.Order json"}, found)
+}

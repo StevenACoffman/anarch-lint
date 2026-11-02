@@ -12,6 +12,7 @@ import (
 
 	"github.com/StevenACoffman/anarch-lint/cmd/root"
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
+	"github.com/StevenACoffman/anarch-lint/internal/pipeline"
 )
 
 // Config holds the configuration for the baseline command.
@@ -33,7 +34,7 @@ func New(parent *root.Config) *Config {
 	cfg.Config = parent
 	cfg.Flags = ff.NewFlagSet("baseline").SetParent(parent.Flags)
 	cfg.Flags.StringVar(&cfg.Out, 0, "out", "",
-		"baseline file to write (default: "+root.DefaultBaseline+" in --dir)")
+		"baseline file to write (default: "+pipeline.DefaultBaseline+" in --dir)")
 	cfg.Flags.BoolVar(&cfg.Shrink, 0, "shrink",
 		"only remove fixed findings and keep the better value of each metric; accept nothing new")
 	cfg.Command = &ff.Command{
@@ -63,7 +64,7 @@ func (cfg *Config) exec(ctx context.Context, args []string) error {
 	}
 	out := cfg.Out
 	if out == "" {
-		out = filepath.Join(cfg.Dir, root.DefaultBaseline)
+		out = filepath.Join(cfg.Dir, pipeline.DefaultBaseline)
 	}
 	b := arch.NewBaseline(&in)
 	if cfg.Shrink {

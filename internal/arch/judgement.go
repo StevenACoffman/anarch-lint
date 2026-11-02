@@ -246,6 +246,13 @@ func (slot *JudgementSlot) apply(c *Criterion) {
 	}
 }
 
+// SlotAnswers returns the answers a slot ID accepts, nil for an MMI
+// criterion, which takes a score, and false when the ID is no slot.
+func SlotAnswers(id string) ([]string, bool) {
+	q, ok := questionOf(id)
+	return q.answers, ok
+}
+
 // questionOf returns the question of a slot ID: an MMI judgement criterion,
 // or "family/subject" for one of the families of connascence.md §5 and §9.
 func questionOf(id string) (question, bool) {

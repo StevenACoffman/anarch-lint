@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
+	"go/format"
 	"go/token"
 	"go/types"
 	"slices"
@@ -285,22 +286,32 @@ func bodyHash(body *ast.BlockStmt) string {
 	return hex.EncodeToString(sum[:16])
 }
 
+// exactHash hashes a body as go/format prints it. A block statement prints
+// without its comments, so a comment does not tell two copies apart
+// (docs/adr/0013); blank lines, which the printer keeps from the source, are
+// dropped for the same reason.
+func exactHash(fset *token.FileSet, body *ast.BlockStmt) string {
+	var b strings.Builder
+	if err := format.Node(&b, fset, body); err != nil {
+		return "" // a body that does not print has no copy to find
+	}
+	var lines []string
+	for line := range strings.Lines(b.String()) {
+		if strings.TrimSpace(line) != "" {
+			lines = append(lines, line)
+		}
+	}
+	sum := sha256.Sum256([]byte(strings.Join(lines, "")))
+	return hex.EncodeToString(sum[:16])
+}
+
 // sortBySite sorts facts by site and then by their printed form, a total
 // order over every field.
 func sortBySite[T any](xs []T, site func(T) arch.Site) {
 	slices.SortFunc(xs, func(a, b T) int {
 		return cmp.Or(
-			compareSites(site(a), site(b)),
+			arch.CompareSites(site(a), site(b)),
 			cmp.Compare(fmt.Sprintf("%+v", a), fmt.Sprintf("%+v", b)),
 		)
 	})
-}
-
-func compareSites(a, b arch.Site) int {
-	return cmp.Or(
-		cmp.Compare(a.File, b.File),
-		cmp.Compare(a.Line, b.Line),
-		cmp.Compare(a.Func, b.Func),
-		cmp.Compare(a.Type, b.Type),
-	)
 }

@@ -103,6 +103,8 @@ type rule struct {
 	// off rules check nothing; severity is the severity of a violation.
 	off      bool
 	severity arch.Severity
+	// quality is the quality attribute the rule protects.
+	quality arch.QualityAttribute
 	// quiet is the status of a rule without violations that need not match
 	// anything, such as a rule on changes; "" for every other rule.
 	quiet RuleStatus
@@ -123,13 +125,15 @@ func Analyze(in *arch.Input) Report {
 	s.findings = append(s.findings, overlaps...)
 	s.checkSlices()
 	s.checkCalls()
+	checkFields(s.ledger, s.m.Fitness.Fields, s.p.Facts.Uses, s.packagePaths())
+	checkUnusedExports(s.ledger, s.m.Fitness.UnusedExports, s.p)
 	s.checkInterfacesOnly()
 	s.checkAssigned()
 	s.checkDomains(in.Domains)
 	checkCoChange(s.ledger, s.m.Fitness.CoChange, in.Changed)
 	checkFanOut(s.ledger, s.m.Fitness.FanOut, s.packagePaths(), importsInScope(s.p, &s.g))
 	(&existing{p: s.p, m: s.m, types: s.types, packages: s.packagePaths(), ledger: s.ledger}).check()
-	s.unexplained(s.m.Fitness.Rules())
+	s.unexplained(s.m)
 	rules := s.results() // closes every rule, adding the empty-rule findings
 
 	inputs := in.Inputs
@@ -140,7 +144,7 @@ func Analyze(in *arch.Input) Report {
 		Schema:   Schema,
 		Inputs:   inputs,
 		Rules:    rules,
-		Findings: append(make([]arch.Finding, 0, len(s.findings)), s.findings...),
+		Findings: s.m.Govern(s.findings),
 		Lakos: []Lakos{
 			lakosOf("types", s.g.Types), lakosOf("packages", s.g.Packages),
 			lakosOf("subsystems", s.g.Subsystems),
@@ -200,7 +204,7 @@ func (s *ledger) addRule(kind string, opts arch.RuleOptions, name string) *rule 
 		Optional: opts.Optional,
 	}}
 	severity, on := opts.Gate.Severity()
-	r.severity, r.off = severity, !on
+	r.severity, r.off, r.quality = severity, !on, opts.QualityAttribute
 	s.rules = append(s.rules, r)
 	return r
 }
@@ -213,6 +217,7 @@ func (s *ledger) violation(r *rule, f *arch.Finding) {
 	r.result.Violations++
 	f.Severity = r.severity
 	f.ModelRule = r.modelRule()
+	f.QualityAttribute = r.quality
 	if r.result.Reason != "" {
 		f.Message += ": " + r.result.Reason
 	}
@@ -222,10 +227,7 @@ func (s *ledger) violation(r *rule, f *arch.Finding) {
 // modelRule names the rule as a finding's ModelRule: its kind under fitness,
 // and its name when that differs.
 func (r *rule) modelRule() string {
-	if r.result.Name == r.result.Kind {
-		return "fitness." + r.result.Kind
-	}
-	return "fitness." + r.result.Kind + " " + r.result.Name
+	return (&arch.DeclaredRule{Kind: r.result.Kind, Name: r.result.Name}).ModelRule()
 }
 
 // results closes every rule: an empty rule that is not optional is a
@@ -257,7 +259,7 @@ func (s *ledger) results() []RuleResult {
 // is usually a typo.
 func (s *ledger) emptyRule(r *rule) {
 	f := arch.NewFinding(
-		arch.FindingID{Rule: ruleEmptySelector, Subject: r.result.Name},
+		arch.FindingID{Rule: arch.RuleEmptySelector, Subject: r.result.Name},
 		r.severity,
 	)
 	f.ModelRule = r.modelRule()
@@ -268,17 +270,34 @@ func (s *ledger) emptyRule(r *rule) {
 
 // unexplained warns of each declared rule that gives no reason: a rule
 // nobody can explain is hard to keep and hard to drop, as modelith's
-// completeness layer has it. The warning is advice, so it never gates.
-func (s *ledger) unexplained(rules []arch.DeclaredRule) {
-	for i := range rules {
-		if r := &rules[i]; r.Reason == "" {
-			f := arch.NewFinding(
-				arch.FindingID{Rule: ruleNoReason, Subject: r.Name},
-				arch.SeverityWarning,
-			)
-			f.Message = "fitness rule " + r.Name + " (" + r.Kind + ") gives no reason"
-			f.Fix = "add a reason saying what the rule protects and why"
-			s.findings = append(s.findings, f)
+// completeness layer has it. The warning is advice, so it never gates. A
+// fitness rule is named by its own name, as its findings are; any other rule
+// by where the model declares it.
+func (s *ledger) unexplained(m *arch.Model) {
+	const fix = "add a reason saying what the rule protects and why"
+	warn := func(subject, message, fix string) {
+		f := arch.NewFinding(
+			arch.FindingID{Rule: arch.RuleWithoutReason, Subject: subject},
+			arch.SeverityWarning,
+		)
+		f.Message, f.Fix = message, fix
+		s.findings = append(s.findings, f)
+	}
+	fitness := map[string]bool{}
+	for _, r := range m.Fitness.Rules() {
+		fitness[r.ModelRule()] = true
+		if r.Reason == "" {
+			warn(r.Name, "fitness rule "+r.Name+" ("+r.Kind+") gives no reason", fix)
+		}
+	}
+	for _, r := range m.ReasonedRules() {
+		switch {
+		case r.Reason != "" || fitness[r.Name]:
+		case r.FindingRule != "":
+			warn(r.Name, "rule "+r.Name+" gives no reason",
+				fix+", under findingRules."+string(r.FindingRule))
+		default:
+			warn(r.Name, "rule "+r.Name+" gives no reason", fix)
 		}
 	}
 }

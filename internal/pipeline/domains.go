@@ -1,4 +1,4 @@
-package root
+package pipeline
 
 import (
 	"errors"
@@ -13,22 +13,22 @@ import (
 )
 
 // readDomains reads the domain model each fitness.domains rule names, in the
-// rules' order. A path may not leave the repository that holds --dir, after
+// rules' order. A path may not leave the repository that holds Dir, after
 // symlinks are resolved, so a model cannot make anarch-lint read arbitrary
 // files (modelith's ADR-0013); nothing is fetched over the network.
-func (cfg *Config) readDomains(m *arch.Model) ([]arch.DomainModel, error) {
-	const op = "root.Config.readDomains"
+func (o *Options) readDomains(m *arch.Model) ([]arch.DomainModel, error) {
+	const op = "pipeline.Options.readDomains"
 	if len(m.Fitness.Domains) == 0 {
 		return nil, nil
 	}
-	root, err := repositoryRoot(cfg.Dir)
+	root, err := repositoryRoot(o.Dir)
 	if err != nil {
 		return nil, &arch.Error{Op: op, Err: err}
 	}
 	out := make([]arch.DomainModel, 0, len(m.Fitness.Domains))
 	for i := range m.Fitness.Domains {
 		rel := m.Fitness.Domains[i].Path
-		file, err := confined(root, filepath.Join(cfg.Dir, rel))
+		file, err := confined(root, filepath.Join(o.Dir, rel))
 		if err != nil {
 			return nil, &arch.Error{Op: op + " " + rel, Err: err}
 		}

@@ -8,7 +8,7 @@
     "patterns": [
       "./..."
     ],
-    "modelHash": "431b952e8edef93c3db94e6404d457b10f8a71067d9bb15ededba85ab40d30a5",
+    "modelHash": "305dda9530c9234894f71409f66c2ad73479b0a8cb7d3e65bb3d054bfca6913d",
     "thresholds": {
       "largeTypeLines": 400,
       "largeFuncLines": 60,
@@ -119,8 +119,8 @@
       "kind": "domains",
       "reason": "the code speaks the fixture's domain model",
       "gate": "fail",
-      "matched": 7,
-      "violations": 6,
+      "matched": 8,
+      "violations": 7,
       "status": "failed"
     }
   ],
@@ -153,7 +153,8 @@
       },
       "message": "example.com/cx/audit imports example.com/cx/auth: only example.com/cx/billing may import it: only billing should know roles",
       "fix": "reach the package through one of the packages the rule allows",
-      "modelRule": "fitness.dependents auth-for-billing"
+      "modelRule": "fitness.dependents auth-for-billing",
+      "provenance": "types"
     },
     {
       "fingerprint": "b0f77377edb794f7",
@@ -168,7 +169,8 @@
       },
       "message": "example.com/cx/web imports example.com/cx/auth: only example.com/cx/billing may import it: only billing should know roles",
       "fix": "reach the package through one of the packages the rule allows",
-      "modelRule": "fitness.dependents auth-for-billing"
+      "modelRule": "fitness.dependents auth-for-billing",
+      "provenance": "types"
     },
     {
       "fingerprint": "729d440704ee4900",
@@ -178,6 +180,19 @@
       "object": "example.com/cx/auth.Credentials",
       "message": "example.com/cx/auth.Credentials expresses entity Credentials, yet plays the contract role: the code speaks the fixture's domain model",
       "fix": "keep the entity type in the model and give the contract its own type, or drop the role",
+      "modelRule": "fitness.domains cx-model"
+    },
+    {
+      "fingerprint": "ac4d7aa2aa3042a4",
+      "rule": "domain-entity-ambiguous",
+      "severity": "error",
+      "subject": "cx.modelith.yaml:Receipt",
+      "message": "entity Receipt matches 2 types: the code speaks the fixture's domain model",
+      "fix": "map the entity to one type in the rule's types, or rename the others",
+      "evidence": [
+        "example.com/cx/audit.Receipt",
+        "example.com/cx/billing.Receipt"
+      ],
       "modelRule": "fitness.domains cx-model"
     },
     {
@@ -230,16 +245,6 @@
       "message": "cx-model maps Ledger to example.com/cx/billing.Ledger, which is no type of the program: the code speaks the fixture's domain model",
       "fix": "correct the type ID, or remove the mapping if the concept has no type yet",
       "modelRule": "fitness.domains cx-model"
-    },
-    {
-      "fingerprint": "5b06a88b357d5966",
-      "rule": "empty-selector",
-      "severity": "error",
-      "subject": "forbiddenImports[0]",
-      "object": "imports",
-      "message": "the imports of forbiddenImports[0] match nothing, so the rule checks nothing",
-      "fix": "correct the patterns, or remove the rule",
-      "modelRule": "forbiddenImports[0]"
     },
     {
       "fingerprint": "b10aeaa78580e4ea",
@@ -362,6 +367,22 @@
       "fix": "add a reason saying what the rule protects and why"
     },
     {
+      "fingerprint": "4299af5921f73727",
+      "rule": "rule-without-reason",
+      "severity": "warning",
+      "subject": "interfaces",
+      "message": "rule interfaces gives no reason",
+      "fix": "add a reason saying what the rule protects and why, under findingRules.interface-bypass"
+    },
+    {
+      "fingerprint": "5d8deea13a07dcf2",
+      "rule": "rule-without-reason",
+      "severity": "warning",
+      "subject": "layers",
+      "message": "rule layers gives no reason",
+      "fix": "add a reason saying what the rule protects and why, under findingRules.layer-order-violation"
+    },
+    {
       "fingerprint": "13e8e4b0fc21eff9",
       "rule": "rule-without-reason",
       "severity": "warning",
@@ -405,11 +426,11 @@
   "lakos": [
     {
       "level": "types",
-      "nodes": 8,
-      "ccd": 9,
-      "acd": 1.125,
-      "racd": 0.140625,
-      "nccd": 0.428571
+      "nodes": 10,
+      "ccd": 11,
+      "acd": 1.1,
+      "racd": 0.11,
+      "nccd": 0.37931
     },
     {
       "level": "packages",
@@ -432,8 +453,8 @@
     "packages": [
       {
         "package": "example.com/cx/audit",
-        "elements": 1,
-        "visible": 1,
+        "elements": 4,
+        "visible": 4,
         "rv": 1
       },
       {
@@ -444,8 +465,8 @@
       },
       {
         "package": "example.com/cx/billing",
-        "elements": 11,
-        "visible": 11,
+        "elements": 12,
+        "visible": 12,
         "rv": 1
       },
       {
@@ -462,19 +483,19 @@
       },
       {
         "package": "example.com/cx/state",
-        "elements": 4,
-        "visible": 4,
+        "elements": 5,
+        "visible": 5,
         "rv": 1
       },
       {
         "package": "example.com/cx/web",
-        "elements": 9,
-        "visible": 9,
+        "elements": 10,
+        "visible": 10,
         "rv": 1
       }
     ],
     "arv": 0.714286,
-    "grv": 0.941176
+    "grv": 0.95
   },
   "componentDependencyMetrics": [
     {
@@ -548,8 +569,8 @@
   ],
   "verification": {
     "verified": true,
-    "classes": 7,
-    "cells": 37
+    "classes": 8,
+    "cells": 43
   },
   "assumptions": [
     {

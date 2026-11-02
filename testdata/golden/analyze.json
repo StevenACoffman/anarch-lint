@@ -8,7 +8,7 @@
     "patterns": [
       "./..."
     ],
-    "modelHash": "7d350c6facc1ccba8a20ba0d119287c394693496bda6c9d9e4638433ed865fb8",
+    "modelHash": "6f513727ee192e102ebc7a4f616ca068f1ef0c82d592a1fe2a5a3c9378f496a6",
     "thresholds": {
       "largeTypeLines": 400,
       "largeFuncLines": 60,
@@ -638,7 +638,8 @@
       },
       "message": "example.com/fx/billing/tax imports example.com/fx/shop/catalog, which is not an interface package of subsystem shop",
       "fix": "subsystem shop declares no interface: declare the packages others may import, such as example.com/fx/shop/catalog, as its interface in the model",
-      "modelRule": "interfaces"
+      "modelRule": "interfaces",
+      "provenance": "types"
     },
     {
       "fingerprint": "bf6951f47d4496ed",

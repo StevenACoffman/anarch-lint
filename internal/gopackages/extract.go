@@ -5,8 +5,10 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"reflect"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/uudashr/gocognit"
 	"golang.org/x/tools/go/packages"
@@ -100,6 +102,13 @@ func (x *extractor) addPackage(
 	if err := x.addInactiveImports(p, readFile); err != nil {
 		return err
 	}
+	syntax := make([]*ast.File, len(files))
+	for i := range files {
+		syntax[i] = files[i].syntax
+	}
+	if err := packageDirectives(&pkg, syntax); err != nil {
+		return err
+	}
 	slices.Sort(pkg.Files)
 	x.prog.Packages = append(x.prog.Packages, pkg)
 	// A method's lines count toward its type, which may be declared in a
@@ -180,6 +189,7 @@ func (x *extractor) addTypeSpecs(fc *fileContext, d *ast.GenDecl) {
 			Span:      span,
 			Lines:     fc.lines.within(span),
 			Fields:    fieldNames(ts),
+			WireNames: wireNames(ts),
 			Embeds:    embedsOf(tn, x.inScope),
 			Directive: directiveOf(ts, d),
 		}
@@ -231,35 +241,48 @@ func (x *extractor) addFunc(fc *fileContext, d *ast.FuncDecl) arch.Func {
 func (x *extractor) addRefs(fc *fileContext, from *types.TypeName, node ast.Node) {
 	fromID := typeID(from)
 	regions, fallback := refRegions(node)
+	var body map[*ast.Ident]bodyRef
+	if fd, ok := node.(*ast.FuncDecl); ok && fd.Body != nil {
+		body = bodyRefs(fc.pkg.TypesInfo, fd.Body)
+	}
 	ast.Inspect(node, func(n ast.Node) bool {
 		id, ok := n.(*ast.Ident)
 		if !ok {
 			return true
 		}
+		br, inBody := body[id]
 		to := typeOwner(fc.pkg.TypesInfo.Uses[id])
-		if to == nil || !x.inScope[to.Pkg().Path()] {
+		if br.owner != nil {
+			to = br.owner // a field, whose object does not say which type declares it
+		}
+		if to == nil || !x.inScope[to.Pkg().Path()] || typeID(to) == fromID {
 			return true
 		}
-		toID := typeID(to)
-		if toID == fromID {
-			return true
+		kind := kindAt(regions, fallback, id.Pos())
+		if kind == arch.RefBody && inBody {
+			kind = br.kind
 		}
-		pos := fc.position(id.Pos())
-		key := [2]string{fromID, toID}
-		r, ok := x.refs[key]
-		switch {
-		case !ok:
-			r = &arch.Ref{From: fromID, To: toID, Weight: 1, Pos: pos}
-			x.refs[key] = r
-		default:
-			r.Weight++
-			if arch.ComparePositions(pos, r.Pos) < 0 {
-				r.Pos = pos
-			}
-		}
-		addKind(r, kindAt(regions, fallback, id.Pos()))
+		x.addRef(fromID, typeID(to), fc.position(id.Pos()), kind)
 		return true
 	})
+}
+
+// addRef counts one referring identifier from one type to another, keeping
+// the first position and every kind.
+func (x *extractor) addRef(fromID, toID string, pos arch.Position, kind arch.RefKind) {
+	key := [2]string{fromID, toID}
+	r, ok := x.refs[key]
+	switch {
+	case !ok:
+		r = &arch.Ref{From: fromID, To: toID, Weight: 1, Pos: pos}
+		x.refs[key] = r
+	default:
+		r.Weight++
+		if arch.ComparePositions(pos, r.Pos) < 0 {
+			r.Pos = pos
+		}
+	}
+	addKind(r, kind)
 }
 
 // program returns the accumulated facts, sorted.
@@ -360,6 +383,48 @@ func kindOf(tn *types.TypeName) arch.TypeKind {
 
 // fieldNames returns the field names of a struct type spec, an embedded field
 // counting under its type's name.
+// wireNames returns the names a struct's tags give its fields in each
+// encoding, as "json:id", sorted: the wire format the type agrees on with
+// whoever reads it. A field a tag leaves out ("-") has none.
+func wireNames(ts *ast.TypeSpec) []string {
+	st, ok := ts.Type.(*ast.StructType)
+	if !ok {
+		return nil
+	}
+	var out []string
+	for _, f := range st.Fields.List {
+		if f.Tag == nil {
+			continue
+		}
+		tag, err := strconv.Unquote(f.Tag.Value)
+		if err != nil {
+			continue
+		}
+		for _, enc := range []string{"json", "xml", "yaml", "protobuf"} {
+			name, _, _ := strings.Cut(reflect.StructTag(tag).Get(enc), ",")
+			if enc == "protobuf" {
+				name = protobufName(reflect.StructTag(tag).Get(enc))
+			}
+			if name != "" && name != "-" {
+				out = append(out, enc+":"+name)
+			}
+		}
+	}
+	slices.Sort(out)
+	return slices.Compact(out)
+}
+
+// protobufName returns the field name of a protobuf struct tag, such as
+// "bytes,1,opt,name=order_id,proto3": order_id.
+func protobufName(tag string) string {
+	for part := range strings.SplitSeq(tag, ",") {
+		if name, ok := strings.CutPrefix(part, "name="); ok {
+			return name
+		}
+	}
+	return ""
+}
+
 func fieldNames(ts *ast.TypeSpec) []string {
 	st, ok := ts.Type.(*ast.StructType)
 	if !ok {

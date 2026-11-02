@@ -160,7 +160,7 @@ func TestUnexplainedRules(t *testing.T) {
 			advice = append(advice, f.Subject)
 		}
 	}
-	equals(t, []string{"unexplained"}, advice)
+	equals(t, []string{"layers", "unexplained"}, advice)
 }
 
 func TestRuleKinds(t *testing.T) {
@@ -186,6 +186,18 @@ func TestRuleKinds(t *testing.T) {
 				Adapters: map[string][]string{"web": {"m/a/web"}},
 			}},
 			findings: nil, // every import points inward
+		},
+		"the onion fails an inner ring importing an outer one": {
+			fitness: arch.Fitness{Onion: arch.Onion{
+				DomainModels: []string{"m/a/service"}, ApplicationServices: []string{"m/a/store"},
+			}},
+			findings: []string{"onion-ring m/a/service onion[0]: m/a/store"},
+		},
+		"the onion fails an adapter importing another": {
+			fitness: arch.Fitness{Onion: arch.Onion{
+				Adapters: map[string][]string{"web": {"m/a/web"}, "service": {"m/a/service"}},
+			}},
+			findings: []string{"onion-ring m/a/web onion[0]: m/a/service"},
 		},
 		"slices may not depend on each other": {
 			fitness: arch.Fitness{Slices: []arch.Slices{
@@ -529,8 +541,10 @@ func TestCoChangeRule(t *testing.T) {
 			equals(t, tc.status, r.Rules[0].Status)
 			equals(t, tc.matched, r.Rules[0].Matched)
 			equals(t, tc.findings, rules(&r))
-			if len(r.Findings) > 0 {
-				equals(t, &arch.Span{File: "api/x.proto", Start: 4, End: 4}, r.Findings[0].Location)
+			for _, f := range r.Findings {
+				if f.Rule == arch.RuleMissingCoChange {
+					equals(t, &arch.Span{File: "api/x.proto", Start: 4, End: 4}, f.Location)
+				}
 			}
 		})
 	}
@@ -691,7 +705,7 @@ func TestRulesCheckInactiveImports(t *testing.T) {
 	equals(t, []string{"dependent-restriction m/b/service sql: database/sql"}, rules(&r))
 	for i := range r.Findings {
 		if f := &r.Findings[i]; f.Rule == "dependent-restriction" {
-			equals(t, []string{arch.InactiveEvidence}, f.Evidence)
+			equals(t, arch.ProvenanceSource, f.Provenance)
 		}
 	}
 }
@@ -715,4 +729,63 @@ func TestEmptySelectorSuggestsCorrections(t *testing.T) {
 		"from":    {"m/a/servce: did you mean m/a/service?"},
 		"imports": {"database/sq: did you mean database/sql?"},
 	}, evidence)
+}
+
+// A fields rule forbids reads and writes of fields, or only writes, or lets
+// only some packages access them; a field matches by name, by its type with
+// ".*", or by its package with ".*".
+func TestFieldsRule(t *testing.T) {
+	t.Parallel()
+	p := program()
+	site := func(pkg, fn string, line int) arch.Site {
+		return arch.Site{File: "f.go", Line: line, Package: pkg, Func: fn}
+	}
+	p.Facts.Uses = append(p.Facts.Uses,
+		arch.Use{
+			Object: "m/a/store.DB.conn", Kind: arch.ObjectField, Package: "m/a/store",
+			Owner: "m/a/store.DB", Count: 2, Writes: 1, Site: site("m/a/web", "m/a/web.Serve", 7),
+		},
+		arch.Use{
+			Object: "m/a/store.DB.name", Kind: arch.ObjectField, Package: "m/a/store",
+			Owner: "m/a/store.DB", Count: 1, Site: site("m/a/service", "m/a/service.Run", 8),
+		},
+	)
+	cases := map[string]struct {
+		rule     arch.FieldRule
+		findings []string
+	}{
+		"no access from web": {
+			rule: arch.FieldRule{From: []string{"m/a/web"}, Fields: []string{"m/a/store.DB.*"}},
+			findings: []string{
+				"forbidden-field-access m/a/web.Serve f: m/a/store.DB.conn",
+			},
+		},
+		"only writes": {
+			rule: arch.FieldRule{
+				From: []string{"m/a/..."}, Fields: []string{"m/a/store.*"}, Writes: true,
+			},
+			findings: []string{"forbidden-field-access m/a/web.Serve f: m/a/store.DB.conn"},
+		},
+		"only store and service": {
+			rule: arch.FieldRule{
+				From: []string{"m/a/store", "m/a/service"}, Fields: []string{
+					"m/a/store.DB.name",
+					"m/a/store.DB.conn",
+				}, Only: true,
+			},
+			findings: []string{"field-restriction m/a/web.Serve f: m/a/store.DB.conn"},
+		},
+		"another field": {
+			rule: arch.FieldRule{From: []string{"m/a/web"}, Fields: []string{"m/a/store.DB.name"}},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			tc.rule.Name, tc.rule.Reason = "f", "keep the store's state to itself"
+			m := layered(&arch.Fitness{Fields: []arch.FieldRule{tc.rule}})
+			r := fitness.Analyze(&arch.Input{Program: p, Model: m})
+			equals(t, tc.findings, rules(&r))
+		})
+	}
 }

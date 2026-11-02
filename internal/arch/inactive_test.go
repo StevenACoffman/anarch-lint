@@ -32,7 +32,7 @@ func TestImportRulesCheckInactiveImports(t *testing.T) {
 		if len(fs) != 1 {
 			t.Fatalf("%s: want one finding, got %v", rule, fs)
 		}
-		equals(t, []string{arch.InactiveEvidence}, fs[0].Evidence)
+		equals(t, arch.ProvenanceSource, fs[0].Provenance)
 		equals(t, "app/app_windows.go", fs[0].Location.File)
 	}
 	for _, pkg := range r.Packages {
@@ -77,5 +77,41 @@ func TestInactiveImportIsDirectForTransitiveRules(t *testing.T) {
 	if len(fs) != 1 {
 		t.Fatalf("want one finding, got %d: %v", len(fs), fs)
 	}
-	equals(t, []string{arch.InactiveEvidence}, fs[0].Evidence)
+	equals(t, arch.ProvenanceSource, fs[0].Provenance)
+}
+
+// A call through an interface that the VTA call graph resolves to a method
+// of a forbidden package is a hidden dependency of the calling package, with
+// its provenance; an injection of the same type into the same package is
+// the same finding, reported once.
+func TestDispatchIsAHiddenDependency(t *testing.T) {
+	t.Parallel()
+	at := arch.Position{File: "app/app.go", Line: 7}
+	p := arch.Program{
+		Packages: []arch.Package{{Path: "m/app"}, {Path: "m/disk"}},
+		Types:    []arch.Type{{ID: "m/disk.Store", Package: "m/disk", Name: "Store"}},
+		Dispatches: []arch.Dispatch{{
+			Caller: "m/app.Record", CallerPackage: "m/app", Callee: "m/disk.Store.Save",
+			Concrete: "m/disk.Store", Pos: at,
+		}},
+		Injections: []arch.Injection{{
+			Caller: "m/main", Callee: "m/app.Record", CalleePackage: "m/app",
+			Concrete: "m/disk.Store", Pos: at,
+		}},
+	}
+	m := arch.Model{Version: 1, ForbiddenImports: []arch.ForbiddenImport{{
+		From: []string{"m/app"}, Imports: []string{"m/disk"}, Reason: "the app stays in memory",
+		Injected: true,
+	}}}
+	r := arch.Analyze(&arch.Input{Program: p, Model: m})
+	fs := findingsOf(&r, arch.RuleHiddenDependency)
+	equals(t, 1, len(fs))
+	equals(t, arch.ProvenanceInjected, fs[0].Provenance)
+
+	p.Injections = nil
+	r = arch.Analyze(&arch.Input{Program: p, Model: m})
+	fs = findingsOf(&r, arch.RuleHiddenDependency)
+	equals(t, 1, len(fs))
+	equals(t, arch.ProvenanceDispatch, fs[0].Provenance)
+	equals(t, "m/app", fs[0].Subject)
 }

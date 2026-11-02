@@ -39,6 +39,9 @@ type Hotspot struct {
 	Package    string `json:"package"`
 	Commits    int    `json:"commits"`
 	Complexity int    `json:"complexity"`
+	// Authors counts the distinct authors of those commits: a hotspot
+	// many people change is harder to keep coherent (Tornhill).
+	Authors int `json:"authors"`
 }
 
 // history holds what the temporal measures read: the churn of a revision
@@ -143,7 +146,7 @@ func (h *history) hiddenCouplings(cc []CoChange) []Candidate {
 			continue
 		}
 		out = append(out, fingerprinted(&Candidate{
-			Rule:    "hidden-coupling",
+			Rule:    arch.RuleHiddenCoupling,
 			Subject: c.A,
 			Object:  c.B,
 			Message: fmt.Sprintf("%s and %s changed together in %d commits (score %g), "+
@@ -171,15 +174,11 @@ func (h *history) hotspots() []Hotspot {
 		complexity[fn.Package] += fn.Complexity.Of(h.variant)
 	}
 	for _, pkg := range h.p.Packages {
-		commits := map[string]bool{}
-		for _, f := range pkg.Files {
-			for _, c := range h.churn.Commits[f] {
-				commits[c] = true
-			}
-		}
+		commits := h.commitsTo(pkg.Files)
 		if len(commits) > 0 && complexity[pkg.Path] > 0 {
 			out = append(out, Hotspot{
 				Package: pkg.Path, Commits: len(commits), Complexity: complexity[pkg.Path],
+				Authors: h.authorsOf(commits),
 			})
 		}
 	}
@@ -188,6 +187,28 @@ func (h *history) hotspots() []Hotspot {
 			cmp.Compare(x.Package, y.Package))
 	})
 	return out[:min(len(out), maxListed)]
+}
+
+// commitsTo returns the distinct commits that changed any of the files.
+func (h *history) commitsTo(files []string) map[string]bool {
+	commits := map[string]bool{}
+	for _, f := range files {
+		for _, c := range h.churn.Commits[f] {
+			commits[c] = true
+		}
+	}
+	return commits
+}
+
+// authorsOf counts the distinct known authors of the commits.
+func (h *history) authorsOf(commits map[string]bool) int {
+	authors := map[string]bool{}
+	for c := range commits {
+		if author := h.churn.Authors[c]; author != "" {
+			authors[author] = true
+		}
+	}
+	return len(authors)
 }
 
 // coChangeAssumption records the co-change thresholds.

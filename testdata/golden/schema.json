@@ -11,6 +11,9 @@
             "type": "string"
           },
           "type": "array"
+        },
+        "packages": {
+          "type": "boolean"
         }
       },
       "type": "object"
@@ -47,6 +50,23 @@
         "optional": {
           "type": "boolean"
         },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
+        },
         "reason": {
           "type": "string"
         }
@@ -78,6 +98,23 @@
         },
         "optional": {
           "type": "boolean"
+        },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
         },
         "reason": {
           "type": "string"
@@ -170,6 +207,23 @@
           },
           "type": "array"
         },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
+        },
         "reason": {
           "type": "string"
         }
@@ -197,6 +251,23 @@
           "type": "boolean"
         },
         "path": {
+          "type": "string"
+        },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
           "type": "string"
         },
         "reason": {
@@ -243,6 +314,23 @@
           },
           "type": "array"
         },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
+        },
         "reason": {
           "type": "string"
         }
@@ -251,6 +339,101 @@
         "max",
         "packages"
       ],
+      "type": "object"
+    },
+    "FieldRule": {
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "from": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "only": {
+          "type": "boolean"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "writes": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "fields"
+      ],
+      "type": "object"
+    },
+    "FindingRule": {
+      "additionalProperties": false,
+      "properties": {
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
       "type": "object"
     },
     "Fitness": {
@@ -286,6 +469,12 @@
           },
           "type": "array"
         },
+        "fields": {
+          "items": {
+            "$ref": "#/$defs/FieldRule"
+          },
+          "type": "array"
+        },
         "interfacesOnly": {
           "items": {
             "$ref": "#/$defs/InterfacesOnly"
@@ -318,6 +507,12 @@
         },
         "strictLayers": {
           "type": "boolean"
+        },
+        "unusedExports": {
+          "items": {
+            "$ref": "#/$defs/UnusedExports"
+          },
+          "type": "array"
         }
       },
       "type": "object"
@@ -331,6 +526,14 @@
           },
           "type": "array"
         },
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
         "imports": {
           "items": {
             "type": "string"
@@ -339,6 +542,23 @@
         },
         "injected": {
           "type": "boolean"
+        },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
         },
         "reason": {
           "type": "string"
@@ -389,6 +609,23 @@
         "optional": {
           "type": "boolean"
         },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
+        },
         "reason": {
           "type": "string"
         },
@@ -411,11 +648,36 @@
         "from": {
           "type": "string"
         },
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
         "mayImport": {
           "items": {
             "type": "string"
           },
           "type": "array"
+        },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
         },
         "reason": {
           "type": "string"
@@ -488,6 +750,23 @@
         "optional": {
           "type": "boolean"
         },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
+        },
         "reason": {
           "type": "string"
         }
@@ -525,6 +804,23 @@
         },
         "optional": {
           "type": "boolean"
+        },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
         },
         "reason": {
           "type": "string"
@@ -578,6 +874,23 @@
         },
         "optional": {
           "type": "boolean"
+        },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
         },
         "reason": {
           "type": "string"
@@ -644,6 +957,23 @@
         "pattern": {
           "type": "string"
         },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
+        },
         "reason": {
           "type": "string"
         }
@@ -677,6 +1007,24 @@
       },
       "required": [
         "name",
+        "packages"
+      ],
+      "type": "object"
+    },
+    "ThresholdOverride": {
+      "additionalProperties": false,
+      "properties": {
+        "packages": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "thresholds": {
+          "$ref": "#/$defs/Thresholds"
+        }
+      },
+      "required": [
         "packages"
       ],
       "type": "object"
@@ -718,6 +1066,55 @@
         }
       },
       "type": "object"
+    },
+    "UnusedExports": {
+      "additionalProperties": false,
+      "properties": {
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "packages": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "packages"
+      ],
+      "type": "object"
     }
   },
   "$id": "https://github.com/StevenACoffman/anarch-lint/schema/anarch.v1.json",
@@ -732,6 +1129,39 @@
     },
     "connascence": {
       "$ref": "#/$defs/ConnascenceLimits"
+    },
+    "findingRules": {
+      "additionalProperties": {
+        "$ref": "#/$defs/FindingRule"
+      },
+      "propertyNames": {
+        "enum": [
+          "ambiguous-package",
+          "cognitive-complexity",
+          "complex-func",
+          "deep-nesting",
+          "empty-selector",
+          "interface-bypass",
+          "large-file",
+          "large-func",
+          "large-type",
+          "layer-order-violation",
+          "package-outside-architecture",
+          "redundant-rule",
+          "role-order-violation",
+          "rule-without-reason",
+          "stale-pattern",
+          "strict-layers",
+          "subsystem-cycle",
+          "subsystem-order-violation",
+          "subsystem-without-interface",
+          "type-cycle-too-large",
+          "unassigned-package",
+          "unknown-role-directive",
+          "unusable-allowance"
+        ]
+      },
+      "type": "object"
     },
     "fitness": {
       "$ref": "#/$defs/Fitness"
@@ -772,6 +1202,12 @@
     "subsystems": {
       "items": {
         "$ref": "#/$defs/Subsystem"
+      },
+      "type": "array"
+    },
+    "thresholdOverrides": {
+      "items": {
+        "$ref": "#/$defs/ThresholdOverride"
       },
       "type": "array"
     },

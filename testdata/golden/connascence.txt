@@ -1,5 +1,5 @@
 anarch-lint connascence (anarch-lint.connascence.v1)
-patterns ./... · model 5ced60b0ed00 · GOVERSION
+patterns ./... · model dc5e1dfdbfd1 · GOVERSION
 
 SUMMARY (facts+candidates at each locality)
   kind              function  type  file  package  subsystem  system  external  
@@ -8,13 +8,19 @@ SUMMARY (facts+candidates at each locality)
   2 type            -         -     -     -        -          3+0     -         
   3 meaning         1+1       -     -     -        -          1+0     -         
   4 position        2+1       -     -     -        -          1+0     -         
-  5 algorithm       -         -     -     -        -          0+4     -         
+  5 algorithm       -         -     -     -        -          1+4     -         
   6 execution       -         0+3   -     -        -          -       -         
-  7 timing          0+1       -     -     -        -          -       -         
+  7 timing          1+1       -     -     -        -          -       -         
   8 value           -         -     -     -        -          1+1     -         
   9 identity        -         -     -     -        -          1+0     -         
 
-FINDINGS (3 errors, 0 warnings)
+FINDINGS (4 errors, 0 warnings)
+  error  connascence-algorithm  example.com/cx/billing.Total  billing/invoice.go:77
+         2 functions in 2 packages have a copy of the body of example.com/cx/billing.Total
+         evidence: strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3
+         evidence: site: billing/invoice.go:77 (example.com/cx/billing.Total)
+         evidence: site: state/total.go:5 (example.com/cx/state.Total)
+         fix: keep one copy and call it from the others
   error  connascence-identity  example.com/cx/auth.Sessions  billing/invoice.go:63
          2 packages use the package variable example.com/cx/auth.Sessions
          evidence: strength 9 (identity), locality system, degree 2: above maxStrength.system 3
@@ -61,8 +67,8 @@ CANDIDATES (11, 0 rejected; the first 11, strongest and farthest first)
                                 2 packages call crypto/sha256
                                 strength 5 (algorithm), locality system, degree 2, 2 sites, confidence low
                                 fix: let one function own the algorithm and call it from both sides
-  algorithm.clone               example.com/cx/billing.Total  billing/invoice.go:77
-                                2 functions in 2 packages have the same body shape as example.com/cx/billing.Total
+  algorithm.clone               example.com/cx/audit.Count  audit/count.go:5
+                                2 functions in 2 packages have the same body shape as example.com/cx/audit.Count
                                 strength 5 (algorithm), locality system, degree 2, 2 sites, confidence low
                                 fix: keep one copy and call it, or confirm that the copies may evolve apart
   algorithm.same-pattern        "^[A-Z]{3}-[0-9]+$"  billing/invoice.go:16
@@ -110,15 +116,15 @@ JUDGEMENTS (for a human expert or an adversarial LLM; an approved verdict confir
                                          evidence: site: web/admin.go:45 (example.com/cx/web.Sum)
                                          context, hidden from a judge: over the limits: above maxStrength.system 3
                                          evidence hash: df957d76b9801d5aa560cb3e32dd66bf4ef20d35bfa47c1d074f812e94a9ce29
-  connascence/776fd7466e2e9acd  pending  Must these places change together, so that the candidate is connascence?
+  connascence/77ed473549a4415c  pending  Must these places change together, so that the candidate is connascence?
                                          answers: confirmed, rejected, insufficient-evidence
                                          undecided: a detector found the shape of connascence, with low confidence that it is not chance, but not that the places must change together
-                                         evidence: 2 functions in 2 packages have the same body shape as example.com/cx/billing.Total
+                                         evidence: 2 functions in 2 packages have the same body shape as example.com/cx/audit.Count
                                          evidence: strength 5 (algorithm), locality system, degree 2
-                                         evidence: site: billing/invoice.go:77 (example.com/cx/billing.Total)
+                                         evidence: site: audit/count.go:5 (example.com/cx/audit.Count)
                                          evidence: site: web/admin.go:48 (example.com/cx/web.Tally)
                                          context, hidden from a judge: over the limits: above maxStrength.system 3
-                                         evidence hash: 0f42bc3f4cce8034907d573b9ed1196d547fb08715b1ea2bb3e011d6b4f601a8
+                                         evidence hash: 488c5b8da76710594dc1ecd4703b5ca44969fb7bae0dab9838e8f5993579f071
   connascence/b1236343126f63c5  pending  Must these places change together, so that the candidate is connascence?
                                          answers: confirmed, rejected, insufficient-evidence
                                          undecided: a detector found the shape of connascence, with high confidence that it is not chance, but not that the places must change together

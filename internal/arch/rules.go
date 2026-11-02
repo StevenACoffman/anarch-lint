@@ -12,6 +12,10 @@ type ruleResult struct {
 	findings   []Finding
 	violations int
 	candidates int
+	// passes are the imports the rule examined and allowed, as findings that
+	// are not reported, so the model's gates apply to them alike; they
+	// explain a pass (ExplainImport).
+	passes []Finding
 }
 
 // subject is the analysis a rule reads: the program, the model and the graphs
@@ -88,12 +92,15 @@ func orderRule(
 		}
 		r.candidates++
 		if rf < rt {
+			r.passes = append(r.passes, pass(rule, instance,
+				fmt.Sprintf("%s (%s) sits above %s (%s)", imp.From, gf, imp.To, gt)))
 			continue
 		}
 		r.violations++
 		f := NewFinding(FindingID{Rule: rule, Subject: imp.From, Object: imp.To}, SeverityError)
 		f.ModelRule = instance
 		f.Location = SpanAt(imp.Pos)
+		f.Provenance = imp.Provenance()
 		f.Criterion = criterion
 		f.Message = fmt.Sprintf(
 			"%s (%s) imports %s (%s), which sits above it",
@@ -177,6 +184,8 @@ func interfaceRule(s *subject) ruleResult {
 		}
 		r.candidates++
 		if MatchesAny(iface[to], imp.To) {
+			r.passes = append(r.passes, pass(RuleInterfaceBypass, "interfaces",
+				fmt.Sprintf("%s is an interface package of subsystem %s", imp.To, to)))
 			continue
 		}
 		r.violations++
@@ -186,6 +195,7 @@ func interfaceRule(s *subject) ruleResult {
 		)
 		f.ModelRule = "interfaces"
 		f.Location = SpanAt(imp.Pos)
+		f.Provenance = imp.Provenance()
 		f.Criterion = "1.2.1"
 		f.Message = fmt.Sprintf("%s imports %s, which is not an interface package of subsystem %s",
 			imp.From, imp.To, to)
@@ -217,7 +227,15 @@ func forbiddenRule(s *subject) ruleResult {
 	for _, imp := range s.p.RuleImports() {
 		for i := range s.m.ForbiddenImports {
 			fi := &s.m.ForbiddenImports[i]
-			if !MatchesAny(fi.From, imp.From) || !MatchesAny(fi.Imports, imp.To) {
+			if !MatchesAny(fi.From, imp.From) {
+				continue
+			}
+			if !MatchesAny(fi.Imports, imp.To) {
+				r.passes = append(
+					r.passes,
+					pass(RuleForbiddenImport, instanceName("forbiddenImports", i),
+						imp.To+" is not among the packages it forbids "+imp.From+" to import"),
+				)
 				continue
 			}
 			r.violations++
@@ -231,7 +249,7 @@ func forbiddenRule(s *subject) ruleResult {
 			f.Message = fmt.Sprintf("%s imports %s: %s", imp.From, imp.To, fi.Reason)
 			f.Fix = fmt.Sprintf("move the use of %s into an adapter package and depend on an "+
 				"interface declared where %s needs it", imp.To, imp.From)
-			f.Evidence = importEvidence(&imp)
+			f.Provenance = imp.Provenance()
 			r.findings = append(r.findings, f)
 			break
 		}
@@ -242,13 +260,18 @@ func forbiddenRule(s *subject) ruleResult {
 // isolationRule reports in-scope imports an isolation does not allow: the
 // importing package matches From, and the imported one matches none of
 // MayImport after substitution.
-func isolationRule(s *subject) []Finding {
-	var fs []Finding
+func isolationRule(s *subject) ruleResult {
+	var r ruleResult
 	for _, imp := range s.inScope(s.p.RuleImports()) {
 		for j := range s.m.Isolations {
 			iso := &s.m.Isolations[j]
 			_, captures, ok := MatchCaptures(iso.From, imp.From)
-			if !ok || isolationAllows(iso, captures, imp.To) {
+			if !ok {
+				continue
+			}
+			if isolationAllows(iso, captures, imp.To) {
+				r.passes = append(r.passes, pass(RuleIsolation, instanceName("isolations", j),
+					imp.To+" is among the packages "+imp.From+" may import"))
 				continue
 			}
 			allowed := make([]string, len(iso.MayImport))
@@ -264,12 +287,18 @@ func isolationRule(s *subject) []Finding {
 			f.Message = fmt.Sprintf("%s imports %s: %s", imp.From, imp.To, iso.Reason)
 			f.Fix = fmt.Sprintf("%s may import only %s; move the shared code there, or depend on "+
 				"an interface declared in %s", imp.From, strings.Join(allowed, ", "), imp.From)
-			f.Evidence = importEvidence(&imp)
-			fs = append(fs, f)
+			f.Provenance = imp.Provenance()
+			r.findings = append(r.findings, f)
 			break
 		}
 	}
-	return fs
+	return r
+}
+
+// pass records that the rule named modelRule, whose findings are rule's,
+// examined an import and allows it, for the reason why.
+func pass(rule, modelRule, why string) Finding {
+	return Finding{Rule: rule, ModelRule: modelRule, Message: why}
 }
 
 // isolationAllows reports whether iso, with the importer's captures, allows
@@ -295,15 +324,6 @@ func (s *subject) inScope(imps []Import) []Import {
 		}
 	}
 	return out
-}
-
-// importEvidence is the evidence of a finding about imp: InactiveEvidence
-// for an inactive import, and none otherwise.
-func importEvidence(imp *Import) []string {
-	if !imp.Inactive {
-		return nil
-	}
-	return []string{InactiveEvidence}
 }
 
 // MatchesAny reports whether any of the patterns matches path.

@@ -1,14 +1,16 @@
 anarch-lint balance (anarch-lint.balance.v1)
-patterns ./... · model 5ced60b0ed00 · codeowners 16c41ce3f256 · churn none · GOVERSION
+patterns ./... · model dc5e1dfdbfd1 · codeowners 16c41ce3f256 · churn none · GOVERSION
 
 PAIRS (downstream -> upstream: strength, distance, volatility, balance)
-  pair             strength                          distance                volatility  quadrant        balance  
-  audit -> auth    contract (name)                   4 system                unjudged    low-cohesion    4        
-  billing -> auth  functional (identity)             7 system owners         unjudged    tight-coupling  2        
-  billing <-> web  functional (algorithm) candidate  9 system owners deploy  unjudged    tight-coupling  1        
-  web -> auth      intrusive                         7 system owners         unjudged    tight-coupling  4        
+  pair               strength                          distance                volatility  quadrant        balance  
+  audit -> auth      contract (name)                   4 system                unjudged    low-cohesion    4        
+  audit -> web       functional (algorithm) candidate  7 system owners         unjudged    tight-coupling  2        
+  billing -> auth    functional (identity)             7 system owners         unjudged    tight-coupling  2        
+  billing <-> state  functional (algorithm)            7 system owners         unjudged    tight-coupling  3        
+  billing <-> web    functional (algorithm) candidate  9 system owners deploy  unjudged    tight-coupling  1        
+  web -> auth        intrusive                         7 system owners         unjudged    tight-coupling  4        
 
-FINDINGS (3 errors, 0 warnings)
+FINDINGS (4 errors, 0 warnings)
   error  subsystem-owners-differ  billing  
          the packages of subsystem billing have 2 different sets of owners in CODEOWNERS
          evidence: owners: @cx/money
@@ -36,10 +38,16 @@ FINDINGS (3 errors, 0 warnings)
          evidence: name.cross-subsystem fact: 2 places in 2 packages refer to example.com/cx/auth.Sessions by name
          evidence: position.unkeyed-literal fact: 1 literal of example.com/cx/auth.Credentials lists its fields by position
          fix: co-locate the shared functionality, or replace the duplicated knowledge with a published event or a contract
+  error  tight-coupling-functional  billing  billing/invoice.go:77
+         billing couples to state at the functional level across a distance of 7, and state's volatility is unjudged, so it counts as core: a step toward a distributed monolith
+         evidence: strength functional (fact), distance 7 (locality system, owner boundary true, deploy boundary false, async false), volatility unjudged, balance 3
+         evidence: algorithm.clone fact: 2 functions in 2 packages have a copy of the body of example.com/cx/billing.Total
+         fix: co-locate the shared functionality, or replace the duplicated knowledge with a published event or a contract
   error  tight-coupling-intrusive  web  web/admin.go:28
          web couples to auth at the intrusive level across a distance of 7, and auth's volatility is unjudged, so it counts as core: a step toward a distributed monolith
          evidence: strength intrusive (fact), distance 7 (locality system, owner boundary true, deploy boundary false, async false), volatility unjudged, balance 4
          evidence: example.com/cx/web.Peek converts example.com/cx/auth.Secret through unsafe.Pointer
+         evidence: example.com/cx/web.Peek looks up example.com/cx/auth.Secret's unexported "token" by reflection
          evidence: example.com/cx/web links Steal to example.com/cx/auth.check, bypassing its interface
          evidence: identity.shared-variable fact: 2 packages use the package variable example.com/cx/auth.Sessions
          evidence: example.com/cx/web.Admin uses type example.com/cx/auth.Role: it exposes the model type example.com/cx/auth.Role
@@ -57,10 +65,19 @@ FINDINGS (3 errors, 0 warnings)
          evidence: type.cross-package fact: example.com/cx/auth.Secret appears in the signatures or fields of 1 place in other packages
          fix: integrate through the upstream's interface, a façade or an anti-corruption layer, instead of its implementation
 
-CANDIDATES (2, 0 rejected)
-  intrusive-reflection       example.com/cx/web -> token
-                             example.com/cx/web.Peek looks up the unexported name "token" with reflect.Value.FieldByName
-                             fix: ask the owning package for the value through its interface
+CANDIDATES (5, 0 rejected)
+  low-cohesion               example.com/cx/audit
+                             no file of example.com/cx/audit refers to a name another of its files declares
+                             fix: split the package by file, or name what its files have in common
+  low-cohesion               example.com/cx/state
+                             no file of example.com/cx/state refers to a name another of its files declares
+                             fix: split the package by file, or name what its files have in common
+  low-cohesion               example.com/cx/web
+                             no file of example.com/cx/web refers to a name another of its files declares
+                             fix: split the package by file, or name what its files have in common
+  tight-coupling-functional  audit -> web
+                             audit couples to web at the functional level across a distance of 7, and web's volatility is unjudged, so it counts as core: a step toward a distributed monolith
+                             fix: co-locate the shared functionality, or replace the duplicated knowledge with a published event or a contract
   tight-coupling-functional  billing -> web
                              billing couples to web at the functional level across a distance of 9, and web's volatility is unjudged, so it counts as core: a step toward a distributed monolith
                              fix: co-locate the shared functionality, or replace the duplicated knowledge with a published event or a contract
@@ -73,12 +90,22 @@ VOLATILITY (judged subdomain; churn is evidence, not volatility)
   audit    unjudged  bounded context none  -  
 
 EXPOSURE (packages with a functional or intrusive upstream dependency)
-  example.com/cx/billing  functional fact  Ca 1  dependents 1  weighted instability 1.000  
-  example.com/cx/web      intrusive fact   Ca 1  dependents 1  weighted instability 0.556  
+  example.com/cx/audit    functional candidate  Ca 0  dependents 0  weighted instability 1.000  
+  example.com/cx/billing  functional fact       Ca 1  dependents 1  weighted instability 1.000  
+  example.com/cx/web      intrusive fact        Ca 1  dependents 1  weighted instability 0.385  
 
 NO DEPLOY UNIT: example.com/cx/audit, example.com/cx/state
 
 JUDGEMENTS (for a human expert or an adversarial LLM; an approved verdict confirms or rejects)
+  balance/9a9f6efb399ec7ca                       pending  Is this Balanced Coupling candidate real?
+                                                          answers: confirmed, rejected, insufficient-evidence
+                                                          undecided: the coupling rests on candidate evidence, which a detector found but cannot confirm
+                                                          evidence: audit depends on web at the functional level
+                                                          evidence: algorithm.clone candidate: 2 functions in 2 packages have the same body shape as example.com/cx/audit.Count
+                                                          evidence: example.com/cx/audit.Invoices consumes http::GET::/invoices, which example.com/cx/web provides
+                                                          context, hidden from a judge: tight-coupling-functional: audit couples to web at the functional level across a distance of 7, and web's volatility is unjudged, so it counts as core: a step toward a distributed monolith
+                                                          context, hidden from a judge: strength functional (candidate), distance 7 (locality system, owner boundary true, deploy boundary false, async false), volatility unjudged, balance 2
+                                                          evidence hash: 87844956e97a52c499d5129fa5bf66616aa8fda8916ca2e0ebfd5c0675fcc798
   balance/b8a015bc0a8d61d4                       pending  Is this Balanced Coupling candidate real?
                                                           answers: confirmed, rejected, insufficient-evidence
                                                           undecided: the coupling rests on candidate evidence, which a detector found but cannot confirm
@@ -86,10 +113,9 @@ JUDGEMENTS (for a human expert or an adversarial LLM; an approved verdict confir
                                                           evidence: algorithm.same-pattern candidate: the regular expression "^[A-Z]{3}-[0-9]+$" is written in 2 packages
                                                           evidence: algorithm.same-layout candidate: the time layout "2006-01-02" is written in 2 packages
                                                           evidence: algorithm.same-algorithm candidate: 2 packages call crypto/sha256
-                                                          evidence: algorithm.clone candidate: 2 functions in 2 packages have the same body shape as example.com/cx/billing.Total
                                                           context, hidden from a judge: tight-coupling-functional: billing couples to web at the functional level across a distance of 9, and web's volatility is unjudged, so it counts as core: a step toward a distributed monolith
                                                           context, hidden from a judge: strength functional (candidate), distance 9 (locality system, owner boundary true, deploy boundary true, async false), volatility unjudged, balance 1
-                                                          evidence hash: 75e39df676c09455f7848487bcb34ee893a83f5e619899d2520b95430c62bd1a
+                                                          evidence hash: bb85b6f4b74d3619ffdda0c6cdec1fd1cf54dba87d3e3bb85264068c94888d78
   contract-type/example.com/cx/auth.Credentials  pending  Is this exported type part of the domain model or an integration contract?
                                                           answers: contract, model, insufficient-evidence
                                                           undecided: the type plays no contract role, yet another subsystem uses it
@@ -113,16 +139,21 @@ JUDGEMENTS (for a human expert or an adversarial LLM; an approved verdict confir
                                                           evidence: packages: example.com/cx/auth
                                                           evidence: downstream subsystems: 3
                                                           evidence hash: 2b378bb867dc0f7177fdd50e0060751a471a61eb505114653262f269d9829b49
+  subdomain/state                                pending  Is this subsystem a core, supporting or generic subdomain of the business?
+                                                          answers: core, generic, supporting, insufficient-evidence
+                                                          undecided: how often the business need changes is a business judgement; churn is only evidence of it
+                                                          evidence: packages: example.com/cx/state
+                                                          evidence: downstream subsystems: 1
+                                                          evidence hash: 428c1b4cd87744549a970e5e638ca55cac7e748e5503434e0ff930a24f65626e
   subdomain/web                                  pending  Is this subsystem a core, supporting or generic subdomain of the business?
                                                           answers: core, generic, supporting, insufficient-evidence
                                                           undecided: how often the business need changes is a business judgement; churn is only evidence of it
                                                           evidence: packages: example.com/cx/cmd/server, example.com/cx/web
-                                                          evidence: downstream subsystems: 1
-                                                          evidence hash: 0c7071c191bf4b1ed6d885a45c8078e673126242b82b096461a804e598d6c42f
+                                                          evidence: downstream subsystems: 2
+                                                          evidence hash: 85726a56df86a472a4c53c2050b9bc6859189b2b39397c1a6664d2283ee51083
 
-SKIPPED SLOTS (8; an answer would change nothing)
+SKIPPED SLOTS (7; an answer would change nothing)
   subdomain/billing        no subsystem depends on it and no revision range gives its churn, so its volatility decides nothing
-  subdomain/state          no subsystem depends on it and no revision range gives its churn, so its volatility decides nothing
   subdomain/audit          no subsystem depends on it and no revision range gives its churn, so its volatility decides nothing
   bounded-context/auth     it shares no model with another subsystem, so whether it is a bounded context decides nothing
   bounded-context/billing  it shares no model with another subsystem, so whether it is a bounded context decides nothing

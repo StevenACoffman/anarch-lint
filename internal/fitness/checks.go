@@ -51,7 +51,7 @@ func (s *subject) checkSlices() {
 func sliceCycle(rule string, cycle []string, edges map[[2]string][]arch.Import) *arch.Finding {
 	path := strings.Join(append(cycle, cycle[0]), " → ")
 	f := arch.NewFinding(
-		arch.FindingID{Rule: ruleSliceCycle, Subject: rule, Object: path},
+		arch.FindingID{Rule: arch.RuleSliceCycle, Subject: rule, Object: path},
 		arch.SeverityError,
 	)
 	f.Message = "cycle among slices: " + path
@@ -76,9 +76,9 @@ func (s *subject) checkCalls() {
 	for i := range s.m.Fitness.Calls {
 		c := &s.m.Fitness.Calls[i]
 		r := s.addRule("calls", c.RuleOptions, arch.DefaultRuleName(c.Name, "calls", i))
-		kind := ruleForbiddenCall
+		kind := arch.RuleForbiddenCall
 		if c.Only {
-			kind = ruleCallOnly
+			kind = arch.RuleCallRestriction
 		} else {
 			r.result.Matched = s.matchingPackages(c.From)
 		}
@@ -149,7 +149,9 @@ func (s *subject) checkInterfacesOnly() {
 			}
 			user := cmp.Or(u.Site.Func, u.Site.Type, u.Site.Package)
 			f := arch.NewFinding(arch.FindingID{
-				Rule: ruleInterfaces, Subject: user, Object: r.result.Name + ": " + u.Object,
+				Rule:    arch.RuleInterfacesOnly,
+				Subject: user,
+				Object:  r.result.Name + ": " + u.Object,
 			}, arch.SeverityError)
 			f.Location = arch.SpanAt(arch.Position{File: u.Site.File, Line: u.Site.Line})
 			f.Message = fmt.Sprintf("%s uses %s, %s, where only interfaces are allowed",
@@ -171,7 +173,7 @@ func (s *subject) checkAssigned() {
 	r.result.Matched = len(s.p.Packages)
 	report := func(pkg, what string) {
 		f := arch.NewFinding(
-			arch.FindingID{Rule: ruleOutside, Subject: pkg, Object: what},
+			arch.FindingID{Rule: arch.RuleOutsideArchitecture, Subject: pkg, Object: what},
 			arch.SeverityError,
 		)
 		f.Message = fmt.Sprintf("%s belongs to no %s", pkg, what)
@@ -189,8 +191,8 @@ func (s *subject) checkAssigned() {
 }
 
 // check reports the selectors of the model's other rules that match
-// nothing: forbidden imports, isolations, subsystem interfaces, roles and
-// balance's messaging clients (ArchUnit fails an empty rule by default).
+// nothing: forbidden imports, isolations, subsystem interfaces, threshold
+// overrides, roles and balance's messaging clients (ArchUnit fails an empty rule by default).
 // Stale subsystem and layer patterns are analyze's findings already. The
 // findings are errors when the model declares fitness rules, and warnings
 // otherwise.
@@ -224,8 +226,19 @@ func (e *existing) check() {
 			e.emptyExisting(name, "mayImport", e.mayImportMatches(iso))
 		}
 	}
-	// An interface that matches nothing makes every import into the
-	// subsystem from another one an interface bypass.
+	e.emptyPackageLists()
+	if len(e.m.Balance.Messaging) > 0 {
+		e.emptyExisting("balance", "messaging", matchesTarget(e.m.Balance.Messaging),
+			arch.Corrections(e.m.Balance.Messaging, targetList)...)
+	}
+	e.emptyRoles()
+}
+
+// emptyPackageLists reports the subsystem interfaces and threshold
+// overrides whose packages match nothing. An interface that matches nothing
+// makes every import into the subsystem from another one an interface
+// bypass; an override that matches nothing changes no limit.
+func (e *existing) emptyPackageLists() {
 	for _, sub := range e.m.Subsystems {
 		if len(sub.Interface) > 0 {
 			e.emptyExisting("subsystems."+sub.Name, "interface",
@@ -233,11 +246,10 @@ func (e *existing) check() {
 				arch.Corrections(sub.Interface, e.packages)...)
 		}
 	}
-	if len(e.m.Balance.Messaging) > 0 {
-		e.emptyExisting("balance", "messaging", matchesTarget(e.m.Balance.Messaging),
-			arch.Corrections(e.m.Balance.Messaging, targetList)...)
+	for i, o := range e.m.ThresholdOverrides {
+		e.emptyExisting(fmt.Sprintf("thresholdOverrides[%d]", i), "packages",
+			countMatching(e.packages, o.Packages) > 0, arch.Corrections(o.Packages, e.packages)...)
 	}
-	e.emptyRoles()
 }
 
 // mayImportMatches reports whether some package an isolation constrains may
@@ -291,7 +303,7 @@ func (e *existing) emptyExisting(rule, selector string, matched bool, evidence .
 		sev = arch.SeverityError
 	}
 	f := arch.NewFinding(
-		arch.FindingID{Rule: ruleEmptySelector, Subject: rule, Object: selector},
+		arch.FindingID{Rule: arch.RuleEmptySelector, Subject: rule, Object: selector},
 		sev,
 	)
 	f.ModelRule = rule

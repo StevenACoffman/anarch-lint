@@ -14,12 +14,13 @@ import (
 
 func TestParseLog(t *testing.T) {
 	t.Parallel()
-	log := "\x00bbb\n\na.go\nb.go\n\x00aaa\n\na.go\n\x00ccc\n\n"
-	commits, err := git.ParseLog(strings.NewReader(log))
+	log := "\x00bbb\x00b@x\n\na.go\nb.go\n\x00aaa\x00a@x\n\na.go\n\x00ccc\x00a@x\n\n"
+	commits, authors, err := git.ParseLog(strings.NewReader(log))
 	if err != nil {
 		t.Fatal(err)
 	}
 	equals(t, map[string][]string{"a.go": {"aaa", "bbb"}, "b.go": {"bbb"}}, commits)
+	equals(t, map[string]string{"aaa": "a@x", "bbb": "b@x", "ccc": "a@x"}, authors)
 }
 
 func TestChurnInRepository(t *testing.T) {
@@ -65,6 +66,7 @@ func TestChurnInRepository(t *testing.T) {
 	equals(t, base, churn.Since)
 	equals(t, third, churn.Head)
 	equals(t, map[string][]string{"a.go": {third}, "sub/b.go": {second}}, churn.Commits)
+	equals(t, map[string]string{second: "t@example.com", third: "t@example.com"}, churn.Authors)
 
 	_, err = git.Churn(context.Background(), dir, "no-such-rev")
 	equals(t, arch.EINVALID, arch.ErrorCode(err))

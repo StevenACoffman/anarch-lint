@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/bmatcuk/doublestar/v4"
 )
@@ -40,6 +41,8 @@ type Fitness struct {
 	Dependents     []Dependents     `json:"dependents,omitempty"`
 	Libraries      []LibraryRule    `json:"libraries,omitempty"`
 	Calls          []CallRule       `json:"calls,omitempty"`
+	Fields         []FieldRule      `json:"fields,omitempty"`
+	UnusedExports  []UnusedExports  `json:"unusedExports,omitempty"`
 	InterfacesOnly []InterfacesOnly `json:"interfacesOnly,omitempty"`
 	// CoChange rules name files that must change together; they check
 	// only a change set, as check --new-from-rev gives one.
@@ -76,6 +79,8 @@ type RuleOptions struct {
 	// rule is a finding, as in ArchUnit, where failOnEmptyShould defaults to
 	// true.
 	Optional bool `json:"optional,omitempty"`
+	// QualityAttribute is the quality the rule protects.
+	QualityAttribute QualityAttribute `json:"qualityAttribute,omitempty"`
 }
 
 // DeclaredRule is one fitness rule that carries options, with its kind and
@@ -150,6 +155,30 @@ type CallRule struct {
 	From    []string `json:"from,omitempty"`
 	Callees []string `json:"callees"`
 	Only    bool     `json:"only,omitempty"`
+}
+
+// FieldRule restricts reading and writing struct fields (ArchUnit's
+// accessField, getField and setField). A field is "pkg.Type.Field",
+// "pkg.Type.*" for every field of a type, or "pkg.*" for every field of a
+// package's types. With Writes, only writes count: an assignment, an
+// increment, or a keyed composite literal that sets the field. Without Only,
+// packages matching From may not access the fields; with it, only they may.
+type FieldRule struct {
+	RuleOptions
+	From   []string `json:"from,omitempty"`
+	Fields []string `json:"fields"`
+	Writes bool     `json:"writes,omitempty"`
+	Only   bool     `json:"only,omitempty"`
+}
+
+// UnusedExports reports each exported package-level type, function and
+// constant of the packages matching Packages that no other package under
+// analysis uses, nor an external test: API that could be unexported, which
+// inflates the visibility metrics (IMPROVEMENTS.md §9.2). A method is never
+// reported, since an interface may need it, nor anything in package main.
+type UnusedExports struct {
+	RuleOptions
+	Packages []string `json:"packages"`
 }
 
 // InterfacesOnly lets packages matching From use only the interface types of
@@ -242,6 +271,9 @@ func (f *Fitness) Rules() []DeclaredRule {
 		optionsOf(f.Libraries, func(r LibraryRule) RuleOptions { return r.RuleOptions }),
 	)
 	add("calls", optionsOf(f.Calls, func(r CallRule) RuleOptions { return r.RuleOptions }))
+	add("fields", optionsOf(f.Fields, func(r FieldRule) RuleOptions { return r.RuleOptions }))
+	add("unusedExports",
+		optionsOf(f.UnusedExports, func(r UnusedExports) RuleOptions { return r.RuleOptions }))
 	add(
 		"interfacesOnly",
 		optionsOf(f.InterfacesOnly, func(r InterfacesOnly) RuleOptions { return r.RuleOptions }),
@@ -274,8 +306,8 @@ func optionsOf[T any](rules []T, opts func(T) RuleOptions) []RuleOptions {
 
 // validate rejects an unknown gate, layer or subsystem, a duplicate name, a
 // slice pattern without a capture, and a rule without the selectors it needs.
-func (f *Fitness) validate(names declaredNames, invalid func(string, ...any) error) error {
-	for _, check := range []func(declaredNames, func(string, ...any) error) error{
+func (f *Fitness) validate(names declaredNames, invalid invalidFunc) error {
+	for _, check := range []func(declaredNames, invalidFunc) error{
 		f.validateNames, f.validateLayers, f.validateSelectors,
 	} {
 		if err := check(names, invalid); err != nil {
@@ -286,27 +318,27 @@ func (f *Fitness) validate(names declaredNames, invalid func(string, ...any) err
 }
 
 // validateNames rejects two rules of one name and an unknown gate.
-func (f *Fitness) validateNames(_ declaredNames, invalid func(string, ...any) error) error {
+func (f *Fitness) validateNames(_ declaredNames, invalid invalidFunc) error {
 	rules := f.Rules()
 	all := make([]string, len(rules))
 	for i := range rules {
 		all[i] = rules[i].Name
 	}
 	if dup := firstDuplicate(all); dup != "" {
-		return invalid("fitness rule %q is declared twice", dup)
+		return invalid(ProblemDuplicate, "fitness rule %q is declared twice", dup)
 	}
 	for i := range rules {
 		switch o := &rules[i]; o.Gate {
 		case "", GateFail, GateWarn, GateOff:
 		default:
-			return invalid("fitness gate %q is not fail, warn or off", o.Gate)
+			return invalid(ProblemValue, "fitness gate %q is not fail, warn or off", o.Gate)
 		}
 	}
 	return nil
 }
 
 // validateLayers rejects a layer access rule that names an undeclared layer.
-func (f *Fitness) validateLayers(names declaredNames, invalid func(string, ...any) error) error {
+func (f *Fitness) validateLayers(names declaredNames, invalid invalidFunc) error {
 	layers := names.layers
 	declared := map[string]bool{}
 	for _, l := range layers {
@@ -316,26 +348,26 @@ func (f *Fitness) validateLayers(names declaredNames, invalid func(string, ...an
 		la := &f.LayerAccess[i]
 		for _, name := range slices.Concat([]string{la.Layer}, la.MayOnlyBeAccessedBy, la.MayOnlyAccess) {
 			if !declared[name] {
-				return invalid("fitness layerAccess names unknown layer %q", name)
+				return invalid(ProblemReference, "fitness layerAccess names unknown layer %q", name)
 			}
 		}
 	}
 	if f.StrictLayers && len(layers) < 2 {
-		return invalid("fitness strictLayers needs at least two layers")
+		return invalid(ProblemIncomplete, "fitness strictLayers needs at least two layers")
 	}
 	return nil
 }
 
 // validateSelectors rejects a rule without the selectors it needs, and a
 // domains rule naming an unknown subsystem.
-func (f *Fitness) validateSelectors(names declaredNames, invalid func(string, ...any) error) error {
+func (f *Fitness) validateSelectors(names declaredNames, invalid invalidFunc) error {
 	problems := slices.Concat(
 		problemsOf(f.Slices),
 		problemsOf(f.Dependents),
 		problemsOf(f.Libraries),
-		problemsOf(
-			f.Calls,
-		),
+		problemsOf(f.Calls),
+		problemsOf(f.Fields),
+		problemsOf(f.UnusedExports),
 		problemsOf(f.InterfacesOnly),
 		problemsOf(f.CoChange),
 		problemsOf(f.FanOut),
@@ -343,71 +375,99 @@ func (f *Fitness) validateSelectors(names declaredNames, invalid func(string, ..
 	)
 	for i := range f.Domains {
 		if sub := f.Domains[i].Subsystem; sub != "" && !slices.Contains(names.subsystems, sub) {
-			problems = append(problems, fmt.Sprintf(
-				"fitness domains rule %q names unknown subsystem %q", f.Domains[i].Name, sub))
+			problems = append(problems, ruleProblem{ProblemReference, fmt.Sprintf(
+				"fitness domains rule %q names unknown subsystem %q", f.Domains[i].Name, sub)})
 		}
 	}
 	for _, p := range problems {
-		if p != "" {
-			return invalid("%s", p)
+		if p.code != "" {
+			return invalid(p.code, "%s", p.text)
 		}
 	}
 	return nil
 }
 
-// problemsOf returns what makes each rule unusable, "" for a usable one.
+// problemsOf returns what makes each rule unusable, the zero value for a
+// usable one.
 func problemsOf[T any, R interface {
 	*T
-	problem() string
-}](rules []T) []string {
-	out := make([]string, len(rules))
+	problem() ruleProblem
+}](rules []T) []ruleProblem {
+	out := make([]ruleProblem, len(rules))
 	for i := range rules {
 		out[i] = R(&rules[i]).problem()
 	}
 	return out
 }
 
-// problem says what makes the rule unusable, or "".
-func (s *Slices) problem() string {
+// problem says what makes the rule unusable, if anything.
+func (s *Slices) problem() ruleProblem {
 	if captureCount(s.Pattern) == 0 {
-		return fmt.Sprintf("fitness slices pattern %q captures nothing; use $* or $**", s.Pattern)
+		return ruleProblem{ProblemPattern, fmt.Sprintf(
+			"fitness slices pattern %q captures nothing; use $* or $**", s.Pattern)}
 	}
-	return ""
+	return ruleProblem{}
 }
 
-// problem says what makes the rule unusable, or "".
-func (d *Dependents) problem() string {
+// problem says what makes the rule unusable, if anything.
+func (d *Dependents) problem() ruleProblem {
 	if len(d.Packages) == 0 {
-		return fmt.Sprintf("fitness dependents rule %q names no packages", d.Name)
+		return incomplete("fitness dependents rule %q names no packages", d.Name)
 	}
-	return ""
+	return ruleProblem{}
 }
 
-// problem says what makes the rule unusable, or "".
-func (l *LibraryRule) problem() string {
+// problem says what makes the rule unusable, if anything.
+func (l *LibraryRule) problem() ruleProblem {
 	if len(l.From) == 0 {
-		return fmt.Sprintf("fitness libraries rule %q names no packages in from", l.Name)
+		return incomplete("fitness libraries rule %q names no packages in from", l.Name)
 	}
-	return ""
+	return ruleProblem{}
 }
 
-// problem says what makes the rule unusable, or "".
-func (c *CallRule) problem() string {
+// problem says what makes the rule unusable, if anything.
+func (c *CallRule) problem() ruleProblem {
 	if len(c.Callees) == 0 || (!c.Only && len(c.From) == 0) {
-		return fmt.Sprintf(
+		return incomplete(
 			"fitness calls rule %q needs callees, and from unless only is set",
 			c.Name,
 		)
 	}
-	return ""
+	return ruleProblem{}
 }
 
-// problem says what makes the rule unusable, or "".
-func (r *InterfacesOnly) problem() string {
-	if len(r.From) == 0 || len(r.To) == 0 {
-		return fmt.Sprintf("fitness interfacesOnly rule %q needs from and to", r.Name)
+// problem says what makes the rule unusable, if anything.
+func (r *UnusedExports) problem() ruleProblem {
+	if len(r.Packages) == 0 {
+		return incomplete("fitness unusedExports rule %q names no packages", r.Name)
 	}
-	return ""
+	return ruleProblem{}
+}
+
+// problem says what makes the rule unusable, if anything.
+func (r *FieldRule) problem() ruleProblem {
+	if len(r.Fields) == 0 || (!r.Only && len(r.From) == 0) {
+		return incomplete(
+			"fitness fields rule %q needs fields, and from unless only is set",
+			r.Name,
+		)
+	}
+	for _, field := range r.Fields {
+		if strings.Count(field, ".") == 0 || strings.HasSuffix(field, ".") {
+			return ruleProblem{ProblemPattern, fmt.Sprintf(
+				"fitness fields rule %q: %q is not pkg.Type.Field, pkg.Type.* or pkg.*",
+				r.Name, field)}
+		}
+	}
+	return ruleProblem{}
+}
+
+// problem says what makes the rule unusable, if anything.
+func (r *InterfacesOnly) problem() ruleProblem {
+	if len(r.From) == 0 || len(r.To) == 0 {
+		return incomplete("fitness interfacesOnly rule %q needs from and to", r.Name)
+	}
+	return ruleProblem{}
 }
 
 // String returns the gate, with the default spelled out.
@@ -418,36 +478,37 @@ func (g RuleGate) String() string {
 	return string(g)
 }
 
-// problem says what makes the rule unusable, or "".
-func (c *CoChangeRule) problem() string {
+// problem says what makes the rule unusable, if anything.
+func (c *CoChangeRule) problem() ruleProblem {
 	if len(c.When) == 0 || len(c.Require) == 0 {
-		return fmt.Sprintf("fitness coChange rule %q needs when and require", c.Name)
+		return incomplete("fitness coChange rule %q needs when and require", c.Name)
 	}
 	for _, pat := range slices.Concat(c.When, c.Require, c.Except) {
 		if !doublestar.ValidatePattern(pat) {
-			return fmt.Sprintf("fitness coChange rule %q has malformed glob %q", c.Name, pat)
+			return ruleProblem{ProblemPattern, fmt.Sprintf(
+				"fitness coChange rule %q has malformed glob %q", c.Name, pat)}
 		}
 	}
-	return ""
+	return ruleProblem{}
 }
 
-// problem says what makes the rule unusable, or "".
-func (r *FanOutRule) problem() string {
+// problem says what makes the rule unusable, if anything.
+func (r *FanOutRule) problem() ruleProblem {
 	if len(r.Packages) == 0 || r.Max < 0 {
-		return fmt.Sprintf("fitness fanOut rule %q needs packages and a max of 0 or more", r.Name)
+		return incomplete("fitness fanOut rule %q needs packages and a max of 0 or more", r.Name)
 	}
-	return ""
+	return ruleProblem{}
 }
 
-// problem says what makes the rule unusable, or "".
-func (d *DomainRule) problem() string {
+// problem says what makes the rule unusable, if anything.
+func (d *DomainRule) problem() ruleProblem {
 	if d.Path == "" {
-		return fmt.Sprintf("fitness domains rule %q names no path", d.Name)
+		return incomplete("fitness domains rule %q names no path", d.Name)
 	}
 	for name, typ := range d.Types {
 		if name == "" || typ == "" {
-			return fmt.Sprintf("fitness domains rule %q maps an empty name or type", d.Name)
+			return incomplete("fitness domains rule %q maps an empty name or type", d.Name)
 		}
 	}
-	return ""
+	return ruleProblem{}
 }

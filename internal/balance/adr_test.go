@@ -79,3 +79,24 @@ func TestADR_0010_SuppressingAFactNeedsAHuman(t *testing.T) {
 		Events: []arch.VerificationEvent{human},
 	}}, byHuman.Suppressed)
 }
+
+// docs/adr/0014: no metric the gate ratchets reads a pair's score, so two
+// reports whose pairs differ only in their scores gate alike.
+func TestADR_0014_TheBalanceScoreNeverGates(t *testing.T) {
+	t.Parallel()
+	r := analyze(fixture(), clone())
+	rescored := r
+	rescored.Pairs = slices.Clone(r.Pairs)
+	for i := range rescored.Pairs {
+		rescored.Pairs[i].Score = 10 - rescored.Pairs[i].Score
+	}
+	var a, b arch.GateInput
+	r.AddTo(&a)
+	rescored.AddTo(&b)
+	equals(t, a, b)
+	for _, m := range a.Metrics {
+		if strings.Contains(m.Name, "score") {
+			t.Errorf("metric %s reads the score", m.Name)
+		}
+	}
+}

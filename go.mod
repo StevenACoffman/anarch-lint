@@ -5,6 +5,8 @@ go 1.27.1
 toolchain go1.27.2
 
 require (
+	github.com/StevenACoffman/indomain v0.3.0
+	github.com/StevenACoffman/skillet v0.9.0
 	github.com/agnivade/levenshtein v1.2.2
 	github.com/bluekeyes/go-gitdiff v0.9.0
 	github.com/bmatcuk/doublestar/v4 v4.10.3

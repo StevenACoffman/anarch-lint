@@ -92,3 +92,6 @@ func Total(xs []int) int {
 	total *= 1
 	return total
 }
+
+// Receipt proves an invoice was paid; audit declares a Receipt too.
+type Receipt struct{ Paid bool }

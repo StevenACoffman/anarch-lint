@@ -1,11 +1,11 @@
 {
   "schema": "anarch-lint.baseline.v1",
-  "modelHash": "c0e16feb4594cc6b147d6d7a025ba879e3f63dc8745586439a4a9efe1fa669fc",
+  "modelHash": "7ce11431a43bb8001dbda6b8065c3ee481e73fa25f32e6f846e1225444372ef4",
   "findings": [],
   "metrics": [
     {
       "name": "mmi.low",
-      "value": 5.33,
+      "value": 5.38,
       "higherIsBetter": true
     },
     {
@@ -50,12 +50,12 @@
     },
     {
       "name": "fitness.nccd.packages",
-      "value": 2.159574,
+      "value": 2.395349,
       "higherIsBetter": false
     },
     {
       "name": "fitness.nccd.subsystems",
-      "value": 1,
+      "value": 0.97561,
       "higherIsBetter": false
     },
     {
@@ -64,7 +64,7 @@
       "higherIsBetter": false
     },
     {
-      "name": "connascence.degree/d4f0fd399941f29b",
+      "name": "connascence.degree/a118b7fcfaf36e82",
       "value": 2,
       "higherIsBetter": false
     }

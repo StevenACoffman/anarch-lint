@@ -33,3 +33,41 @@ func (s *Service) Make(b Base) Item {
 	_, _ = b, spec
 	return Item{}
 }
+
+// Counter has a field other types read and write, and a method they call.
+type Counter struct {
+	N int
+}
+
+// Add adds one.
+func (c *Counter) Add() { c.N++ }
+
+// Celsius is converted to and used as a type argument.
+type Celsius float64
+
+// Box is generic.
+type Box[T any] struct {
+	V T
+}
+
+// Worker uses the types above in its method body only, each in its own way.
+type Worker struct{}
+
+// Run constructs a Counter, writes and reads its field, calls its method,
+// instantiates Box with Celsius, and converts to Celsius.
+func (w Worker) Run() float64 {
+	c := &Counter{N: 1}
+	c.N = c.N + 1
+	c.Add()
+	b := Box[Celsius]{}
+	_ = b
+	return float64(Celsius(2))
+}
+
+// Message has a wire format: its tags name its fields in two encodings.
+type Message struct {
+	ID     string `json:"id" protobuf:"bytes,1,opt,name=message_id"`
+	Body   string `json:"body,omitempty"`
+	Secret string `json:"-"`
+	Plain  string
+}

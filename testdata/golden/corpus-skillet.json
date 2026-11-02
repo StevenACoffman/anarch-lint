@@ -1,0 +1,757 @@
+{
+  "schema": "anarch-lint.fitness.v1",
+  "inputs": {
+    "tool": "anarch-lint devel",
+    "goVersion": "GOVERSION",
+    "tags": [],
+    "platform": "PLATFORM",
+    "patterns": [
+      "./..."
+    ],
+    "modelHash": "23ebf9b9f707ce107b9c67946df7d3441219c9d5d01e8af1335a024f850a205d",
+    "thresholds": {
+      "largeTypeLines": 400,
+      "largeFuncLines": 60,
+      "largePackageTypes": 40,
+      "highComplexity": 15,
+      "complexityVariant": "modified",
+      "maxTypeCycleGroup": 5,
+      "largeFileLines": 800,
+      "maxNesting": 4,
+      "highCognitive": 15
+    }
+  },
+  "rules": [
+    {
+      "name": "skillet-model",
+      "kind": "domains",
+      "reason": "skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "gate": "fail",
+      "matched": 13,
+      "violations": 21,
+      "status": "failed"
+    }
+  ],
+  "findings": [
+    {
+      "fingerprint": "77b335dd4d9fd92c",
+      "rule": "domain-action-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:Check",
+      "object": "run",
+      "message": "entity Check has action run, but github.com/StevenACoffman/skillet/judge.Check has no such method and no function takes it: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "add the method, rename one after the action, or correct the model",
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "c4da9b14a49cd10d",
+      "rule": "domain-action-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:Finding",
+      "object": "raise",
+      "message": "entity Finding has action raise, but github.com/StevenACoffman/skillet/quotecheck.Finding has no such method and no function takes it: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "add the method, rename one after the action, or correct the model",
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "75ec29ccf582d1f3",
+      "rule": "domain-action-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:Manifest",
+      "object": "build",
+      "message": "entity Manifest has action build, but github.com/StevenACoffman/skillet/manifest.Manifest has no such method and no function takes it: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "add the method, rename one after the action, or correct the model",
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "397e2a0c3eff83b8",
+      "rule": "domain-action-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:Manifest",
+      "object": "verify",
+      "message": "entity Manifest has action verify, but github.com/StevenACoffman/skillet/manifest.Manifest has no such method and no function takes it: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "add the method, rename one after the action, or correct the model",
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "e3d9e6a84d870c34",
+      "rule": "domain-action-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:Rule",
+      "object": "create",
+      "message": "entity Rule has action create, but github.com/StevenACoffman/skillet/ruleset.Rule has no such method and no function takes it: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "add the method, rename one after the action, or correct the model",
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "54c32d917599d9ff",
+      "rule": "domain-action-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:Ruleset",
+      "object": "refine",
+      "message": "entity Ruleset has action refine, but github.com/StevenACoffman/skillet/ruleset.Ruleset has no such method and no function takes it: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "add the method, rename one after the action, or correct the model",
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "fee382b2a66ebca9",
+      "rule": "domain-action-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:Ruleset",
+      "object": "synthesize",
+      "message": "entity Ruleset has action synthesize, but github.com/StevenACoffman/skillet/ruleset.Ruleset has no such method and no function takes it: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "add the method, rename one after the action, or correct the model",
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "65b7db332c4c4659",
+      "rule": "domain-action-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:Source",
+      "object": "distill",
+      "message": "entity Source has action distill, but github.com/StevenACoffman/skillet/quotecheck.Source has no such method and no function takes it: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "add the method, rename one after the action, or correct the model",
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "48248002188646ea",
+      "rule": "domain-attribute-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:Finding",
+      "object": "category",
+      "message": "entity Finding has attribute category, but github.com/StevenACoffman/skillet/quotecheck.Finding has no such field: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "add the field, rename it after the attribute, or correct the model",
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "49dba1dfc961e29d",
+      "rule": "domain-attribute-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:Finding",
+      "object": "message",
+      "message": "entity Finding has attribute message, but github.com/StevenACoffman/skillet/quotecheck.Finding has no such field: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "add the field, rename it after the attribute, or correct the model",
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "2251c9e0ec61c484",
+      "rule": "domain-attribute-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:Finding",
+      "object": "severity",
+      "message": "entity Finding has attribute severity, but github.com/StevenACoffman/skillet/quotecheck.Finding has no such field: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "add the field, rename it after the attribute, or correct the model",
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "bba7667dc019298a",
+      "rule": "domain-attribute-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:Source",
+      "object": "title",
+      "message": "entity Source has attribute title, but github.com/StevenACoffman/skillet/quotecheck.Source has no such field: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "add the field, rename it after the attribute, or correct the model",
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "8ee276348663abd5",
+      "rule": "domain-entity-ambiguous",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:Skill",
+      "message": "entity Skill matches 2 types: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "map the entity to one type in the rule's types, or rename the others",
+      "evidence": [
+        "github.com/StevenACoffman/skillet/manifest.Skill",
+        "github.com/StevenACoffman/skillet/skill.Skill"
+      ],
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "30f61f3d6d4a023d",
+      "rule": "domain-entity-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:Prompt",
+      "message": "domain model skillet.modelith.yaml declares entity Prompt, and no type expresses it: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "name a type after the entity, map it in the rule's types, or remove the entity from the model",
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "f636a5c8bdd37208",
+      "rule": "domain-entity-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:Proof",
+      "message": "domain model skillet.modelith.yaml declares entity Proof, and no type expresses it: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "name a type after the entity, map it in the rule's types, or remove the entity from the model",
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "fcbd368116f0f32f",
+      "rule": "domain-enum-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:CheckOp",
+      "message": "domain model skillet.modelith.yaml declares enum CheckOp, and no type expresses it: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "name a type after the enum, or map it in the rule's types",
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "6364ebe441d1b2e8",
+      "rule": "domain-enum-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:FindingSeverity",
+      "message": "domain model skillet.modelith.yaml declares enum FindingSeverity, and no type expresses it: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "name a type after the enum, or map it in the rule's types",
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "41415e6a63cf2051",
+      "rule": "domain-enum-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:RuleLevel",
+      "message": "domain model skillet.modelith.yaml declares enum RuleLevel, and no type expresses it: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "name a type after the enum, or map it in the rule's types",
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "df0fdd29f1584869",
+      "rule": "domain-enum-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:RuleSeverity",
+      "message": "domain model skillet.modelith.yaml declares enum RuleSeverity, and no type expresses it: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "name a type after the enum, or map it in the rule's types",
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "cfcab59d2d4b56ff",
+      "rule": "domain-relationship-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:Finding",
+      "object": "Check",
+      "message": "the model relates Finding to Check, but github.com/StevenACoffman/skillet/quotecheck.Finding and github.com/StevenACoffman/skillet/judge.Check never refer to each other: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "add the reference the relationship needs, or correct the model",
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
+      "fingerprint": "0843ac1a0a752624",
+      "rule": "domain-relationship-missing",
+      "severity": "error",
+      "subject": "skillet.modelith.yaml:Ruleset",
+      "object": "Source",
+      "message": "the model relates Ruleset to Source, but github.com/StevenACoffman/skillet/ruleset.Ruleset and github.com/StevenACoffman/skillet/quotecheck.Source never refer to each other: skillet's code should speak its own domain model (mmi-plan.md §10.0)",
+      "fix": "add the reference the relationship needs, or correct the model",
+      "modelRule": "fitness.domains skillet-model"
+    }
+  ],
+  "lakos": [
+    {
+      "level": "types",
+      "nodes": 65,
+      "ccd": 122,
+      "acd": 1.876923,
+      "racd": 0.028876,
+      "nccd": 0.364179
+    },
+    {
+      "level": "packages",
+      "nodes": 30,
+      "ccd": 60,
+      "acd": 2,
+      "racd": 0.066667,
+      "nccd": 0.483871
+    },
+    {
+      "level": "subsystems",
+      "nodes": 30,
+      "ccd": 60,
+      "acd": 2,
+      "racd": 0.066667,
+      "nccd": 0.483871
+    }
+  ],
+  "visibility": {
+    "packages": [
+      {
+        "package": "github.com/StevenACoffman/skillet/atomicfile",
+        "elements": 3,
+        "visible": 2,
+        "rv": 0.666667
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/calibration",
+        "elements": 4,
+        "visible": 4,
+        "rv": 1
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/claims",
+        "elements": 4,
+        "visible": 1,
+        "rv": 0.25
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/errs",
+        "elements": 3,
+        "visible": 2,
+        "rv": 0.666667
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/finding",
+        "elements": 6,
+        "visible": 6,
+        "rv": 1
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/frontmatter",
+        "elements": 1,
+        "visible": 1,
+        "rv": 1
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/fsutil",
+        "elements": 3,
+        "visible": 2,
+        "rv": 0.666667
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/identity",
+        "elements": 1,
+        "visible": 1,
+        "rv": 1
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/judge",
+        "elements": 18,
+        "visible": 5,
+        "rv": 0.277778
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/manifest",
+        "elements": 11,
+        "visible": 7,
+        "rv": 0.636364
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/markdown",
+        "elements": 15,
+        "visible": 3,
+        "rv": 0.2
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/naming",
+        "elements": 6,
+        "visible": 5,
+        "rv": 0.833333
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/neutrality",
+        "elements": 3,
+        "visible": 3,
+        "rv": 1
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/proof",
+        "elements": 7,
+        "visible": 7,
+        "rv": 1
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/quotecheck",
+        "elements": 7,
+        "visible": 6,
+        "rv": 0.857143
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/ratchet",
+        "elements": 14,
+        "visible": 8,
+        "rv": 0.571429
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/redlines",
+        "elements": 9,
+        "visible": 2,
+        "rv": 0.222222
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/related",
+        "elements": 86,
+        "visible": 27,
+        "rv": 0.313953
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/ruleset",
+        "elements": 24,
+        "visible": 9,
+        "rv": 0.375
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/ruleset/conflict",
+        "elements": 6,
+        "visible": 1,
+        "rv": 0.166667
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/ruleset/distill",
+        "elements": 6,
+        "visible": 2,
+        "rv": 0.333333
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/ruleset/synthesize",
+        "elements": 3,
+        "visible": 3,
+        "rv": 1
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/skill",
+        "elements": 11,
+        "visible": 8,
+        "rv": 0.727273
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/skilllens",
+        "elements": 16,
+        "visible": 8,
+        "rv": 0.5
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/speclint",
+        "elements": 3,
+        "visible": 2,
+        "rv": 0.666667
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/stats",
+        "elements": 2,
+        "visible": 2,
+        "rv": 1
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/testprompts",
+        "elements": 14,
+        "visible": 11,
+        "rv": 0.785714
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/textnorm",
+        "elements": 2,
+        "visible": 1,
+        "rv": 0.5
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/timeseries",
+        "elements": 3,
+        "visible": 3,
+        "rv": 1
+      },
+      {
+        "package": "github.com/StevenACoffman/skillet/verification",
+        "elements": 1,
+        "visible": 1,
+        "rv": 1
+      }
+    ],
+    "arv": 0.673896,
+    "grv": 0.489726
+  },
+  "componentDependencyMetrics": [
+    {
+      "package": "github.com/StevenACoffman/skillet/atomicfile",
+      "ca": 1,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "normalizedDistance": 1
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/calibration",
+      "ca": 0,
+      "ce": 0,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/claims",
+      "ca": 0,
+      "ce": 0,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/errs",
+      "ca": 0,
+      "ce": 0,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/finding",
+      "ca": 3,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "normalizedDistance": 1
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/frontmatter",
+      "ca": 2,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "normalizedDistance": 1
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/fsutil",
+      "ca": 1,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "normalizedDistance": 1
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/identity",
+      "ca": 2,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "normalizedDistance": 1
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/judge",
+      "ca": 2,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "normalizedDistance": 1
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/manifest",
+      "ca": 0,
+      "ce": 0,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/markdown",
+      "ca": 1,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "normalizedDistance": 1
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/naming",
+      "ca": 2,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "normalizedDistance": 1
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/neutrality",
+      "ca": 0,
+      "ce": 0,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/proof",
+      "ca": 0,
+      "ce": 2,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/quotecheck",
+      "ca": 0,
+      "ce": 1,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/ratchet",
+      "ca": 0,
+      "ce": 1,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/redlines",
+      "ca": 0,
+      "ce": 2,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/related",
+      "ca": 0,
+      "ce": 0,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/ruleset",
+      "ca": 1,
+      "ce": 3,
+      "instability": 0.75,
+      "abstractness": 0,
+      "normalizedDistance": 0.25
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/ruleset/conflict",
+      "ca": 0,
+      "ce": 3,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/ruleset/distill",
+      "ca": 0,
+      "ce": 1,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/ruleset/synthesize",
+      "ca": 0,
+      "ce": 1,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/skill",
+      "ca": 2,
+      "ce": 3,
+      "instability": 0.6,
+      "abstractness": 0,
+      "normalizedDistance": 0.4
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/skilllens",
+      "ca": 0,
+      "ce": 1,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/speclint",
+      "ca": 0,
+      "ce": 2,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/stats",
+      "ca": 1,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "normalizedDistance": 1
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/testprompts",
+      "ca": 0,
+      "ce": 1,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/textnorm",
+      "ca": 2,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "normalizedDistance": 1
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/timeseries",
+      "ca": 0,
+      "ce": 0,
+      "instability": 1,
+      "abstractness": 0,
+      "normalizedDistance": 0
+    },
+    {
+      "package": "github.com/StevenACoffman/skillet/verification",
+      "ca": 1,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "normalizedDistance": 1
+    }
+  ],
+  "cycles": [
+    {
+      "level": "types",
+      "cycles": [],
+      "truncated": false
+    },
+    {
+      "level": "subsystems",
+      "cycles": [],
+      "truncated": false
+    }
+  ],
+  "verification": {
+    "verified": true,
+    "classes": 2,
+    "cells": 0
+  },
+  "assumptions": [
+    {
+      "id": "nccd",
+      "text": "NCCD is CCD ÷ Σᵢ₌₁ⁿ (⌊log₂ i⌋ + 1), the CCD of a balanced binary tree of the same size, as ArchUnit's LakosMetrics computes it; RACD is analyze's propagation cost.",
+      "source": "TODO.md, Ideas from ArchUnit: Metrics"
+    },
+    {
+      "id": "visibility",
+      "text": "An element is a package-level type or a function that is not a method; it is visible when exported. An internal package stays visible to its parent's tree, which one module mostly is.",
+      "source": "TODO.md, Ideas from ArchUnit: Metrics (Dowalil)"
+    },
+    {
+      "id": "component-dependency",
+      "text": "Unlike analyze's Martin metrics, abstractness counts exported types only and an isolated package has instability 1, as ArchUnit's ComponentDependencyMetrics has it.",
+      "source": "TODO.md, Ideas from ArchUnit: Metrics"
+    },
+    {
+      "id": "verification",
+      "text": "The import rules are compared over classes of packages every rule reads alike, at most 250,000 cells (classes inside × all classes), beyond which the report says they were not verified; isolations are left out, since what they allow depends on each package's captures.",
+      "source": "IMPROVEMENTS.md 1.1 (feelc's verifier)"
+    },
+    {
+      "id": "cycles",
+      "text": "Elementary cycles by Johnson's algorithm, starts and arcs in sorted order, at most 100 per graph and 20 imports per edge. Go forbids import cycles between packages, so only the type and subsystem graphs have them.",
+      "source": "TODO.md, Ideas from ArchUnit: Cycles"
+    },
+    {
+      "id": "empty-rules",
+      "text": "A fitness rule whose subject selectors match nothing is a finding unless optional, as ArchUnit's failOnEmptyShould defaults to true; so is a forbidden import, isolation or role whose patterns match nothing.",
+      "source": "TODO.md, Ideas from ArchUnit: Rules That Match Nothing"
+    },
+    {
+      "id": "layers",
+      "text": "Layer access counts imports between two layered packages, and with consideringAll also imports of in-scope packages without a layer. strictLayers reports imports that skip a layer; imports upward are analyze's layer-order findings.",
+      "source": "TODO.md, Ideas from ArchUnit: Layer Access"
+    },
+    {
+      "id": "onion",
+      "text": "A package belongs to the innermost onion ring that matches it, adapters tried in name order; packages in no ring are not checked.",
+      "source": "TODO.md, Ideas from ArchUnit: Layer Access"
+    }
+  ]
+}

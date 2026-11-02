@@ -8,12 +8,6 @@ import (
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
 
-// Rule names of a libraries rule's findings.
-const (
-	ruleLibrary       = "unapproved-library"
-	ruleUnusedLibrary = "unused-approval"
-)
-
 // libraryConstraint lets the packages a libraries rule names import, beyond
 // the standard library and the packages under analysis (those in inScope),
 // only the libraries it allows (docs/adr/0012).
@@ -34,7 +28,7 @@ func libraryConstraint(l *ledger, lr *arch.LibraryRule, i int, p *arch.Program,
 		unusedApprovals(l, r, lr, p.RuleImports(), third)
 	}
 	return constraint{
-		rule: r, kind: ruleLibrary, anyTarget: true,
+		rule: r, kind: arch.RuleUnapprovedLibrary, anyTarget: true,
 		reads: func(pkg string) string {
 			return matchBits(pkg, lr.From, lr.Allow) + string(bit(arch.IsStandard(pkg)))
 		},
@@ -71,7 +65,7 @@ func unusedApprovals(
 			continue
 		}
 		f := arch.NewFinding(
-			arch.FindingID{Rule: ruleUnusedLibrary, Subject: r.result.Name, Object: pat},
+			arch.FindingID{Rule: arch.RuleUnusedApproval, Subject: r.result.Name, Object: pat},
 			arch.SeverityWarning,
 		)
 		f.ModelRule = r.modelRule()

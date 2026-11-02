@@ -1,24 +1,22 @@
 // Package modelith reads modelith domain models (*.modelith.yaml files) into
-// arch.DomainModel: the entities, relationships, enums, glossary,
-// invariants and imports that anarch-lint compares with the code. It wraps
-// sigs.k8s.io/yaml, the YAML library modelith itself uses, and reads only
-// that subset; the rest of the format is modelith's to check, with
-// `modelith lint`.
+// arch.DomainModel: the entities with their relationships, attributes and
+// actions, the enums with their values in declared order, the glossary,
+// the invariants and the imports that anarch-lint compares with the code. It
+// parses through github.com/StevenACoffman/indomain's model package, the
+// reader codetospec uses too, so both read one format one way; decoding is
+// strict, so a field the format does not have is an error. Checking the
+// rest of the format is modelith's job, with `modelith lint`.
 package modelith
 
 import (
 	"cmp"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
-	"path"
 	"slices"
-	"strings"
-
-	"sigs.k8s.io/yaml"
 
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
+	"github.com/StevenACoffman/indomain/pkg/model"
 )
 
 // The kind and version of the one format this package reads.
@@ -27,49 +25,15 @@ const (
 	version = "v1"
 )
 
-// document is the subset of a domain model this package decodes.
-type document struct {
-	Kind       string                     `json:"kind"`
-	Version    string                     `json:"version"`
-	Shared     bool                       `json:"shared"`
-	Imports    []json.RawMessage          `json:"imports"`
-	Glossary   map[string]json.RawMessage `json:"glossary"`
-	Enums      map[string]enumDoc         `json:"enums"`
-	Entities   map[string]entityDoc       `json:"entities"`
-	Invariants []invariantDoc             `json:"invariants"`
-}
-
-type enumDoc struct {
-	Values []struct {
-		Name string `json:"name"`
-	} `json:"values"`
-}
-
-type entityDoc struct {
-	Relationships []struct {
-		Entity    string `json:"entity"`
-		Ownership string `json:"ownership"`
-	} `json:"relationships"`
-	Invariants []invariantDoc `json:"invariants"`
-}
-
-type invariantDoc struct {
-	ID string `json:"id"`
-}
-
 // Parse reads the domain model src, the contents of the file at file. A file
-// that is not YAML, or not a DomainModel of version v1, is EINVALID naming
-// the file.
+// that is not YAML, has a field the format lacks, or is not a DomainModel of
+// version v1, is EINVALID naming the file.
 func Parse(file string, src []byte) (arch.DomainModel, error) {
 	invalid := func(format string, args ...any) error {
 		return &arch.Error{Code: arch.EINVALID, Message: file + ": " + fmt.Sprintf(format, args...)}
 	}
-	js, err := yaml.YAMLToJSON(src)
+	doc, err := model.Parse(src)
 	if err != nil {
-		return arch.DomainModel{}, invalid("not YAML: %v", err)
-	}
-	var doc document
-	if err := json.Unmarshal(js, &doc); err != nil {
 		return arch.DomainModel{}, invalid("not a domain model: %v", err)
 	}
 	if doc.Kind != kind || doc.Version != version {
@@ -92,63 +56,51 @@ func Parse(file string, src []byte) (arch.DomainModel, error) {
 		Glossary:   slices.Sorted(maps.Keys(doc.Glossary)),
 		Enums:      enumsOf(doc.Enums),
 		Entities:   entitiesOf(doc.Entities),
-		Invariants: invariantsOf(&doc),
+		Invariants: invariantsOf(doc),
 	}, nil
 }
 
-// importsOf reads the imports, each a path or {scope, path}. A bare path
-// binds the scope modelith derives: the file's base name without
-// .modelith.yaml or .modelith.yml.
-func importsOf(raw []json.RawMessage) ([]arch.DomainImport, error) {
-	out := make([]arch.DomainImport, 0, len(raw))
-	for _, r := range raw {
-		var bare string
-		if json.Unmarshal(r, &bare) == nil {
-			out = append(out, arch.DomainImport{Scope: scopeOf(bare), Path: bare})
-			continue
+// importsOf returns the imports sorted by scope. A bare path binds the scope
+// indomain derives from it: the base name without .modelith.yaml,
+// .modelith.yml or its extension. An import without a path is an error.
+func importsOf(imports []model.Import) ([]arch.DomainImport, error) {
+	out := make([]arch.DomainImport, 0, len(imports))
+	for _, imp := range imports {
+		if imp.Path == "" {
+			return nil, errors.New("an import names no path")
 		}
-		var explicit arch.DomainImport
-		if err := json.Unmarshal(r, &explicit); err != nil || explicit.Path == "" {
-			return nil, errors.New("an import is neither a path nor {scope, path}")
+		scope := imp.Scope
+		if scope == "" {
+			scope = model.ScopeFromPath(imp.Path)
 		}
-		if explicit.Scope == "" {
-			explicit.Scope = scopeOf(explicit.Path)
-		}
-		out = append(out, explicit)
+		out = append(out, arch.DomainImport{Scope: scope, Path: imp.Path})
 	}
 	slices.SortFunc(out, func(a, b arch.DomainImport) int { return cmp.Compare(a.Scope, b.Scope) })
 	return out, nil
 }
 
-// scopeOf is the scope a bare import path binds.
-func scopeOf(p string) string {
-	base := path.Base(p)
-	for _, suffix := range []string{".modelith.yaml", ".modelith.yml"} {
-		if s, ok := strings.CutSuffix(base, suffix); ok {
-			return s
-		}
-	}
-	return base
-}
-
-func enumsOf(enums map[string]enumDoc) []arch.DomainEnum {
+// enumsOf returns the enums by name, each with its values in the order the
+// model declares them: an order such as Low, Mid, High can mean something.
+func enumsOf(enums map[string]model.Enum) []arch.DomainEnum {
 	out := make([]arch.DomainEnum, 0, len(enums))
 	for _, name := range slices.Sorted(maps.Keys(enums)) {
 		e := arch.DomainEnum{Name: name, Values: make([]string, 0, len(enums[name].Values))}
 		for _, v := range enums[name].Values {
 			e.Values = append(e.Values, v.Name)
 		}
-		slices.Sort(e.Values)
 		out = append(out, e)
 	}
 	return out
 }
 
-func entitiesOf(entities map[string]entityDoc) []arch.DomainEntity {
+// entitiesOf returns the entities by name, each with its relationships
+// sorted by entity, and its attributes and actions in declared order.
+func entitiesOf(entities map[string]model.Entity) []arch.DomainEntity {
 	out := make([]arch.DomainEntity, 0, len(entities))
 	for _, name := range slices.Sorted(maps.Keys(entities)) {
+		doc := entities[name]
 		e := arch.DomainEntity{Name: name}
-		for _, r := range entities[name].Relationships {
+		for _, r := range doc.Relationships {
 			e.Relationships = append(e.Relationships, arch.DomainRelationship{
 				Entity: r.Entity, Owned: r.Ownership == "owned",
 			})
@@ -156,19 +108,27 @@ func entitiesOf(entities map[string]entityDoc) []arch.DomainEntity {
 		slices.SortFunc(e.Relationships, func(a, b arch.DomainRelationship) int {
 			return cmp.Compare(a.Entity, b.Entity)
 		})
+		for _, a := range doc.Attributes {
+			if !a.Derived {
+				e.Attributes = append(e.Attributes, a.Name)
+			}
+		}
+		for _, a := range doc.Actions {
+			e.Actions = append(e.Actions, a.Name)
+		}
 		out = append(out, e)
 	}
 	return out
 }
 
 // invariantsOf returns every invariant ID, the entities' and the model's.
-func invariantsOf(doc *document) []string {
+func invariantsOf(doc *model.Model) []string {
 	var ids []string
 	for _, inv := range doc.Invariants {
 		ids = append(ids, inv.ID)
 	}
-	for _, e := range doc.Entities {
-		for _, inv := range e.Invariants {
+	for name := range doc.Entities {
+		for _, inv := range doc.Entities[name].Invariants {
 			ids = append(ids, inv.ID)
 		}
 	}

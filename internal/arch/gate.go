@@ -82,6 +82,12 @@ type GateOptions struct {
 	// Today decides which waivers have expired. The shell supplies it, so
 	// the domain never reads the clock.
 	Today Date
+	// Loosened are the ways the change loosens the bars it is measured
+	// against while also changing code ([Loosened]); any one fails the gate.
+	// BarsUnchecked says why the bars could not be compared, such as a base
+	// revision a shallow clone lacks.
+	Loosened      []string
+	BarsUnchecked string
 }
 
 // GateResult is the outcome of comparing a report with a baseline.
@@ -122,6 +128,11 @@ type GateResult struct {
 	// report's: the two may measure different files, which explains a fixed
 	// or new finding but does not fail the gate.
 	BaselineBuild *Build `json:"baselineBuild,omitempty"`
+	// Loosened are the bars the change loosens while changing the code
+	// measured against them; any one fails the gate. BarsUnchecked says why
+	// the bars were not compared.
+	Loosened      []string `json:"loosened"`
+	BarsUnchecked string   `json:"barsUnchecked,omitempty"`
 }
 
 // UnreadCount is the number of files, or of modules, left unread for one
@@ -230,6 +241,8 @@ func Gate(r *GateInput, b *Baseline, opts *GateOptions) GateResult {
 	g.compare(r, b, opts)
 	g.Regressions, g.Improved = metricChanges(b.Metrics, r.Metrics)
 	g.Shortfalls = r.Conformance.shortfalls()
+	g.Loosened = append(make([]string, 0, len(opts.Loosened)), opts.Loosened...)
+	g.BarsUnchecked = opts.BarsUnchecked
 	g.decide()
 	return g
 }
@@ -366,10 +379,14 @@ func (g *GateResult) classify(f *Finding, opts *GateOptions, waivers map[string]
 
 // decide sets Passed and Reason from what the comparison found.
 func (g *GateResult) decide() {
-	g.Passed = len(g.New) == 0 && len(g.Regressions) == 0 && len(g.Shortfalls) == 0
+	g.Passed = len(g.New) == 0 && len(g.Regressions) == 0 && len(g.Shortfalls) == 0 &&
+		len(g.Loosened) == 0
 	if !g.Passed {
 		g.Reason = fmt.Sprintf("%d new error findings, %d metric regressions, %d floors not met",
 			len(g.New), len(g.Regressions), len(g.Shortfalls))
+		if len(g.Loosened) > 0 {
+			g.Reason += fmt.Sprintf(", %d bars loosened in a change to the code", len(g.Loosened))
+		}
 	}
 }
 

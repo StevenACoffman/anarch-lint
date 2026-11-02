@@ -7,23 +7,23 @@ import (
 )
 
 // Ways a type can be marked with its role, from the most explicit to the
-// least. Every marker but MarkerPackage is an explicit mapping of the pattern
+// least. Every marker but markerPackage is an explicit mapping of the pattern
 // for criterion 3.3.
 const (
-	MarkerDirective Marker = "directive"
-	MarkerEmbedding Marker = "embedding"
-	MarkerInterface Marker = "interface"
-	MarkerSuffix    Marker = "suffix"
-	MarkerPackage   Marker = "package"
+	markerDirective roleMarker = "directive"
+	markerEmbedding roleMarker = "embedding"
+	markerInterface roleMarker = "interface"
+	markerSuffix    roleMarker = "suffix"
+	markerPackage   roleMarker = "package"
 )
 
-// Marker says how a type was matched to its role.
-type Marker string
+// roleMarker says how a type was matched to its role.
+type roleMarker string
 
 // roleMatch is the role a type plays and how it was matched.
 type roleMatch struct {
 	role   int // position in Model.Roles
-	marker Marker
+	marker roleMarker
 }
 
 // roles maps each type that plays a role to the position of its role
@@ -56,9 +56,9 @@ func TypeRoles(p *Program, m *Model) map[string]string {
 func (s *subject) roleOf(t *Type) (roleMatch, bool) {
 	if t.Directive != "" {
 		r := slices.IndexFunc(s.m.Roles, func(rl Role) bool { return rl.Name == t.Directive })
-		return roleMatch{role: r, marker: MarkerDirective}, r >= 0
+		return roleMatch{role: r, marker: markerDirective}, r >= 0
 	}
-	for _, m := range []Marker{MarkerEmbedding, MarkerInterface, MarkerSuffix, MarkerPackage} {
+	for _, m := range []roleMarker{markerEmbedding, markerInterface, markerSuffix, markerPackage} {
 		for r := range s.m.Roles {
 			if marks(&s.m.Roles[r], t, m) {
 				return roleMatch{role: r, marker: m}, true
@@ -69,23 +69,23 @@ func (s *subject) roleOf(t *Type) (roleMatch, bool) {
 }
 
 // marks reports whether role rl matches t by the marker m.
-func marks(rl *Role, t *Type, m Marker) bool {
+func marks(rl *Role, t *Type, m roleMarker) bool {
 	switch m {
-	case MarkerEmbedding:
+	case markerEmbedding:
 		return slices.ContainsFunc(
 			rl.Embeds,
 			func(id string) bool { return slices.Contains(t.Embeds, id) },
 		)
-	case MarkerInterface:
+	case markerInterface:
 		return slices.ContainsFunc(
 			rl.Implements,
 			func(id string) bool { return slices.Contains(t.Implements, id) },
 		)
-	case MarkerSuffix:
+	case markerSuffix:
 		return rl.Suffix != "" && strings.HasSuffix(t.Name, rl.Suffix)
-	case MarkerPackage:
+	case markerPackage:
 		return MatchesAny(rl.Packages, t.Package)
-	case MarkerDirective:
+	case markerDirective:
 		return t.Directive == rl.Name
 	default:
 		return false
@@ -165,7 +165,7 @@ func roleEvidence(s *subject) []string {
 	if len(s.m.Roles) == 0 {
 		return []string{"roles: none declared, so no type's pattern is mapped explicitly"}
 	}
-	counts := map[Marker]int{}
+	counts := map[roleMarker]int{}
 	matched := 0
 	for i := range s.p.Types {
 		if m, ok := s.roleOf(&s.p.Types[i]); ok {
@@ -180,11 +180,11 @@ func roleEvidence(s *subject) []string {
 				"%d only by package, %d none",
 			len(s.m.Roles),
 			len(s.p.Types),
-			counts[MarkerDirective],
-			counts[MarkerEmbedding],
-			counts[MarkerInterface],
-			counts[MarkerSuffix],
-			counts[MarkerPackage],
+			counts[markerDirective],
+			counts[markerEmbedding],
+			counts[markerInterface],
+			counts[markerSuffix],
+			counts[markerPackage],
 			len(s.p.Types)-matched,
 		),
 	}

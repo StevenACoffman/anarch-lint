@@ -1,6 +1,6 @@
 # Architecture
 
-<!-- Rendered by anarch-lint render from the model 431b952e8ede. Edit the model, not this file. -->
+<!-- Rendered by anarch-lint render from the model 305dda9530c9. Edit the model, not this file. -->
 
 ## Subsystems
 
@@ -63,6 +63,6 @@ flowchart TD
 
 Describes the whole program.
 
-Entities: Credentials, Invoice, Ledger, Role, Session.
+Entities: Credentials, Invoice, Ledger, Receipt, Role, Session.
 
-Enums: Currency (usd), Level (High, Low, Mid, Top).
+Enums: Currency (usd), Level (Low, Mid, High, Top).

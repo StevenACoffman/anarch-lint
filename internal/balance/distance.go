@@ -9,9 +9,6 @@ import (
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
 
-// Rules of the findings about distance.
-const ruleOwnersDiffer = "subsystem-owners-differ"
-
 // deployUnits is which binaries contain each package (connascence.md §9.3).
 type deployUnits struct {
 	// in maps a package to the main packages whose binaries contain it.
@@ -62,7 +59,7 @@ func (s *subject) subsystemOwners() (map[string][]string, []arch.Finding) {
 // owners.
 func (s *subject) ownersDiffer(sub string, sets []string) arch.Finding {
 	f := arch.NewFinding(
-		arch.FindingID{Rule: ruleOwnersDiffer, Subject: sub, Object: ""},
+		arch.FindingID{Rule: arch.RuleOwnersDiffer, Subject: sub, Object: ""},
 		s.severity(),
 	)
 	f.Message = fmt.Sprintf(

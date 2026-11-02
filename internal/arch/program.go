@@ -27,8 +27,24 @@ const (
 	// RefSignature is a method's receiver, parameters and results, or an
 	// interface method's: the referrer's API.
 	RefSignature RefKind = "signature"
-	// RefBody is a method body: an implementation detail, the easiest to
-	// move behind an interface.
+	// RefFieldWrite is an assignment to one of the type's fields in a method
+	// body, or a keyed composite literal setting one: the body depends on the
+	// type's layout and changes its state.
+	RefFieldWrite RefKind = "fieldWrite"
+	// RefFieldRead is a read of one of the type's fields in a method body.
+	RefFieldRead RefKind = "fieldRead"
+	// RefLiteral is a composite literal of the type in a method body.
+	RefLiteral RefKind = "literal"
+	// RefConversion is a conversion to the type in a method body.
+	RefConversion RefKind = "conversion"
+	// RefCall is a call of one of the type's methods, or a method value, in a
+	// method body.
+	RefCall RefKind = "call"
+	// RefTypeArgument is the type as a type argument of an instantiation in
+	// a method body.
+	RefTypeArgument RefKind = "typeArgument"
+	// RefBody is any other use in a method body, such as a variable's type:
+	// an implementation detail, the easiest to move behind an interface.
 	RefBody RefKind = "body"
 )
 
@@ -41,9 +57,25 @@ const (
 	ExcludedOtherModule ExclusionReason = "other-module"
 )
 
-// InactiveEvidence is the evidence of a finding about an inactive import.
-const InactiveEvidence = "the import is in a file the build constraints exclude from the " +
-	"build this report reads; it is read from the file's source"
+// How an edge a finding rests on was known (IMPROVEMENTS.md §3.2).
+const (
+	// ProvenanceTypes is an edge the type checker resolved: the build's
+	// imports and every reference.
+	ProvenanceTypes Provenance = "types"
+	// ProvenanceSource is an import read from a file's source without
+	// type-checking, because the build constraints exclude the file.
+	ProvenanceSource Provenance = "source"
+	// ProvenanceInjected is a run-time dependency: a value of a concrete
+	// type passed in through an interface parameter at a call.
+	ProvenanceInjected Provenance = "injected"
+	// ProvenanceDispatch is a run-time dependency a VTA call graph finds: a
+	// dynamic call that reaches a concrete method of another package.
+	ProvenanceDispatch Provenance = "dispatch"
+)
+
+// Provenance says how an edge a finding rests on was known, so a reader can
+// tell a resolved dependency from one read without types or inferred.
+type Provenance string
 
 // ExclusionReason says why no measure reads a source file.
 type ExclusionReason string
@@ -107,6 +139,10 @@ type Program struct {
 	// Injections are the calls that hand a concrete in-scope type to a
 	// parameter of interface type, sorted.
 	Injections []Injection `json:"injections"`
+	// Dispatches are the run-time wiring a VTA call graph finds, sorted;
+	// loaded only when a forbidden-import rule asks for injected
+	// dependencies.
+	Dispatches []Dispatch `json:"dispatches,omitempty"`
 	// Facts are the connascence and Balanced Coupling facts, filled only
 	// when the loader is asked for them.
 	Facts Facts `json:"facts"`
@@ -126,6 +162,13 @@ type Package struct {
 	Files []string `json:"files"`
 	// Lines is the package's lines of code (mmi.md §7.3).
 	Lines int `json:"lines"`
+	// Subsystem is what an "//arch:subsystem NAME" directive in a file's
+	// package comment names, and Exposes marks an "//arch:exposes": the
+	// package declares its own subsystem, and that it is part of the
+	// subsystem's interface, in the code (ArchUnit's modules declared by
+	// annotation).
+	Subsystem string `json:"subsystem,omitempty"`
+	Exposes   bool   `json:"exposes,omitempty"`
 }
 
 // ExcludedFile is a source file of an analyzed package that no measure
@@ -162,6 +205,9 @@ type Type struct {
 	Lines int `json:"lines"`
 	// Fields are the names of a struct type's fields, in declaration order.
 	Fields []string `json:"fields,omitempty"`
+	// WireNames are the names a struct's tags give its fields in each
+	// encoding, as "json:id", sorted: the wire format it agrees on.
+	WireNames []string `json:"wireNames,omitempty"`
 	// Embeds lists the in-scope types it embeds, sorted: the marker types of
 	// MMI 3.3.
 	Embeds []string `json:"embeds,omitempty"`
@@ -201,6 +247,10 @@ type Func struct {
 	// differ only in names and values hash alike. It is set only with facts,
 	// for bodies of at least ten statements (connascence.md §2.5).
 	BodyHash string `json:"bodyHash,omitempty"`
+	// ExactHash identifies the body itself: a hash of it as go/format prints
+	// it, without its comments and blank lines, so two bodies hash alike only
+	// when they are copies. It is set for the bodies BodyHash covers.
+	ExactHash string `json:"exactHash,omitempty"`
 }
 
 // Complexity holds the cyclomatic-complexity variants of mmi.md §7.3.
@@ -242,6 +292,20 @@ type Injection struct {
 	Pos      Position `json:"pos"`
 }
 
+// Dispatch is a dynamic call, through an interface or a function value, that
+// a VTA call graph resolves to a method of a concrete type in another
+// package under analysis: run-time wiring, which the composition root sets
+// up and no import shows (mmi.md §7.2).
+type Dispatch struct {
+	// Caller is the function the call is in, CallerPackage its package.
+	Caller        string `json:"caller"`
+	CallerPackage string `json:"callerPackage"`
+	// Callee is the concrete method called; Concrete the type it belongs to.
+	Callee   string   `json:"callee"`
+	Concrete string   `json:"concrete"`
+	Pos      Position `json:"pos"`
+}
+
 // Import is one import declaration of an in-scope package.
 type Import struct {
 	From string   `json:"from"`
@@ -250,6 +314,15 @@ type Import struct {
 	// Inactive marks an import of a file the build constraints exclude,
 	// read from its source rather than type-checked.
 	Inactive bool `json:"inactive,omitempty"`
+}
+
+// Provenance returns how the import was known: from source for an inactive
+// import, by the type checker otherwise.
+func (imp *Import) Provenance() Provenance {
+	if imp.Inactive {
+		return ProvenanceSource
+	}
+	return ProvenanceTypes
 }
 
 // RuleImports returns the imports the import rules check: the build's, then
@@ -269,20 +342,34 @@ func IsStandard(path string) bool {
 }
 
 // Order is a kind's place among the kinds, from 0 for the hardest to cut,
-// an embedding, to 4 for the easiest, a method body.
+// an embedding, to the easiest, a plain use in a method body.
 func (k RefKind) Order() int {
-	switch k {
-	case RefEmbed:
-		return 0
-	case RefField:
-		return 1
-	case RefDefinition:
-		return 2
-	case RefSignature:
-		return 3
-	default:
-		return 4
+	if i := slices.Index(refKinds(), k); i >= 0 {
+		return i
 	}
+	return len(refKinds())
+}
+
+// refKinds lists the kinds, hardest to cut first: what is part of the
+// referrer's layout or API, then what a body does with the type, from
+// changing its state to merely naming it.
+func refKinds() []RefKind {
+	return []RefKind{
+		RefEmbed, RefField, RefDefinition, RefSignature, RefFieldWrite, RefFieldRead,
+		RefLiteral, RefConversion, RefCall, RefTypeArgument, RefBody,
+	}
+}
+
+// CompareSites orders sites by every field: file, line, package, function
+// and type.
+func CompareSites(a, b Site) int {
+	return cmp.Or(
+		cmp.Compare(a.File, b.File),
+		cmp.Compare(a.Line, b.Line),
+		cmp.Compare(a.Package, b.Package),
+		cmp.Compare(a.Func, b.Func),
+		cmp.Compare(a.Type, b.Type),
+	)
 }
 
 // ComparePositions orders positions by file, then line.

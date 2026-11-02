@@ -8,12 +8,6 @@ import (
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
 
-// Rule names of the verification's findings.
-const (
-	ruleRedundant = "redundant-rule"
-	ruleUnusable  = "unusable-allowance"
-)
-
 // maxCells bounds the cells the verification checks; a larger model is
 // reported as not verified rather than checked in part (feelc's gridBudget).
 const maxCells = 250_000
@@ -209,7 +203,7 @@ func (v *verifier) redundant() []arch.Finding {
 		}
 		c := v.cells[first]
 		f := arch.NewFinding(
-			arch.FindingID{Rule: ruleRedundant, Subject: v.fs[a].name, Object: v.fs[b].name},
+			arch.FindingID{Rule: arch.RuleRedundant, Subject: v.fs[a].name, Object: v.fs[b].name},
 			arch.SeverityWarning,
 		)
 		f.ModelRule = v.fs[a].modelRule
@@ -250,7 +244,11 @@ func (v *verifier) unusable() []arch.Finding {
 				continue
 			}
 			f := arch.NewFinding(
-				arch.FindingID{Rule: ruleUnusable, Subject: v.fs[a].name, Object: al.item},
+				arch.FindingID{
+					Rule:    arch.RuleUnusableAllowance,
+					Subject: v.fs[a].name,
+					Object:  al.item,
+				},
 				arch.SeverityWarning,
 			)
 			f.ModelRule = v.fs[a].modelRule

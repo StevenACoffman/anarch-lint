@@ -93,11 +93,12 @@ func typeCycleRule(s *subject, limit int) []Finding {
 }
 
 // sizeRules reports functions and types above the size and complexity limits
-// (MMI 1.3.1, 1.3.2, 1.3.4).
-func sizeRules(s *subject, t *Thresholds, cohesion map[string]int) []Finding {
+// of their package (MMI 1.3.1, 1.3.2, 1.3.4).
+func sizeRules(s *subject, limits map[string]Thresholds, cohesion map[string]int) []Finding {
 	var fs []Finding
 	for i := range s.p.Funcs {
 		fn := &s.p.Funcs[i]
+		t := limitsOf(limits, fn.Package)
 		if fn.Lines > t.LargeFuncLines {
 			f := NewFinding(
 				FindingID{Rule: RuleLargeFunc, Subject: fn.ID, Object: ""},
@@ -130,6 +131,7 @@ func sizeRules(s *subject, t *Thresholds, cohesion map[string]int) []Finding {
 	}
 	for i := range s.p.Types {
 		typ := &s.p.Types[i]
+		t := limitsOf(limits, typ.Package)
 		if typ.Lines <= t.LargeTypeLines {
 			continue
 		}
@@ -151,12 +153,14 @@ func sizeRules(s *subject, t *Thresholds, cohesion map[string]int) []Finding {
 }
 
 // lengthAndDepthRules reports source files above the length limit and functions
-// nested deeper than the indentation limit: von Zitzewitz's golden rules for
-// files of at most 800 lines and indentation of at most 4 (mmi.md §7.3).
-func lengthAndDepthRules(s *subject, t *Thresholds) []Finding {
+// nested deeper than the indentation limit of their package: von
+// Zitzewitz's golden rules for files of at most 800 lines and indentation of
+// at most 4 (mmi.md §7.3).
+func lengthAndDepthRules(s *subject, limits map[string]Thresholds) []Finding {
 	var fs []Finding
 	for i := range s.p.Files {
 		file := &s.p.Files[i]
+		t := limitsOf(limits, file.Package)
 		if file.Lines <= t.LargeFileLines {
 			continue
 		}
@@ -176,6 +180,7 @@ func lengthAndDepthRules(s *subject, t *Thresholds) []Finding {
 	}
 	for i := range s.p.Funcs {
 		fn := &s.p.Funcs[i]
+		t := limitsOf(limits, fn.Package)
 		if fn.MaxNesting <= t.MaxNesting {
 			continue
 		}
@@ -193,16 +198,17 @@ func lengthAndDepthRules(s *subject, t *Thresholds) []Finding {
 		f.Fix = "return early, and extract the innermost loop or branch into a named function"
 		fs = append(fs, f)
 	}
-	return append(fs, cognitiveRule(s, t)...)
+	return append(fs, cognitiveRule(s, limits)...)
 }
 
 // cognitiveRule reports functions above the cognitive-complexity limit:
 // hard to read rather than hard to test, which cyclomatic complexity
 // measures (SonarSource, "Cognitive Complexity", 2017).
-func cognitiveRule(s *subject, t *Thresholds) []Finding {
+func cognitiveRule(s *subject, limits map[string]Thresholds) []Finding {
 	var fs []Finding
 	for i := range s.p.Funcs {
 		fn := &s.p.Funcs[i]
+		t := limitsOf(limits, fn.Package)
 		if fn.Cognitive <= t.HighCognitive {
 			continue
 		}
@@ -215,6 +221,14 @@ func cognitiveRule(s *subject, t *Thresholds) []Finding {
 		fs = append(fs, f)
 	}
 	return fs
+}
+
+// limitsOf returns a package's limits.
+//
+// Requires: limits has every package of the program.
+func limitsOf(limits map[string]Thresholds, pkg string) *Thresholds {
+	t := limits[pkg]
+	return &t
 }
 
 // importsBetween returns the in-scope imports from packages of one subsystem

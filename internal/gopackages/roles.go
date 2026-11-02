@@ -1,14 +1,22 @@
 package gopackages
 
 import (
+	"fmt"
 	"go/ast"
 	"go/types"
 	"slices"
 	"strings"
+
+	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
 
-// roleDirective is the comment that names a type's pattern role explicitly.
-const roleDirective = "//arch:role "
+// The comments that place code in the architecture: a type's pattern role,
+// and a package's subsystem and whether it is part of its interface.
+const (
+	roleDirective      = "//arch:role "
+	subsystemDirective = "//arch:subsystem "
+	exposesDirective   = "//arch:exposes"
+)
 
 // embedsOf returns the IDs of the in-scope named types tn embeds, as struct
 // fields or as embedded interfaces, sorted.
@@ -116,4 +124,39 @@ func sortedKeys[V any](m map[string]V) []string {
 			}
 		}
 	})
+}
+
+// packageDirectives reads the "//arch:subsystem NAME" and "//arch:exposes"
+// comments of each file's package comment into pkg. Two files that name
+// different subsystems are an error.
+func packageDirectives(pkg *arch.Package, files []*ast.File) error {
+	for _, f := range files {
+		if f.Doc == nil {
+			continue
+		}
+		for _, c := range f.Doc.List {
+			if err := applyDirective(pkg, c.Text); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// applyDirective applies one comment line of a package comment to pkg.
+func applyDirective(pkg *arch.Package, text string) error {
+	if strings.TrimSpace(text) == exposesDirective {
+		pkg.Exposes = true
+	}
+	name, ok := strings.CutPrefix(text, subsystemDirective)
+	if !ok {
+		return nil
+	}
+	name = strings.TrimSpace(name)
+	if pkg.Subsystem != "" && pkg.Subsystem != name {
+		return &arch.Error{Code: arch.EINVALID, Message: fmt.Sprintf(
+			"package %s names two subsystems, %s and %s", pkg.Path, pkg.Subsystem, name)}
+	}
+	pkg.Subsystem = name
+	return nil
 }

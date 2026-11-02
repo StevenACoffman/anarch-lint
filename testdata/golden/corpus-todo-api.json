@@ -1,0 +1,1009 @@
+{
+  "schema": "anarch-lint.report.v1",
+  "inputs": {
+    "tool": "anarch-lint devel",
+    "goVersion": "GOVERSION",
+    "tags": [],
+    "platform": "PLATFORM",
+    "patterns": [
+      "./..."
+    ],
+    "modelHash": "a007ab43a12860288886fee33496a6ed2ed335108f0c92543ef66ca72d5b4909",
+    "thresholds": {
+      "largeTypeLines": 400,
+      "largeFuncLines": 60,
+      "largePackageTypes": 40,
+      "highComplexity": 15,
+      "complexityVariant": "modified",
+      "maxTypeCycleGroup": 5,
+      "largeFileLines": 800,
+      "maxNesting": 4,
+      "highCognitive": 15
+    }
+  },
+  "sizes": {
+    "lines": 2865,
+    "types": 46,
+    "funcs": 114,
+    "generated": 7,
+    "buildExcluded": 0,
+    "otherModules": 1,
+    "linesInLargeTypes": 0,
+    "linesInLargeFuncs": 554,
+    "typesInLargePackages": 0,
+    "complexFuncs": 0
+  },
+  "ordering": {
+    "class": {
+      "elements": 50,
+      "inCycles": 0,
+      "refs": 0,
+      "weight": 0,
+      "direct": 0,
+      "maxGroup": 0,
+      "groups": []
+    },
+    "package": {
+      "elements": 23,
+      "inCycles": 0,
+      "refs": 0,
+      "weight": 0,
+      "direct": 0,
+      "maxGroup": 0,
+      "groups": []
+    },
+    "subsystem": {
+      "elements": 23,
+      "inCycles": 0,
+      "refs": 0,
+      "weight": 0,
+      "direct": 0,
+      "maxGroup": 0,
+      "groups": []
+    },
+    "packageCycleGroupsFromClassCycles": 0,
+    "subsysCycleGroupsFromClassCycles": 0,
+    "refsInClassCyclesBetweenPackages": 0,
+    "refsInClassCyclesBetweenSubsystems": 0
+  },
+  "coupling": {
+    "types": {
+      "nodes": 50,
+      "ccd": 230,
+      "acd": 4.6,
+      "propagationCost": 0.092,
+      "relativeCyclicity": 0,
+      "maxCycleGroup": 0,
+      "sdi": 0,
+      "cutMethod": "exact",
+      "cuts": []
+    },
+    "packages": {
+      "nodes": 23,
+      "ccd": 66,
+      "acd": 2.869565,
+      "propagationCost": 0.124764,
+      "relativeCyclicity": 0,
+      "maxCycleGroup": 0,
+      "sdi": 0,
+      "cutMethod": "exact",
+      "cuts": []
+    },
+    "subsystems": {
+      "nodes": 23,
+      "ccd": 66,
+      "acd": 2.869565,
+      "propagationCost": 0.124764,
+      "relativeCyclicity": 0,
+      "maxCycleGroup": 0,
+      "sdi": 0,
+      "cutMethod": "exact",
+      "cuts": []
+    }
+  },
+  "cohesion": [
+    {
+      "type": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-kafka.Server",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-rabbitmq.Server",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-redis.Server",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal.Error",
+      "lcom4": 2
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal/elasticsearch.Task",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal/kafka.Task",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal/memcached.SearchableTask",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal/memcached.Task",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal/postgresql.Task",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal/rabbitmq.Task",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal/redis.Task",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal/rest.TaskHandler",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal/service.Task",
+      "lcom4": 2
+    }
+  ],
+  "packages": [
+    {
+      "package": "github.com/MarioCarrion/todo-api/cmd/cli",
+      "ca": 0,
+      "ce": 1,
+      "instability": 1,
+      "abstractness": 0,
+      "distance": 0
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-kafka",
+      "ca": 0,
+      "ce": 4,
+      "instability": 1,
+      "abstractness": 0,
+      "distance": 0
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-rabbitmq",
+      "ca": 0,
+      "ce": 4,
+      "instability": 1,
+      "abstractness": 0,
+      "distance": 0
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-redis",
+      "ca": 0,
+      "ce": 4,
+      "instability": 1,
+      "abstractness": 0,
+      "distance": 0
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/cmd/internal",
+      "ca": 4,
+      "ce": 3,
+      "instability": 0.428571,
+      "abstractness": 0,
+      "distance": 0.571429
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/cmd/openapi-gen",
+      "ca": 0,
+      "ce": 1,
+      "instability": 1,
+      "abstractness": 0,
+      "distance": 0
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/cmd/rest-server",
+      "ca": 0,
+      "ce": 9,
+      "instability": 1,
+      "abstractness": 0,
+      "distance": 0
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/internal",
+      "ca": 15,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "distance": 1
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/internal/doc",
+      "ca": 0,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "distance": 1
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/internal/elasticsearch",
+      "ca": 4,
+      "ce": 1,
+      "instability": 0.2,
+      "abstractness": 0,
+      "distance": 0.8
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/internal/envvar",
+      "ca": 5,
+      "ce": 1,
+      "instability": 0.166667,
+      "abstractness": 0.5,
+      "distance": 0.333333
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/internal/envvar/envvartesting",
+      "ca": 0,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "distance": 1
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/internal/envvar/vault",
+      "ca": 1,
+      "ce": 1,
+      "instability": 0.5,
+      "abstractness": 0,
+      "distance": 0.5
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/internal/kafka",
+      "ca": 0,
+      "ce": 1,
+      "instability": 1,
+      "abstractness": 0,
+      "distance": 0
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/internal/memcached",
+      "ca": 1,
+      "ce": 1,
+      "instability": 0.5,
+      "abstractness": 0.5,
+      "distance": 0
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/internal/postgresql",
+      "ca": 1,
+      "ce": 2,
+      "instability": 0.666667,
+      "abstractness": 0,
+      "distance": 0.333333
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/internal/postgresql/db",
+      "ca": 1,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "distance": 1
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/internal/rabbitmq",
+      "ca": 0,
+      "ce": 1,
+      "instability": 1,
+      "abstractness": 0,
+      "distance": 0
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/internal/redis",
+      "ca": 1,
+      "ce": 1,
+      "instability": 0.5,
+      "abstractness": 0,
+      "distance": 0.5
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/internal/rest",
+      "ca": 2,
+      "ce": 1,
+      "instability": 0.333333,
+      "abstractness": 0.083333,
+      "distance": 0.583334
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/internal/rest/resttesting",
+      "ca": 0,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "distance": 1
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/internal/service",
+      "ca": 1,
+      "ce": 1,
+      "instability": 0.5,
+      "abstractness": 0.75,
+      "distance": 0.25
+    },
+    {
+      "package": "github.com/MarioCarrion/todo-api/pkg/openapi3",
+      "ca": 1,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "distance": 1
+    }
+  ],
+  "componentRank": [
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal.Priority",
+      "rank": 0.118992
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal.Task",
+      "rank": 0.102851
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal.Dates",
+      "rank": 0.083138
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal/rest.Priority",
+      "rank": 0.04253
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal.Category",
+      "rank": 0.037623
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal/rest.Task",
+      "rank": 0.036516
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal/rest.Dates",
+      "rank": 0.033938
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal.SearchParams",
+      "rank": 0.026193
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal.SearchResults",
+      "rank": 0.026193
+    },
+    {
+      "type": "github.com/MarioCarrion/todo-api/internal/elasticsearch.Task",
+      "rank": 0.021072
+    }
+  ],
+  "excluded": [
+    {
+      "path": "internal/envvar/envvartesting/provider.gen.go",
+      "package": "github.com/MarioCarrion/todo-api/internal/envvar/envvartesting",
+      "reason": "generated"
+    },
+    {
+      "path": "internal/postgresql/db/db.go",
+      "package": "github.com/MarioCarrion/todo-api/internal/postgresql/db",
+      "reason": "generated"
+    },
+    {
+      "path": "internal/postgresql/db/models.go",
+      "package": "github.com/MarioCarrion/todo-api/internal/postgresql/db",
+      "reason": "generated"
+    },
+    {
+      "path": "internal/postgresql/db/tasks.sql.go",
+      "package": "github.com/MarioCarrion/todo-api/internal/postgresql/db",
+      "reason": "generated"
+    },
+    {
+      "path": "internal/rest/resttesting/task_service.gen.go",
+      "package": "github.com/MarioCarrion/todo-api/internal/rest/resttesting",
+      "reason": "generated"
+    },
+    {
+      "path": "internal/tools/go.mod",
+      "package": "github.com/MarioCarrion/todo-api/internal/tools",
+      "reason": "other-module"
+    },
+    {
+      "path": "pkg/openapi3/client.gen.go",
+      "package": "github.com/MarioCarrion/todo-api/pkg/openapi3",
+      "reason": "generated"
+    },
+    {
+      "path": "pkg/openapi3/task_types.gen.go",
+      "package": "github.com/MarioCarrion/todo-api/pkg/openapi3",
+      "reason": "generated"
+    }
+  ],
+  "communities": {
+    "groups": [
+      {
+        "packages": [
+          "github.com/MarioCarrion/todo-api/cmd/cli",
+          "github.com/MarioCarrion/todo-api/pkg/openapi3"
+        ]
+      },
+      {
+        "packages": [
+          "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-kafka",
+          "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-rabbitmq",
+          "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-redis",
+          "github.com/MarioCarrion/todo-api/cmd/internal",
+          "github.com/MarioCarrion/todo-api/internal/elasticsearch",
+          "github.com/MarioCarrion/todo-api/internal/envvar"
+        ]
+      },
+      {
+        "packages": [
+          "github.com/MarioCarrion/todo-api/cmd/openapi-gen",
+          "github.com/MarioCarrion/todo-api/internal/rest"
+        ]
+      },
+      {
+        "packages": [
+          "github.com/MarioCarrion/todo-api/cmd/rest-server",
+          "github.com/MarioCarrion/todo-api/internal",
+          "github.com/MarioCarrion/todo-api/internal/envvar/vault",
+          "github.com/MarioCarrion/todo-api/internal/kafka",
+          "github.com/MarioCarrion/todo-api/internal/memcached",
+          "github.com/MarioCarrion/todo-api/internal/postgresql",
+          "github.com/MarioCarrion/todo-api/internal/postgresql/db",
+          "github.com/MarioCarrion/todo-api/internal/rabbitmq",
+          "github.com/MarioCarrion/todo-api/internal/redis",
+          "github.com/MarioCarrion/todo-api/internal/service"
+        ]
+      },
+      {
+        "packages": [
+          "github.com/MarioCarrion/todo-api/internal/doc"
+        ]
+      },
+      {
+        "packages": [
+          "github.com/MarioCarrion/todo-api/internal/envvar/envvartesting"
+        ]
+      },
+      {
+        "packages": [
+          "github.com/MarioCarrion/todo-api/internal/rest/resttesting"
+        ]
+      }
+    ],
+    "misplaced": []
+  },
+  "conformance": {
+    "coverage": 0,
+    "rules": 2,
+    "passing": 1,
+    "compliance": 50,
+    "failing": [
+      "forbiddenImports[1]"
+    ]
+  },
+  "mmi": {
+    "low": 2.28,
+    "high": 9.78,
+    "exact": false,
+    "criteria": [
+      {
+        "id": "1.1.1",
+        "name": "Source code allocated to subsystems (domain modules)",
+        "group": "1.1",
+        "kind": "unmeasured",
+        "determinedBy": "architecture analysis tools",
+        "reason": "the model declares no subsystems"
+      },
+      {
+        "id": "1.1.2",
+        "name": "Source code allocated to technical layers",
+        "group": "1.1",
+        "kind": "unmeasured",
+        "determinedBy": "architecture analysis tools",
+        "reason": "the model declares no layers"
+      },
+      {
+        "id": "1.1.3",
+        "name": "Size relationship of the subsystems",
+        "group": "1.1",
+        "kind": "unmeasured",
+        "determinedBy": "metrics tools",
+        "reason": "the model declares no subsystems"
+      },
+      {
+        "id": "1.1.4",
+        "name": "Size relationship of the technical layers",
+        "group": "1.1",
+        "kind": "unmeasured",
+        "determinedBy": "metrics tools",
+        "reason": "the model declares no layers"
+      },
+      {
+        "id": "1.1.5",
+        "name": "Subsystems, layers, packages and types have clear responsibilities",
+        "group": "1.1",
+        "kind": "judgement",
+        "determinedBy": "reviewers",
+        "reason": "needs a reviewer; see the judgement slot"
+      },
+      {
+        "id": "1.1.6",
+        "name": "Layers and subsystems are mapped through packages",
+        "group": "1.1",
+        "kind": "judgement",
+        "determinedBy": "reviewers",
+        "reason": "needs a reviewer; see the judgement slot"
+      },
+      {
+        "id": "1.2.1",
+        "name": "Subsystems have interfaces (% violating imports)",
+        "group": "1.2",
+        "kind": "unmeasured",
+        "determinedBy": "architecture analysis tools",
+        "reason": "the model declares no subsystems"
+      },
+      {
+        "id": "1.2.2",
+        "name": "Internal interfaces are mapped through packages",
+        "group": "1.2",
+        "kind": "judgement",
+        "determinedBy": "reviewers",
+        "reason": "needs a reviewer; see the judgement slot"
+      },
+      {
+        "id": "1.3.1",
+        "name": "Source code in large types",
+        "group": "1.3",
+        "kind": "measured",
+        "determinedBy": "metrics tools",
+        "value": 0,
+        "unit": "%",
+        "score": 10
+      },
+      {
+        "id": "1.3.2",
+        "name": "Source code in large functions",
+        "group": "1.3",
+        "kind": "measured",
+        "determinedBy": "metrics tools",
+        "value": 19.336824,
+        "unit": "%",
+        "score": 1
+      },
+      {
+        "id": "1.3.3",
+        "name": "Types in large packages",
+        "group": "1.3",
+        "kind": "measured",
+        "determinedBy": "metrics tools",
+        "value": 0,
+        "unit": "%",
+        "score": 10
+      },
+      {
+        "id": "1.3.4",
+        "name": "Functions with high cyclomatic complexity",
+        "group": "1.3",
+        "kind": "measured",
+        "determinedBy": "metrics tools",
+        "value": 0,
+        "unit": "%",
+        "score": 10
+      },
+      {
+        "id": "2.1.1",
+        "name": "Violations of the technical layering",
+        "group": "2.1",
+        "kind": "unmeasured",
+        "determinedBy": "architecture analysis tools",
+        "reason": "the model declares fewer than two layers"
+      },
+      {
+        "id": "2.1.2",
+        "name": "Violations of the subsystem layering",
+        "group": "2.1",
+        "kind": "unmeasured",
+        "determinedBy": "architecture analysis tools",
+        "reason": "the model declares no subsystem order"
+      },
+      {
+        "id": "2.2.1",
+        "name": "Types in cycles",
+        "group": "2.2",
+        "kind": "measured",
+        "determinedBy": "metrics tools",
+        "value": 0,
+        "unit": "%",
+        "score": 10
+      },
+      {
+        "id": "2.2.2",
+        "name": "Packages in cycles",
+        "group": "2.2",
+        "kind": "measured",
+        "determinedBy": "metrics tools",
+        "value": 0,
+        "unit": "%",
+        "score": 10
+      },
+      {
+        "id": "2.2.3",
+        "name": "Types per cycle (largest cycle group)",
+        "group": "2.2",
+        "kind": "measured",
+        "determinedBy": "metrics tools",
+        "value": 0,
+        "unit": "count",
+        "score": 10
+      },
+      {
+        "id": "2.2.4",
+        "name": "Packages per cycle (largest cycle group)",
+        "group": "2.2",
+        "kind": "measured",
+        "determinedBy": "metrics tools",
+        "value": 0,
+        "unit": "count",
+        "score": 10
+      },
+      {
+        "id": "3.1",
+        "name": "Source code allocated to pattern roles",
+        "group": "3",
+        "kind": "unmeasured",
+        "determinedBy": "architecture analysis tools",
+        "reason": "the model declares no roles"
+      },
+      {
+        "id": "3.2",
+        "name": "References against the role order",
+        "group": "3",
+        "kind": "unmeasured",
+        "determinedBy": "architecture analysis tools",
+        "reason": "the model declares fewer than two roles"
+      },
+      {
+        "id": "3.3",
+        "name": "Explicit mapping of the patterns",
+        "group": "3",
+        "kind": "judgement",
+        "determinedBy": "reviewers",
+        "reason": "needs a reviewer; see the judgement slot"
+      },
+      {
+        "id": "3.4",
+        "name": "Separation of domain and technical source code",
+        "group": "3",
+        "kind": "judgement",
+        "determinedBy": "reviewers",
+        "reason": "needs a reviewer; see the judgement slot"
+      }
+    ]
+  },
+  "judgements": [
+    {
+      "criterion": "1.1.5",
+      "question": "Does each subsystem, layer, package and type have one clear responsibility, and does its name describe it?",
+      "edition": "74fd815348e470aec04f144084efca6cfb5509c71c5b4c1dfcaf23c8d39ebedf",
+      "evidence": [
+        "lcom4: github.com/MarioCarrion/todo-api/internal.Error has 2 independent groups of methods and fields",
+        "lcom4: github.com/MarioCarrion/todo-api/internal/service.Task has 2 independent groups of methods and fields",
+        "balance: largest package github.com/MarioCarrion/todo-api/internal/rest has 576 of 2865 lines; smallest github.com/MarioCarrion/todo-api/pkg/openapi3 has 0"
+      ],
+      "undecided": "the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers",
+      "evidenceHash": "b9a48fbf772ce09cec9e3e86ef623ab2c096313c41357ee292d80050f8508377",
+      "status": "pending"
+    },
+    {
+      "criterion": "1.1.6",
+      "question": "Do the packages map the technical layers and the subsystems (domain modules) of the target architecture, and is that the right mapping?",
+      "edition": "7006f2a1eb43deb9f0b9bf0aed536454f01658e2f7caa9426f933812c7358f60",
+      "evidence": [
+        "subsystems: 0 declared; 23 packages unassigned, 0 ambiguous",
+        "layers: 0 declared; 23 packages unassigned, 0 ambiguous"
+      ],
+      "undecided": "the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers",
+      "evidenceHash": "af77f53d7a9af5c93e70a8a3f5c91f963a070145eab6e84e30ce967ac245258f",
+      "status": "pending"
+    },
+    {
+      "criterion": "1.2.2",
+      "question": "Is each subsystem's internal interface mapped through packages that other subsystems can see and use?",
+      "edition": "e0a61ede6c6826d254695fbefcd650405b7f6ffb3a8c11447eb6a459138f335e",
+      "evidence": [
+        "subsystems: 0 declared"
+      ],
+      "undecided": "the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers",
+      "evidenceHash": "8008c111c307df74de3250e9b895871811faee5eb81f8471b3f5c3f6265e9656",
+      "status": "pending"
+    },
+    {
+      "criterion": "3.3",
+      "question": "Are the patterns mapped explicitly, through type names, embedding or directives, rather than left for readers to infer?",
+      "edition": "bbead25ebeef94e198483de8643e7bd9d244d20147ec2674d9edba2194bc0930",
+      "evidence": [
+        "roles: none declared, so no type's pattern is mapped explicitly"
+      ],
+      "undecided": "the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers",
+      "evidenceHash": "f44b856f93e4f7e90f9960b9e43069027c7f75349bc653260962d71956b56ec0",
+      "status": "pending"
+    },
+    {
+      "criterion": "3.4",
+      "question": "Are domain and technical code separated, as DDD, Quasar or hexagonal architecture separate them?",
+      "edition": "348152ace82b1819ad5a8597e50d1edbc8c739db41f76e7406dd2a32ce35d56e",
+      "evidence": [
+        "forbidden-import rules: 2 declared"
+      ],
+      "undecided": "the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers",
+      "evidenceHash": "574b10a99b9f6614a65777cb7ee97a142785fd644df865d97f646cd6b089f500",
+      "status": "pending"
+    }
+  ],
+  "findings": [
+    {
+      "fingerprint": "77431786c1f1a883",
+      "rule": "cognitive-complexity",
+      "severity": "warning",
+      "subject": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-kafka.Server.ListenAndServe",
+      "location": {
+        "file": "cmd/elasticsearch-indexer-kafka/main.go",
+        "start": 135,
+        "end": 195
+      },
+      "message": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-kafka.Server.ListenAndServe has cognitive complexity 33, above 15",
+      "fix": "flatten nested decisions with early returns, and extract nested branches and long boolean chains into named functions"
+    },
+    {
+      "fingerprint": "20812a0c74c3daf2",
+      "rule": "cognitive-complexity",
+      "severity": "warning",
+      "subject": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-rabbitmq.Server.ListenAndServe",
+      "location": {
+        "file": "cmd/elasticsearch-indexer-rabbitmq/main.go",
+        "start": 136,
+        "end": 222
+      },
+      "message": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-rabbitmq.Server.ListenAndServe has cognitive complexity 28, above 15",
+      "fix": "flatten nested decisions with early returns, and extract nested branches and long boolean chains into named functions"
+    },
+    {
+      "fingerprint": "9a0b0a6b64a84b5c",
+      "rule": "cognitive-complexity",
+      "severity": "warning",
+      "subject": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-redis.Server.ListenAndServe",
+      "location": {
+        "file": "cmd/elasticsearch-indexer-redis/main.go",
+        "start": 135,
+        "end": 188
+      },
+      "message": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-redis.Server.ListenAndServe has cognitive complexity 22, above 15",
+      "fix": "flatten nested decisions with early returns, and extract nested branches and long boolean chains into named functions"
+    },
+    {
+      "fingerprint": "dd614727ec227e5d",
+      "rule": "deep-nesting",
+      "severity": "warning",
+      "subject": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-kafka.Server.ListenAndServe",
+      "location": {
+        "file": "cmd/elasticsearch-indexer-kafka/main.go",
+        "start": 135,
+        "end": 195
+      },
+      "message": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-kafka.Server.ListenAndServe nests 6 levels deep, above 4",
+      "fix": "return early, and extract the innermost loop or branch into a named function"
+    },
+    {
+      "fingerprint": "347c0049d9d59156",
+      "rule": "deep-nesting",
+      "severity": "warning",
+      "subject": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-rabbitmq.Server.ListenAndServe",
+      "location": {
+        "file": "cmd/elasticsearch-indexer-rabbitmq/main.go",
+        "start": 136,
+        "end": 222
+      },
+      "message": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-rabbitmq.Server.ListenAndServe nests 5 levels deep, above 4",
+      "fix": "return early, and extract the innermost loop or branch into a named function"
+    },
+    {
+      "fingerprint": "89b006f9affb5ecf",
+      "rule": "deep-nesting",
+      "severity": "warning",
+      "subject": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-redis.Server.ListenAndServe",
+      "location": {
+        "file": "cmd/elasticsearch-indexer-redis/main.go",
+        "start": 135,
+        "end": 188
+      },
+      "message": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-redis.Server.ListenAndServe nests 5 levels deep, above 4",
+      "fix": "return early, and extract the innermost loop or branch into a named function"
+    },
+    {
+      "fingerprint": "1bb5580b97956f3e",
+      "rule": "hidden-dependency",
+      "severity": "error",
+      "criterion": "3.4",
+      "subject": "github.com/MarioCarrion/todo-api/internal/service",
+      "object": "github.com/MarioCarrion/todo-api/internal/redis.Task",
+      "location": {
+        "file": "cmd/rest-server/main.go",
+        "start": 229,
+        "end": 229
+      },
+      "message": "github.com/MarioCarrion/todo-api/internal/service receives a github.com/MarioCarrion/todo-api/internal/redis.Task through an interface, a run-time dependency on github.com/MarioCarrion/todo-api/internal/redis: a planted rule the wiring breaks, so the corpus shows a VTA dispatch: the server hands the service a redis broker",
+      "fix": "pass github.com/MarioCarrion/todo-api/internal/service.NewTask an implementation from a package it may depend on, or narrow the rule if github.com/MarioCarrion/todo-api/internal/redis.Task is meant to be injected here",
+      "evidence": [
+        "github.com/MarioCarrion/todo-api/cmd/rest-server passes a github.com/MarioCarrion/todo-api/internal/redis.Task to github.com/MarioCarrion/todo-api/internal/service.NewTask at cmd/rest-server/main.go:229"
+      ],
+      "modelRule": "forbiddenImports[1]",
+      "provenance": "injected"
+    },
+    {
+      "fingerprint": "15a9ec6cc6e7df41",
+      "rule": "large-func",
+      "severity": "warning",
+      "criterion": "1.3.2",
+      "subject": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-kafka.run",
+      "location": {
+        "file": "cmd/elasticsearch-indexer-kafka/main.go",
+        "start": 39,
+        "end": 124
+      },
+      "message": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-kafka.run has 61 lines of code, above 60",
+      "fix": "extract the steps that need no shared state into functions of their own"
+    },
+    {
+      "fingerprint": "99d5332eff46edc1",
+      "rule": "large-func",
+      "severity": "warning",
+      "criterion": "1.3.2",
+      "subject": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-rabbitmq.Server.ListenAndServe",
+      "location": {
+        "file": "cmd/elasticsearch-indexer-rabbitmq/main.go",
+        "start": 136,
+        "end": 222
+      },
+      "message": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-rabbitmq.Server.ListenAndServe has 71 lines of code, above 60",
+      "fix": "extract the steps that need no shared state into functions of their own"
+    },
+    {
+      "fingerprint": "a9c6b3a2fe4cc042",
+      "rule": "large-func",
+      "severity": "warning",
+      "criterion": "1.3.2",
+      "subject": "github.com/MarioCarrion/todo-api/cmd/rest-server.run",
+      "location": {
+        "file": "cmd/rest-server/main.go",
+        "start": 58,
+        "end": 188
+      },
+      "message": "github.com/MarioCarrion/todo-api/cmd/rest-server.run has 86 lines of code, above 60",
+      "fix": "extract the steps that need no shared state into functions of their own"
+    },
+    {
+      "fingerprint": "d3c5e2e5ccf708a4",
+      "rule": "large-func",
+      "severity": "warning",
+      "criterion": "1.3.2",
+      "subject": "github.com/MarioCarrion/todo-api/internal/elasticsearch.Task.Search",
+      "location": {
+        "file": "internal/elasticsearch/task.go",
+        "start": 118,
+        "end": 228
+      },
+      "message": "github.com/MarioCarrion/todo-api/internal/elasticsearch.Task.Search has 89 lines of code, above 60",
+      "fix": "extract the steps that need no shared state into functions of their own"
+    },
+    {
+      "fingerprint": "7a94116bacd82769",
+      "rule": "large-func",
+      "severity": "warning",
+      "criterion": "1.3.2",
+      "subject": "github.com/MarioCarrion/todo-api/internal/rest.NewOpenAPI3",
+      "location": {
+        "file": "internal/rest/open_api.go",
+        "start": 16,
+        "end": 268
+      },
+      "message": "github.com/MarioCarrion/todo-api/internal/rest.NewOpenAPI3 has 247 lines of code, above 60",
+      "fix": "extract the steps that need no shared state into functions of their own"
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "go-acyclic-imports",
+      "text": "Go forbids import cycles, so 2.2.2 and 2.2.4 always score 10; read hierarchy problems from subsystem cycles and 2.1.x instead.",
+      "source": "mmi.md §4"
+    },
+    {
+      "id": "type-granularity",
+      "text": "A Go package-level named type stands in for the dissertation's class; the MMI's class thresholds were calibrated on Java, C# and PHP.",
+      "source": "mmi.md §3"
+    },
+    {
+      "id": "loc",
+      "text": "A line of code is a line on which a token other than a comment starts; test files and generated files are left out of every measure.",
+      "source": "mmi.md §7.3"
+    },
+    {
+      "id": "statements",
+      "text": "Number of Statements counts every statement except blocks, labels, empty statements and case clauses, including a for loop's init and post.",
+      "source": "mmi.md §7.3"
+    },
+    {
+      "id": "cognitive",
+      "text": "Cognitive complexity is github.com/uudashr/gocognit's SonarSource count; a function above 15 is a cognitive-complexity warning.",
+      "source": "SonarSource, Cognitive Complexity (2017)"
+    },
+    {
+      "id": "complexity-variant",
+      "text": "Criterion 1.3.4 uses the modified cyclomatic complexity, above 15.",
+      "source": "mmi.md §7.3; von Zitzewitz"
+    },
+    {
+      "id": "thresholds",
+      "text": "large type > 400 lines, large function > 60 lines, large package > 40 types, largest tolerable type cycle group 5, large file > 800 lines, deepest nesting 4: borrowed guidance, not the chapter's.",
+      "source": "mmi.md §7.3"
+    },
+    {
+      "id": "denominators",
+      "text": "1.2.1, 2.1.1, 2.1.2 and 3.2 divide violating imports or references by all candidates between different groups; the chapter gives no denominators.",
+      "source": "mmi.md §7.2"
+    },
+    {
+      "id": "communities",
+      "text": "Communities are gonum's Louvain communities (resolution 1, a fixed seed) of the package graph taken as undirected, an edge weighing the imports either way, each split into its connected parts. A package of a subsystem with other packages is misplaced when another subsystem holds more of its community than its own. They are advice and never gate.",
+      "source": "IMPROVEMENTS.md 9.3; codetospec internal/communities"
+    },
+    {
+      "id": "static-binding",
+      "text": "Dependencies are the imports and references go/types resolves in the build the report reads, for its platform and tags; reflection, dispatch by string and struct tags are not followed. The imports of files the build constraints exclude are read from their source and checked by the import rules alone: forbidden imports, isolations, and fitness's layer access, strict layers, onion, dependents and libraries; graphs, cycles, fan-out and metrics measure the build.",
+      "source": "go/types; techne RFC-0002"
+    },
+    {
+      "id": "largest-cycle",
+      "text": "Criteria 2.2.3 and 2.2.4 use the largest cycle group.",
+      "source": "mmi.md §4"
+    },
+    {
+      "id": "mmi-aggregation",
+      "text": "MMI = Σ weight(group) × mean(scores); unscored criteria count 0 toward the low bound and 10 toward the high bound.",
+      "source": "mmi.md §2"
+    },
+    {
+      "id": "lcom4",
+      "text": "LCOM4 links methods to the fields and methods they select through the receiver; a field no method uses is left out.",
+      "source": "mmi.md §7.5"
+    },
+    {
+      "id": "decoupling-level",
+      "text": "Decoupling Level (Mo et al., ICSE 2016) is not computed: US patent 11,422,800 covers its algorithm.",
+      "source": "mmi-ref.md A.1"
+    },
+    {
+      "id": "martin",
+      "text": "Martin's metrics count in-scope imports only; abstractness is the share of named types that are interfaces, and instability is 0 for an isolated package.",
+      "source": "mmi-ref.md A.1"
+    },
+    {
+      "id": "component-rank",
+      "text": "Component Rank is PageRank over type dependencies with damping 0.8, run for a fixed 50 iterations; types that depend on nothing spread their rank evenly.",
+      "source": "mmi-ref.md A.1; von Zitzewitz"
+    },
+    {
+      "id": "sdi-cut",
+      "text": "SDI cuts are exact for cycle groups of up to 12 elements and use the Eades–Lin–Smyth ordering above that; Coupling.CutMethod says which.",
+      "source": "mmi.md §7.5"
+    }
+  ]
+}

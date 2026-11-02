@@ -12,6 +12,7 @@ import (
 
 	"github.com/StevenACoffman/anarch-lint/cmd/root"
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
+	"github.com/StevenACoffman/anarch-lint/internal/pipeline"
 	"github.com/StevenACoffman/anarch-lint/internal/text"
 )
 
@@ -60,7 +61,7 @@ differs: the model or the code changed and the rendering did not.`,
 }
 
 func (cfg *Config) exec(ctx context.Context, args []string) error {
-	l, err := cfg.Load(ctx, args, root.NoFacts)
+	l, err := cfg.Load(ctx, args, pipeline.NoFacts)
 	if err != nil {
 		return fmt.Errorf("render: %w", err)
 	}
@@ -87,7 +88,7 @@ func (cfg *Config) exec(ctx context.Context, args []string) error {
 
 // check reports whether the file at out holds the rendering want.
 func (cfg *Config) check(out string, want []byte) error {
-	got, err := root.ReadFile(out)
+	got, err := pipeline.ReadFile(out)
 	if err != nil && arch.ErrorCode(err) != arch.ENOTFOUND {
 		return fmt.Errorf("render: %w", err)
 	}

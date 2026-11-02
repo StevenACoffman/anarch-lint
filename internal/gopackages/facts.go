@@ -75,14 +75,15 @@ func newFactSink(inScope map[string]bool) *factSink {
 	return &factSink{inScope: inScope, uses: useTable{}, calls: callTable{}}
 }
 
-// addUse adds one reference, folding it into an earlier reference of the
+// add adds one reference, folding it into an earlier reference of the
 // same declaration to the same object, whose count it raises and whose site
 // it keeps when that comes first.
 func (t useTable) add(u *arch.Use) {
 	key := useKey{object: u.Object, fn: u.Site.Func, typ: u.Site.Type, pkg: u.Site.Package}
 	if prev, ok := t[key]; ok {
 		prev.Count++
-		if compareSites(u.Site, prev.Site) < 0 {
+		prev.Writes += u.Writes
+		if arch.CompareSites(u.Site, prev.Site) < 0 {
 			prev.Site = u.Site
 		}
 		return
@@ -97,7 +98,7 @@ func (t callTable) add(c *arch.Call) {
 	key := useKey{object: c.Callee, fn: c.Site.Func, typ: c.Site.Type, pkg: c.Site.Package}
 	if prev, ok := t[key]; ok {
 		prev.Count++
-		if compareSites(c.Site, prev.Site) < 0 {
+		if arch.CompareSites(c.Site, prev.Site) < 0 {
 			prev.Site = c.Site
 		}
 		return
@@ -172,9 +173,9 @@ func (w *factWalker) ident(id *ast.Ident) {
 	}
 	if fn, ok := obj.(*types.Func); ok {
 		if owner := typeOwner(fn); owner != nil {
-			w.addUse(fn, arch.ObjectMethod, typeID(owner), id.Pos())
+			w.record(fn, arch.ObjectMethod, typeID(owner), id.Pos(), false)
 		} else if fn.Signature().Recv() == nil {
-			w.addUse(fn, arch.ObjectFunc, "", id.Pos())
+			w.record(fn, arch.ObjectFunc, "", id.Pos(), false)
 		}
 		return
 	}
@@ -183,9 +184,9 @@ func (w *factWalker) ident(id *ast.Ident) {
 	}
 	switch obj.(type) {
 	case *types.TypeName:
-		w.addUse(obj, arch.ObjectType, "", id.Pos())
+		w.record(obj, arch.ObjectType, "", id.Pos(), false)
 	case *types.Const:
-		w.addUse(obj, arch.ObjectConst, "", id.Pos())
+		w.record(obj, arch.ObjectConst, "", id.Pos(), false)
 	case *types.Var:
 		w.globalUse(id, obj)
 	}
@@ -213,7 +214,7 @@ func (w *factWalker) globalUse(id *ast.Ident, obj types.Object) {
 		Write:    w.writes[id],
 		Site:     w.site(id.Pos()),
 	})
-	w.addUse(obj, arch.ObjectVar, "", id.Pos())
+	w.record(obj, arch.ObjectVar, "", id.Pos(), false)
 }
 
 // selector records a field selected through a value.
@@ -227,7 +228,7 @@ func (w *factWalker) selector(sel *ast.SelectorExpr) {
 		return
 	}
 	w.handled[sel.Sel] = true
-	w.addUse(s.Obj(), arch.ObjectField, typeID(owner), sel.Sel.Pos())
+	w.record(s.Obj(), arch.ObjectField, typeID(owner), sel.Sel.Pos(), w.writes[sel.Sel])
 }
 
 // compositeLit records the fields a keyed literal names, and an unkeyed
@@ -261,20 +262,22 @@ func (w *factWalker) compositeLit(lit *ast.CompositeLit) {
 		}
 		if obj := w.info().Uses[key]; obj != nil {
 			w.handled[key] = true
-			w.addUse(obj, arch.ObjectField, typeID(tn), key.Pos())
+			w.record(obj, arch.ObjectField, typeID(tn), key.Pos(), true)
 		}
 	}
 }
 
-// addUse records a reference to obj, unless obj is declared within the
-// walker's own function or type: such a reference is local, not connascence
-// between two entities.
-func (w *factWalker) addUse(obj types.Object, kind arch.ObjectKind, owner string, pos token.Pos) {
+// record records a reference to obj, and whether it writes it, unless obj
+// is declared within the walker's own function or type: such a reference is
+// local, not connascence between two entities.
+func (w *factWalker) record(
+	obj types.Object, kind arch.ObjectKind, owner string, pos token.Pos, write bool,
+) {
 	id := objectID(obj, owner)
 	if id == w.fn || (owner != "" && owner == w.typ) || id == w.typ {
 		return
 	}
-	w.uses.add(&arch.Use{
+	u := arch.Use{
 		Object:   id,
 		Kind:     kind,
 		Package:  obj.Pkg().Path(),
@@ -282,7 +285,11 @@ func (w *factWalker) addUse(obj types.Object, kind arch.ObjectKind, owner string
 		Owner:    owner,
 		Count:    1,
 		Site:     w.site(pos),
-	})
+	}
+	if write {
+		u.Writes = 1
+	}
+	w.uses.add(&u)
 }
 
 // binary records constants compared with == or !=, and pointer comparisons.
@@ -451,8 +458,14 @@ func (w *factWalker) assign(a *ast.AssignStmt) {
 	w.origins[obj] = ""
 }
 
-// markWrite marks the identifier e assigns, and a receiver field it writes.
+// markWrite marks the identifier e assigns, the field it writes through,
+// as in x.f = v or x.f[i] = v, and a receiver field it writes.
 func (w *factWalker) markWrite(e ast.Expr) {
+	if sel := writtenSelector(e); sel != nil {
+		if s := w.info().Selections[sel]; s != nil && s.Kind() == types.FieldVal {
+			w.writes[sel.Sel] = true
+		}
+	}
 	switch e := ast.Unparen(e).(type) {
 	case *ast.Ident:
 		w.writes[e] = true

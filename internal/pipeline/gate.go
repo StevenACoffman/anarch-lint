@@ -1,4 +1,4 @@
-package root
+package pipeline
 
 import (
 	"bytes"
@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
+	"slices"
+	"time"
 
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 	"github.com/StevenACoffman/anarch-lint/internal/balance"
@@ -28,11 +30,11 @@ type History struct {
 // report always, and the fitness, connascence and Balanced Coupling reports
 // when the model opts them in. changed is the change set a scoped check
 // measures, which the rules on changes read; nil means none.
-func (cfg *Config) GateInput(
+func (o *Options) GateInput(
 	ctx context.Context, patterns []string, changed arch.ChangedLines,
 ) (arch.GateInput, error) {
-	const op = "root.Config.GateInput"
-	l, err := cfg.Load(ctx, patterns, GatedFacts)
+	const op = "pipeline.Options.GateInput"
+	l, err := o.Load(ctx, patterns, GatedFacts)
 	if err != nil {
 		return arch.GateInput{}, &arch.Error{Op: op, Err: err}
 	}
@@ -44,6 +46,7 @@ func (cfg *Config) GateInput(
 		fit.AddTo(&in)
 	}
 	if !l.Model.Connascence.Enabled() && !l.Model.Balance.Enabled() {
+		in.Rank(&l.Program)
 		return in, nil
 	}
 	conn := connascence.Analyze(&l)
@@ -51,34 +54,56 @@ func (cfg *Config) GateInput(
 		conn.AddTo(&in)
 	}
 	if l.Model.Balance.Enabled() {
-		bin, err := cfg.BalanceInput(ctx, &l, &conn, History{})
+		bin, err := o.BalanceInput(ctx, &l, &conn, History{})
 		if err != nil {
 			return arch.GateInput{}, &arch.Error{Op: op, Err: err}
 		}
 		r := balance.Analyze(&bin)
 		r.AddTo(&in)
 	}
+	in.Rank(&l.Program)
 	return in, nil
+}
+
+// JudgementSlots measures everything that asks a reviewer: the MMI's
+// judgement criteria, the connascence candidates over the limits and the
+// Balanced Coupling questions, whether or not the model gates on them.
+func (o *Options) JudgementSlots(
+	ctx context.Context, patterns []string,
+) ([]arch.JudgementSlot, error) {
+	const op = "pipeline.Options.JudgementSlots"
+	l, err := o.Load(ctx, patterns, AllFacts)
+	if err != nil {
+		return nil, &arch.Error{Op: op, Err: err}
+	}
+	report := arch.Analyze(&l)
+	conn := connascence.Analyze(&l)
+	bin, err := o.BalanceInput(ctx, &l, &conn, History{})
+	if err != nil {
+		return nil, &arch.Error{Op: op, Err: err}
+	}
+	bal := balance.Analyze(&bin)
+	return slices.Concat(report.Judgements, conn.Judgements, bal.Judgements), nil
 }
 
 // BalanceInput gathers what the Balanced Coupling measure reads beyond the
 // program: the connascence instances, the owners from CODEOWNERS, and the
 // history h names.
-func (cfg *Config) BalanceInput(
+func (o *Options) BalanceInput(
 	ctx context.Context, l *arch.Input, conn *connascence.Report, h History,
 ) (balance.Input, error) {
-	const op = "root.Config.BalanceInput"
+	const op = "pipeline.Options.BalanceInput"
 	in := balance.Input{
 		Input:       l,
 		Connascence: connascence.Instances(&l.Program, &l.Model),
 		Rejected:    conn.RejectedFingerprints(),
 	}
 	var err error
-	if in.Owners, in.CodeownersHash, err = cfg.readOwners(&l.Program); err != nil {
+	if in.Owners, in.CodeownersHash, err = o.readOwners(&l.Program); err != nil {
 		return balance.Input{}, &arch.Error{Op: op, Err: err}
 	}
 	if h.SinceRev != "" {
-		churn, err := git.Churn(ctx, cfg.Dir, h.SinceRev)
+		churn, err := git.Churn(ctx, o.Dir, h.SinceRev)
 		if err != nil {
 			return balance.Input{}, &arch.Error{Op: op, Err: err}
 		}
@@ -101,15 +126,15 @@ func (cfg *Config) BalanceInput(
 // readOwners reads the CODEOWNERS file, if any, and resolves each package's
 // owners, with the file's hash for the report's inputs. A file named by the
 // flag must exist; a missing default file means no owners.
-func (cfg *Config) readOwners(p *arch.Program) (map[string][]string, string, error) {
-	const op = "root.Config.readOwners"
-	paths, required := []string{cfg.CodeownersPath}, true
-	if cfg.CodeownersPath == "" {
+func (o *Options) readOwners(p *arch.Program) (map[string][]string, string, error) {
+	const op = "pipeline.Options.readOwners"
+	paths, required := []string{o.CodeownersPath}, true
+	if o.CodeownersPath == "" {
 		required = false
 		paths = []string{
-			filepath.Join(cfg.Dir, ".github", "CODEOWNERS"),
-			filepath.Join(cfg.Dir, "CODEOWNERS"),
-			filepath.Join(cfg.Dir, "docs", "CODEOWNERS"),
+			filepath.Join(o.Dir, ".github", "CODEOWNERS"),
+			filepath.Join(o.Dir, "CODEOWNERS"),
+			filepath.Join(o.Dir, "docs", "CODEOWNERS"),
 		}
 	}
 	for _, path := range paths {
@@ -132,10 +157,10 @@ func (cfg *Config) readOwners(p *arch.Program) (map[string][]string, string, err
 
 // ReadBaseline reads the baseline file, which must exist; an empty path
 // means anarch-baseline.json in Dir.
-func (cfg *Config) ReadBaseline(path string) (arch.Baseline, error) {
-	const op = "root.Config.ReadBaseline"
+func (o *Options) ReadBaseline(path string) (arch.Baseline, error) {
+	const op = "pipeline.Options.ReadBaseline"
 	if path == "" {
-		path = filepath.Join(cfg.Dir, DefaultBaseline)
+		path = filepath.Join(o.Dir, DefaultBaseline)
 	}
 	src, err := ReadFile(path)
 	if arch.ErrorCode(err) == arch.ENOTFOUND {
@@ -152,4 +177,35 @@ func (cfg *Config) ReadBaseline(path string) (arch.Baseline, error) {
 		return arch.Baseline{}, &arch.Error{Op: op + " " + path, Err: err}
 	}
 	return b, nil
+}
+
+// ReadWaivers reads the waivers file at path, or anarch-waivers.json in Dir
+// when path is empty and that file exists, and fixes today's date: today, or
+// the current date when today is empty. It is the one place the clock is
+// read, so the domain stays deterministic.
+func (o *Options) ReadWaivers(path, today string) ([]arch.Waiver, arch.Date, error) {
+	const op = "pipeline.Options.ReadWaivers"
+	required := true
+	if path == "" {
+		path, required = filepath.Join(o.Dir, DefaultWaivers), false
+	}
+	var waivers []arch.Waiver
+	src, err := ReadFile(path)
+	switch {
+	case !required && arch.ErrorCode(err) == arch.ENOTFOUND:
+	case err != nil:
+		return nil, "", &arch.Error{Op: op, Err: err}
+	default:
+		if waivers, err = arch.DecodeWaivers(bytes.NewReader(src)); err != nil {
+			return nil, "", &arch.Error{Op: op + " " + path, Err: err}
+		}
+	}
+	if today == "" {
+		today = time.Now().Format(time.DateOnly)
+	}
+	date, err := arch.ParseDate(today)
+	if err != nil {
+		return nil, "", &arch.Error{Op: op + " --today", Err: err}
+	}
+	return waivers, date, nil
 }

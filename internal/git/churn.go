@@ -29,16 +29,16 @@ func Churn(ctx context.Context, dir, rev string) (arch.Churn, error) {
 	if err != nil {
 		return arch.Churn{}, &arch.Error{Op: op, Err: err}
 	}
-	log, err := run(ctx, dir, "log", "--format=%x00%H", "--name-only", "--no-renames",
+	log, err := run(ctx, dir, "log", "--format=%x00%H%x00%ae", "--name-only", "--no-renames",
 		"--relative", "--end-of-options", since+".."+head, "--")
 	if err != nil {
 		return arch.Churn{}, &arch.Error{Op: op, Err: err}
 	}
-	commits, err := ParseLog(bytes.NewReader(log))
+	commits, authors, err := ParseLog(bytes.NewReader(log))
 	if err != nil {
 		return arch.Churn{}, &arch.Error{Op: op, Err: err}
 	}
-	return arch.Churn{Since: since, Head: head, Commits: commits}, nil
+	return arch.Churn{Since: since, Head: head, Commits: commits, Authors: authors}, nil
 }
 
 // resolve returns the full hash of the commit rev names.
@@ -50,11 +50,12 @@ func resolve(ctx context.Context, dir, rev string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-// ParseLog parses git log --format=%x00%H --name-only: each commit is a NUL,
-// its hash, and the names of the files it changed. It returns each file's
-// commits, sorted.
-func ParseLog(r io.Reader) (map[string][]string, error) {
-	commits := map[string][]string{}
+// ParseLog parses git log --format=%x00%H%x00%ae --name-only: each commit is
+// a NUL, its hash, a NUL and its author's email, and the names of the files
+// it changed. It returns each file's commits, sorted, and each commit's
+// author.
+func ParseLog(r io.Reader) (map[string][]string, map[string]string, error) {
+	commits, authors := map[string][]string{}, map[string]string{}
 	hash := ""
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
@@ -62,17 +63,19 @@ func ParseLog(r io.Reader) (map[string][]string, error) {
 		line := sc.Text()
 		switch {
 		case strings.HasPrefix(line, "\x00"):
-			hash = strings.TrimPrefix(line, "\x00")
+			var author string
+			hash, author, _ = strings.Cut(strings.TrimPrefix(line, "\x00"), "\x00")
+			authors[hash] = author
 		case line != "" && hash != "":
 			commits[line] = append(commits[line], hash)
 		}
 	}
 	if err := sc.Err(); err != nil {
-		return nil, &arch.Error{Code: arch.EINVALID, Message: "read log: " + err.Error()}
+		return nil, nil, &arch.Error{Code: arch.EINVALID, Message: "read log: " + err.Error()}
 	}
 	for file, hs := range commits {
 		slices.Sort(hs)
 		commits[file] = slices.Compact(hs)
 	}
-	return commits, nil
+	return commits, authors, nil
 }

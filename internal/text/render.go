@@ -4,6 +4,8 @@ import (
 	"cmp"
 	"fmt"
 	"io"
+	"maps"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -23,7 +25,8 @@ type renderer struct {
 // WriteArchitecture renders the model as Markdown for people and agents to
 // read: the subsystems, the layers, the measured subsystem dependencies as a
 // Mermaid flowchart, the import rules, the fitness rules with their reasons,
-// and the domain models. The output depends only on the input, so a file
+// the finding rules, the rules grouped by quality attribute, and the domain
+// models. The output depends only on the input, so a file
 // rendered from it can be checked for drift. Every piece of model text is
 // escaped.
 func WriteArchitecture(w io.Writer, in *arch.Input) error {
@@ -38,6 +41,8 @@ func WriteArchitecture(w io.Writer, in *arch.Input) error {
 	r.dependencyChart(m, arch.BuildGraphs(&in.Program, m).Subsystems)
 	r.importRules(m)
 	r.ruleReasons(m.Fitness.Rules())
+	r.findingRules(m.FindingRules)
+	r.qualityAttributes(m.ReasonedRules())
 	r.domainModels(in)
 	if _, err := io.WriteString(w, b.String()); err != nil {
 		return &arch.Error{Op: "text.WriteArchitecture", Err: err}
@@ -166,6 +171,40 @@ func (r *renderer) ruleReasons(rules []arch.DeclaredRule) {
 		}
 	}
 	r.table("Fitness Rules", []string{"Rule", "Kind", "Gate", "Reason"}, rows)
+}
+
+// findingRules lists the gates and reasons the model gives the rules that
+// have no entry of their own.
+func (r *renderer) findingRules(rules map[arch.RuleName]arch.FindingRule) {
+	rows := make([][]string, 0, len(rules))
+	for _, name := range slices.Sorted(maps.Keys(rules)) {
+		fr := rules[name]
+		gate := "as the rule gives"
+		if fr.Gate != "" {
+			gate = string(fr.Gate)
+		}
+		rows = append(rows, []string{"`" + string(name) + "`", gate, r.cellOf(fr.Reason)})
+	}
+	r.table("Finding Rules", []string{"Rule", "Gate", "Reason"}, rows)
+}
+
+// qualityAttributes groups the declared rules by the quality each protects,
+// in ISO 25010's order: the model read as the module's nonfunctional
+// requirements. A rule that names no attribute is left out.
+func (r *renderer) qualityAttributes(rules []arch.ReasonedRule) {
+	var rows [][]string
+	for _, q := range arch.QualityAttributes() {
+		var names []string
+		for _, rule := range rules {
+			if rule.QualityAttribute == q {
+				names = append(names, rule.Name)
+			}
+		}
+		if len(names) > 0 {
+			rows = append(rows, []string{string(q), r.cellsOf(names)})
+		}
+	}
+	r.table("Quality Attributes", []string{"Attribute", "Rules"}, rows)
 }
 
 // domainModels lists each domain model a fitness rule names: the

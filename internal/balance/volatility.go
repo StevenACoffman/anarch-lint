@@ -174,7 +174,7 @@ func (s *subject) churnCandidates(subs []SubsystemVolatility) []Candidate {
 		switch {
 		case (v.Subdomain == subdomainSupporting || v.Subdomain == subdomainGeneric) && *v.Commits >= highChurn:
 			out = append(out, fingerprinted(&Candidate{
-				Rule:    "accidental-volatility",
+				Rule:    arch.RuleAccidentalVolatility,
 				Subject: v.Name,
 				Message: fmt.Sprintf(
 					"%s is judged %s, yet %d commits changed it",
@@ -186,7 +186,7 @@ func (s *subject) churnCandidates(subs []SubsystemVolatility) []Candidate {
 			}))
 		case v.Subdomain == subdomainCore && *v.Commits <= noChurn:
 			out = append(out, fingerprinted(&Candidate{
-				Rule:    "frozen-core",
+				Rule:    arch.RuleFrozenCore,
 				Subject: v.Name,
 				Message: fmt.Sprintf("%s is judged core, yet no commit changed it", v.Name),
 				Fix:     "ask whether the business wants changes that the cost of making them blocks",

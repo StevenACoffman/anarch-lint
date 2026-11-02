@@ -16,11 +16,13 @@ const (
 	QuadrantTightCoupling Quadrant = "tight-coupling"
 )
 
-// Distance ordinals, after archfit's (connascence.md §9.5): a subsystem
-// boundary within one team and one binary, a module boundary, an owner
+// Distance ordinals, after archfit's (connascence.md §9.5): a package
+// boundary within one subsystem, a subsystem boundary within one team and
+// one binary, a module boundary, an owner
 // boundary or asynchronous integration, and a deploy boundary. A distance of
 // highDistance or more is high in the binary model.
 const (
+	distancePackage   = 2
 	distanceSubsystem = 4
 	distanceModule    = 7
 	distanceOwner     = 7
@@ -70,12 +72,17 @@ type Pair struct {
 	Site arch.Site `json:"site"`
 }
 
-// pairContext is what the pairs read beyond the evidence.
+// pairContext is what the pairs read beyond the evidence: the owners and
+// the volatility of each end, by subsystem or, for pairs of packages, by
+// package; and the distance and locality of two ends with no other boundary
+// between them.
 type pairContext struct {
 	owners     map[string][]string
 	deploys    deployUnits
 	async      map[string]bool
 	volatility map[string]string
+	base       int
+	locality   arch.Locality
 }
 
 // pairKey names an ordered pair of subsystems, downstream first.
@@ -169,18 +176,18 @@ func kindGrades(k arch.Strength, l Level) bool {
 	}
 }
 
-// distance sets a pair's distance facts and ordinal. The two ends lie in
-// different subsystems, so the locality is the system when they share a Go
-// module and external otherwise.
+// distance sets a pair's distance facts and ordinal. The locality is the
+// context's, two subsystems or two packages of one, unless the ends lie in
+// different Go modules, which makes it external.
 func (s *subject) distance(p *Pair, items []evidence, ctx *pairContext) {
 	modules := s.boundaries(p, items, ctx)
-	p.Locality = arch.LocalitySystem
+	p.Locality = ctx.locality
 	if modules > 1 {
 		p.Locality = arch.LocalityExternal
 	}
 	a, b := ctx.owners[p.From], ctx.owners[p.To]
 	p.OwnerBoundary = len(a) > 0 && len(b) > 0 && strings.Join(a, " ") != strings.Join(b, " ")
-	p.Distance = distanceSubsystem
+	p.Distance = ctx.base
 	for _, d := range []struct {
 		applies bool
 		ordinal int
@@ -207,7 +214,7 @@ func (s *subject) boundaries(p *Pair, items []evidence, ctx *pairContext) int {
 				modules[m] = true
 			}
 		}
-		p.Async = p.Async || ctx.async[e.fromPkg]
+		p.Async = p.Async || ctx.async[e.fromPkg] || e.async
 		p.DeployBoundary = p.DeployBoundary ||
 			(e.nonImport && ctx.deploys.separate(e.fromPkg, e.toPkg))
 	}

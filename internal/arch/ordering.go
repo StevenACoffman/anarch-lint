@@ -81,10 +81,10 @@ func LevelOf(g Graph) Level {
 	return l
 }
 
-// NewOrdering computes the ordering measures from the three graphs.
+// newOrdering computes the ordering measures from the three graphs.
 // packageOf maps each type to its package, and subsystemOf maps each package
 // to its subsystem; an element missing from a map is its own container.
-func NewOrdering(
+func newOrdering(
 	types, packages, subsystems Graph,
 	packageOf, subsystemOf map[string]string,
 ) Ordering {

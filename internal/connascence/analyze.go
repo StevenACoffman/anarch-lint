@@ -218,7 +218,7 @@ func connascenceFinding(c *arch.Connascence, reason string, m *arch.Model) arch.
 	}
 	f := arch.NewFinding(
 		arch.FindingID{
-			Rule:    "connascence-" + c.Kind.String(),
+			Rule:    c.Kind.Rule(),
 			Subject: c.Subject,
 			Object:  c.Detector,
 		},
@@ -309,12 +309,12 @@ func newSubject(p *arch.Program, m *arch.Model) *subject {
 // Requires: sp.sites is not empty.
 func (s *subject) instance(sp *instanceSpec) arch.Connascence {
 	sites := slices.Clone(sp.sites)
-	slices.SortFunc(sites, compareSite)
+	slices.SortFunc(sites, arch.CompareSites)
 	sites = slices.Compact(sites)
 	locality := s.c.LocalityOf(sites)
 	f := arch.NewFinding(
 		arch.FindingID{
-			Rule:    "connascence-" + sp.kind.String(),
+			Rule:    sp.kind.Rule(),
 			Subject: sp.subject,
 			Object:  sp.detector,
 		},
@@ -352,17 +352,6 @@ func (s *subject) usesFrom(object string) []arch.Site {
 	return sites
 }
 
-// compareSite orders sites by file, line, function and type.
-func compareSite(a, b arch.Site) int {
-	return cmp.Or(
-		cmp.Compare(a.File, b.File),
-		cmp.Compare(a.Line, b.Line),
-		cmp.Compare(a.Package, b.Package),
-		cmp.Compare(a.Func, b.Func),
-		cmp.Compare(a.Type, b.Type),
-	)
-}
-
 // compareInstances orders instances by kind, subject, detector and first
 // site.
 func compareInstances(a, b *arch.Connascence) int {
@@ -370,7 +359,7 @@ func compareInstances(a, b *arch.Connascence) int {
 		cmp.Compare(a.Kind, b.Kind),
 		cmp.Compare(a.Subject, b.Subject),
 		cmp.Compare(a.Detector, b.Detector),
-		compareSite(a.Sites[0], b.Sites[0]),
+		arch.CompareSites(a.Sites[0], b.Sites[0]),
 	)
 }
 

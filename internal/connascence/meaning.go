@@ -1,7 +1,9 @@
 package connascence
 
 import (
+	"cmp"
 	"fmt"
+	"maps"
 	"path"
 	"slices"
 	"strings"
@@ -227,4 +229,72 @@ func packageOf(id string) string {
 		return ""
 	}
 	return id[:i]
+}
+
+// wireTagsDetector reports struct types in two or more packages whose tags
+// give their fields the same names in one encoding: copies of one wire
+// format, technical semantic coupling across whatever boundary lies between
+// their readers and writers (connascence.md §9.7). Renaming a key in one
+// breaks the other's readers. A candidate: identical keys may still be
+// separate formats.
+func wireTagsDetector(s *subject) []arch.Connascence {
+	type format struct{ enc, names string }
+	formats := map[format][]*arch.Type{}
+	for i := range s.p.Types {
+		t := &s.p.Types[i]
+		for enc, names := range wireFormats(t.WireNames) {
+			if len(names) >= minWireNames {
+				f := format{enc, strings.Join(names, "\x00")}
+				formats[f] = append(formats[f], t)
+			}
+		}
+	}
+	var out []arch.Connascence
+	for _, f := range slices.SortedFunc(maps.Keys(formats), func(a, b format) int {
+		return cmp.Or(cmp.Compare(a.enc, b.enc), cmp.Compare(a.names, b.names))
+	}) {
+		ts := formats[f]
+		sites := make([]arch.Site, len(ts))
+		for i, t := range ts {
+			sites[i] = arch.Site{
+				File:    t.Span.File,
+				Line:    t.Span.Start,
+				Package: t.Package,
+				Type:    t.ID,
+			}
+		}
+		if distinct(sites, sitePackage) < 2 {
+			continue
+		}
+		out = append(out, s.instance(&instanceSpec{
+			kind:       arch.StrengthMeaning,
+			detector:   "meaning.wire-tags",
+			subject:    ts[0].ID,
+			object:     f.enc,
+			basis:      arch.BasisCandidate,
+			confidence: arch.ConfidenceHigh,
+			sites:      sites,
+			message: fmt.Sprintf(
+				"%d types in %d packages give their fields the same %s names as %s",
+				len(ts),
+				distinct(sites, sitePackage),
+				f.enc,
+				ts[0].ID,
+			),
+			fix: "define the wire format once, in a contract package both sides import, or " +
+				"confirm that the formats may evolve apart",
+		}))
+	}
+	return out
+}
+
+// wireFormats splits a type's wire names by encoding.
+func wireFormats(wireNames []string) map[string][]string {
+	out := map[string][]string{}
+	for _, w := range wireNames {
+		if enc, name, ok := strings.Cut(w, ":"); ok {
+			out[enc] = append(out[enc], name)
+		}
+	}
+	return out
 }

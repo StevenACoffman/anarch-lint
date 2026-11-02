@@ -46,12 +46,23 @@ func closedValues() map[reflect.Type][]string {
 			string(arch.GateWarn),
 			string(arch.GateOff),
 		},
+		reflect.TypeFor[arch.QualityAttribute](): stringsOf(arch.QualityAttributes()),
+		reflect.TypeFor[arch.RuleName]():         stringsOf(arch.GovernableRules()),
 		reflect.TypeFor[arch.CCVariant](): {
 			string(arch.CCPlain),
 			string(arch.CCModified),
 			string(arch.CCExtended),
 		},
 	}
+}
+
+// stringsOf converts a closed string type's values to strings.
+func stringsOf[T ~string](values []T) []string {
+	out := make([]string, len(values))
+	for i, v := range values {
+		out[i] = string(v)
+	}
+	return out
 }
 
 // scalarTypes maps each scalar Go kind a model uses to its JSON type.

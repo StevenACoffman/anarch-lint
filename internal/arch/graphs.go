@@ -74,7 +74,7 @@ func BuildGraphs(p *Program, m *Model) Graphs {
 
 // Ordering returns the ordering measures of the three graphs.
 func (g *Graphs) Ordering() Ordering {
-	return NewOrdering(g.Types, g.Packages, g.Subsystems, g.PackageOf, g.SubsystemOf)
+	return newOrdering(g.Types, g.Packages, g.Subsystems, g.PackageOf, g.SubsystemOf)
 }
 
 // packagePaths returns the paths of p's packages, in p's sorted order.

@@ -1,0 +1,929 @@
+{
+  "schema": "anarch-lint.report.v1",
+  "inputs": {
+    "tool": "anarch-lint devel",
+    "goVersion": "GOVERSION",
+    "tags": [],
+    "platform": "PLATFORM",
+    "patterns": [
+      "./internal/..."
+    ],
+    "modelHash": "388a26d92f0f9a0610811c3c0c0002e7309d76e3e80e57eb829508550e7bd726",
+    "thresholds": {
+      "largeTypeLines": 400,
+      "largeFuncLines": 60,
+      "largePackageTypes": 40,
+      "highComplexity": 15,
+      "complexityVariant": "modified",
+      "maxTypeCycleGroup": 5,
+      "largeFileLines": 800,
+      "maxNesting": 4,
+      "highCognitive": 15
+    }
+  },
+  "sizes": {
+    "lines": 1785,
+    "types": 61,
+    "funcs": 110,
+    "generated": 7,
+    "buildExcluded": 0,
+    "otherModules": 0,
+    "linesInLargeTypes": 0,
+    "linesInLargeFuncs": 62,
+    "typesInLargePackages": 0,
+    "complexFuncs": 1,
+    "layers": [
+      {
+        "name": "application",
+        "lines": 540
+      },
+      {
+        "name": "domain",
+        "lines": 318
+      },
+      {
+        "name": "infrastructure",
+        "lines": 388
+      },
+      {
+        "name": "interface",
+        "lines": 423
+      }
+    ]
+  },
+  "ordering": {
+    "class": {
+      "elements": 73,
+      "inCycles": 0,
+      "refs": 0,
+      "weight": 0,
+      "direct": 0,
+      "maxGroup": 0,
+      "groups": []
+    },
+    "package": {
+      "elements": 19,
+      "inCycles": 0,
+      "refs": 0,
+      "weight": 0,
+      "direct": 0,
+      "maxGroup": 0,
+      "groups": []
+    },
+    "subsystem": {
+      "elements": 19,
+      "inCycles": 0,
+      "refs": 0,
+      "weight": 0,
+      "direct": 0,
+      "maxGroup": 0,
+      "groups": []
+    },
+    "packageCycleGroupsFromClassCycles": 0,
+    "subsysCycleGroupsFromClassCycles": 0,
+    "refsInClassCyclesBetweenPackages": 0,
+    "refsInClassCyclesBetweenSubsystems": 0
+  },
+  "coupling": {
+    "types": {
+      "nodes": 73,
+      "ccd": 262,
+      "acd": 3.589041,
+      "propagationCost": 0.049165,
+      "relativeCyclicity": 0,
+      "maxCycleGroup": 0,
+      "sdi": 0,
+      "cutMethod": "exact",
+      "cuts": []
+    },
+    "packages": {
+      "nodes": 19,
+      "ccd": 72,
+      "acd": 3.789474,
+      "propagationCost": 0.199446,
+      "relativeCyclicity": 0,
+      "maxCycleGroup": 0,
+      "sdi": 0,
+      "cutMethod": "exact",
+      "cuts": []
+    },
+    "subsystems": {
+      "nodes": 19,
+      "ccd": 72,
+      "acd": 3.789474,
+      "propagationCost": 0.199446,
+      "relativeCyclicity": 0,
+      "maxCycleGroup": 0,
+      "sdi": 0,
+      "cutMethod": "exact",
+      "cuts": []
+    }
+  },
+  "cohesion": [
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/application/services.ProductService",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/application/services.SellerService",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/domain/entities.IdempotencyRecord",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/domain/entities.Money",
+      "lcom4": 3
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/domain/entities.Product",
+      "lcom4": 2
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/domain/entities.Seller",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/domain/events.BaseEvent",
+      "lcom4": 3
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/infrastructure/db/postgres.SqlcIdempotencyRepository",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/infrastructure/db/postgres.SqlcProductRepository",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/infrastructure/db/postgres.SqlcSellerRepository",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/infrastructure/outbox.Relay",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/interface/api/rest.HealthController",
+      "lcom4": 2
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/interface/api/rest.ProductController",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/interface/api/rest.SellerController",
+      "lcom4": 1
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/testhelpers.PostgresTestContainer",
+      "lcom4": 1
+    }
+  ],
+  "packages": [
+    {
+      "package": "github.com/sklinkert/go-ddd/internal/application/command",
+      "ca": 4,
+      "ce": 2,
+      "instability": 0.333333,
+      "abstractness": 0,
+      "distance": 0.666667
+    },
+    {
+      "package": "github.com/sklinkert/go-ddd/internal/application/common",
+      "ca": 4,
+      "ce": 1,
+      "instability": 0.2,
+      "abstractness": 0,
+      "distance": 0.8
+    },
+    {
+      "package": "github.com/sklinkert/go-ddd/internal/application/interfaces",
+      "ca": 2,
+      "ce": 2,
+      "instability": 0.5,
+      "abstractness": 1,
+      "distance": 0.5
+    },
+    {
+      "package": "github.com/sklinkert/go-ddd/internal/application/mapper",
+      "ca": 1,
+      "ce": 2,
+      "instability": 0.666667,
+      "abstractness": 0,
+      "distance": 0.333333
+    },
+    {
+      "package": "github.com/sklinkert/go-ddd/internal/application/query",
+      "ca": 3,
+      "ce": 1,
+      "instability": 0.25,
+      "abstractness": 0,
+      "distance": 0.75
+    },
+    {
+      "package": "github.com/sklinkert/go-ddd/internal/application/services",
+      "ca": 1,
+      "ce": 6,
+      "instability": 0.857143,
+      "abstractness": 0,
+      "distance": 0.142857
+    },
+    {
+      "package": "github.com/sklinkert/go-ddd/internal/domain/entities",
+      "ca": 8,
+      "ce": 1,
+      "instability": 0.111111,
+      "abstractness": 0,
+      "distance": 0.888889
+    },
+    {
+      "package": "github.com/sklinkert/go-ddd/internal/domain/events",
+      "ca": 2,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0.333333,
+      "distance": 0.666667
+    },
+    {
+      "package": "github.com/sklinkert/go-ddd/internal/domain/repositories",
+      "ca": 2,
+      "ce": 1,
+      "instability": 0.333333,
+      "abstractness": 1,
+      "distance": 0.333333
+    },
+    {
+      "package": "github.com/sklinkert/go-ddd/internal/infrastructure/config",
+      "ca": 0,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "distance": 1
+    },
+    {
+      "package": "github.com/sklinkert/go-ddd/internal/infrastructure/db/postgres",
+      "ca": 0,
+      "ce": 4,
+      "instability": 1,
+      "abstractness": 0,
+      "distance": 0
+    },
+    {
+      "package": "github.com/sklinkert/go-ddd/internal/infrastructure/db/sqlc",
+      "ca": 3,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "distance": 1
+    },
+    {
+      "package": "github.com/sklinkert/go-ddd/internal/infrastructure/outbox",
+      "ca": 0,
+      "ce": 1,
+      "instability": 1,
+      "abstractness": 0.333333,
+      "distance": 0.333333
+    },
+    {
+      "package": "github.com/sklinkert/go-ddd/internal/interface/api/rest",
+      "ca": 0,
+      "ce": 7,
+      "instability": 1,
+      "abstractness": 0,
+      "distance": 0
+    },
+    {
+      "package": "github.com/sklinkert/go-ddd/internal/interface/api/rest/dto/mapper",
+      "ca": 1,
+      "ce": 2,
+      "instability": 0.666667,
+      "abstractness": 0,
+      "distance": 0.333333
+    },
+    {
+      "package": "github.com/sklinkert/go-ddd/internal/interface/api/rest/dto/request",
+      "ca": 1,
+      "ce": 2,
+      "instability": 0.666667,
+      "abstractness": 0,
+      "distance": 0.333333
+    },
+    {
+      "package": "github.com/sklinkert/go-ddd/internal/interface/api/rest/dto/response",
+      "ca": 1,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "distance": 1
+    },
+    {
+      "package": "github.com/sklinkert/go-ddd/internal/interface/api/rest_test",
+      "ca": 0,
+      "ce": 0,
+      "instability": 0,
+      "abstractness": 0,
+      "distance": 1
+    },
+    {
+      "package": "github.com/sklinkert/go-ddd/internal/testhelpers",
+      "ca": 0,
+      "ce": 1,
+      "instability": 1,
+      "abstractness": 0,
+      "distance": 0
+    }
+  ],
+  "componentRank": [
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/domain/entities.Currency",
+      "rank": 0.082754
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/domain/entities.Money",
+      "rank": 0.056166
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/application/common.SellerResult",
+      "rank": 0.05362
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/application/common.ProductResult",
+      "rank": 0.053373
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/domain/entities.Seller",
+      "rank": 0.032208
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/domain/entities.moneyJSON",
+      "rank": 0.030582
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/domain/entities.Product",
+      "rank": 0.022708
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/infrastructure/db/sqlc.Queries",
+      "rank": 0.019963
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/domain/entities.ValidatedSeller",
+      "rank": 0.01785
+    },
+    {
+      "type": "github.com/sklinkert/go-ddd/internal/domain/entities.IdempotencyRecord",
+      "rank": 0.016709
+    }
+  ],
+  "excluded": [
+    {
+      "path": "internal/infrastructure/db/sqlc/db.go",
+      "package": "github.com/sklinkert/go-ddd/internal/infrastructure/db/sqlc",
+      "reason": "generated"
+    },
+    {
+      "path": "internal/infrastructure/db/sqlc/idempotency.sql.go",
+      "package": "github.com/sklinkert/go-ddd/internal/infrastructure/db/sqlc",
+      "reason": "generated"
+    },
+    {
+      "path": "internal/infrastructure/db/sqlc/models.go",
+      "package": "github.com/sklinkert/go-ddd/internal/infrastructure/db/sqlc",
+      "reason": "generated"
+    },
+    {
+      "path": "internal/infrastructure/db/sqlc/outbox.sql.go",
+      "package": "github.com/sklinkert/go-ddd/internal/infrastructure/db/sqlc",
+      "reason": "generated"
+    },
+    {
+      "path": "internal/infrastructure/db/sqlc/products.sql.go",
+      "package": "github.com/sklinkert/go-ddd/internal/infrastructure/db/sqlc",
+      "reason": "generated"
+    },
+    {
+      "path": "internal/infrastructure/db/sqlc/querier.go",
+      "package": "github.com/sklinkert/go-ddd/internal/infrastructure/db/sqlc",
+      "reason": "generated"
+    },
+    {
+      "path": "internal/infrastructure/db/sqlc/sellers.sql.go",
+      "package": "github.com/sklinkert/go-ddd/internal/infrastructure/db/sqlc",
+      "reason": "generated"
+    }
+  ],
+  "communities": {
+    "groups": [
+      {
+        "packages": [
+          "github.com/sklinkert/go-ddd/internal/application/command",
+          "github.com/sklinkert/go-ddd/internal/application/interfaces",
+          "github.com/sklinkert/go-ddd/internal/application/query",
+          "github.com/sklinkert/go-ddd/internal/application/services",
+          "github.com/sklinkert/go-ddd/internal/interface/api/rest",
+          "github.com/sklinkert/go-ddd/internal/interface/api/rest/dto/request"
+        ]
+      },
+      {
+        "packages": [
+          "github.com/sklinkert/go-ddd/internal/application/common",
+          "github.com/sklinkert/go-ddd/internal/application/mapper",
+          "github.com/sklinkert/go-ddd/internal/interface/api/rest/dto/mapper",
+          "github.com/sklinkert/go-ddd/internal/interface/api/rest/dto/response"
+        ]
+      },
+      {
+        "packages": [
+          "github.com/sklinkert/go-ddd/internal/domain/entities",
+          "github.com/sklinkert/go-ddd/internal/domain/events",
+          "github.com/sklinkert/go-ddd/internal/domain/repositories",
+          "github.com/sklinkert/go-ddd/internal/infrastructure/db/postgres"
+        ]
+      },
+      {
+        "packages": [
+          "github.com/sklinkert/go-ddd/internal/infrastructure/config"
+        ]
+      },
+      {
+        "packages": [
+          "github.com/sklinkert/go-ddd/internal/infrastructure/db/sqlc",
+          "github.com/sklinkert/go-ddd/internal/infrastructure/outbox",
+          "github.com/sklinkert/go-ddd/internal/testhelpers"
+        ]
+      },
+      {
+        "packages": [
+          "github.com/sklinkert/go-ddd/internal/interface/api/rest_test"
+        ]
+      }
+    ],
+    "misplaced": []
+  },
+  "conformance": {
+    "coverage": 0,
+    "rules": 2,
+    "passing": 1,
+    "compliance": 50,
+    "failing": [
+      "forbiddenImports[0]"
+    ]
+  },
+  "mmi": {
+    "low": 3.83,
+    "high": 9.74,
+    "exact": false,
+    "criteria": [
+      {
+        "id": "1.1.1",
+        "name": "Source code allocated to subsystems (domain modules)",
+        "group": "1.1",
+        "kind": "unmeasured",
+        "determinedBy": "architecture analysis tools",
+        "reason": "the model declares no subsystems"
+      },
+      {
+        "id": "1.1.2",
+        "name": "Source code allocated to technical layers",
+        "group": "1.1",
+        "kind": "measured",
+        "determinedBy": "architecture analysis tools",
+        "value": 93.501401,
+        "unit": "%",
+        "score": 8
+      },
+      {
+        "id": "1.1.3",
+        "name": "Size relationship of the subsystems",
+        "group": "1.1",
+        "kind": "unmeasured",
+        "determinedBy": "metrics tools",
+        "reason": "the model declares no subsystems"
+      },
+      {
+        "id": "1.1.4",
+        "name": "Size relationship of the technical layers",
+        "group": "1.1",
+        "kind": "measured",
+        "determinedBy": "metrics tools",
+        "value": 0.424528,
+        "unit": "ratio",
+        "score": 10
+      },
+      {
+        "id": "1.1.5",
+        "name": "Subsystems, layers, packages and types have clear responsibilities",
+        "group": "1.1",
+        "kind": "judgement",
+        "determinedBy": "reviewers",
+        "reason": "needs a reviewer; see the judgement slot"
+      },
+      {
+        "id": "1.1.6",
+        "name": "Layers and subsystems are mapped through packages",
+        "group": "1.1",
+        "kind": "judgement",
+        "determinedBy": "reviewers",
+        "reason": "needs a reviewer; see the judgement slot"
+      },
+      {
+        "id": "1.2.1",
+        "name": "Subsystems have interfaces (% violating imports)",
+        "group": "1.2",
+        "kind": "unmeasured",
+        "determinedBy": "architecture analysis tools",
+        "reason": "the model declares no subsystems"
+      },
+      {
+        "id": "1.2.2",
+        "name": "Internal interfaces are mapped through packages",
+        "group": "1.2",
+        "kind": "judgement",
+        "determinedBy": "reviewers",
+        "reason": "needs a reviewer; see the judgement slot"
+      },
+      {
+        "id": "1.3.1",
+        "name": "Source code in large types",
+        "group": "1.3",
+        "kind": "measured",
+        "determinedBy": "metrics tools",
+        "value": 0,
+        "unit": "%",
+        "score": 10
+      },
+      {
+        "id": "1.3.2",
+        "name": "Source code in large functions",
+        "group": "1.3",
+        "kind": "measured",
+        "determinedBy": "metrics tools",
+        "value": 3.473389,
+        "unit": "%",
+        "score": 8
+      },
+      {
+        "id": "1.3.3",
+        "name": "Types in large packages",
+        "group": "1.3",
+        "kind": "measured",
+        "determinedBy": "metrics tools",
+        "value": 0,
+        "unit": "%",
+        "score": 10
+      },
+      {
+        "id": "1.3.4",
+        "name": "Functions with high cyclomatic complexity",
+        "group": "1.3",
+        "kind": "measured",
+        "determinedBy": "metrics tools",
+        "value": 0.909091,
+        "unit": "%",
+        "score": 5
+      },
+      {
+        "id": "2.1.1",
+        "name": "Violations of the technical layering",
+        "group": "2.1",
+        "kind": "measured",
+        "determinedBy": "architecture analysis tools",
+        "value": 0,
+        "unit": "%",
+        "score": 10
+      },
+      {
+        "id": "2.1.2",
+        "name": "Violations of the subsystem layering",
+        "group": "2.1",
+        "kind": "unmeasured",
+        "determinedBy": "architecture analysis tools",
+        "reason": "the model declares no subsystem order"
+      },
+      {
+        "id": "2.2.1",
+        "name": "Types in cycles",
+        "group": "2.2",
+        "kind": "measured",
+        "determinedBy": "metrics tools",
+        "value": 0,
+        "unit": "%",
+        "score": 10
+      },
+      {
+        "id": "2.2.2",
+        "name": "Packages in cycles",
+        "group": "2.2",
+        "kind": "measured",
+        "determinedBy": "metrics tools",
+        "value": 0,
+        "unit": "%",
+        "score": 10
+      },
+      {
+        "id": "2.2.3",
+        "name": "Types per cycle (largest cycle group)",
+        "group": "2.2",
+        "kind": "measured",
+        "determinedBy": "metrics tools",
+        "value": 0,
+        "unit": "count",
+        "score": 10
+      },
+      {
+        "id": "2.2.4",
+        "name": "Packages per cycle (largest cycle group)",
+        "group": "2.2",
+        "kind": "measured",
+        "determinedBy": "metrics tools",
+        "value": 0,
+        "unit": "count",
+        "score": 10
+      },
+      {
+        "id": "3.1",
+        "name": "Source code allocated to pattern roles",
+        "group": "3",
+        "kind": "unmeasured",
+        "determinedBy": "architecture analysis tools",
+        "reason": "the model declares no roles"
+      },
+      {
+        "id": "3.2",
+        "name": "References against the role order",
+        "group": "3",
+        "kind": "unmeasured",
+        "determinedBy": "architecture analysis tools",
+        "reason": "the model declares fewer than two roles"
+      },
+      {
+        "id": "3.3",
+        "name": "Explicit mapping of the patterns",
+        "group": "3",
+        "kind": "judgement",
+        "determinedBy": "reviewers",
+        "reason": "needs a reviewer; see the judgement slot"
+      },
+      {
+        "id": "3.4",
+        "name": "Separation of domain and technical source code",
+        "group": "3",
+        "kind": "judgement",
+        "determinedBy": "reviewers",
+        "reason": "needs a reviewer; see the judgement slot"
+      }
+    ]
+  },
+  "judgements": [
+    {
+      "criterion": "1.1.5",
+      "question": "Does each subsystem, layer, package and type have one clear responsibility, and does its name describe it?",
+      "edition": "74fd815348e470aec04f144084efca6cfb5509c71c5b4c1dfcaf23c8d39ebedf",
+      "evidence": [
+        "lcom4: github.com/sklinkert/go-ddd/internal/domain/entities.Money has 3 independent groups of methods and fields",
+        "lcom4: github.com/sklinkert/go-ddd/internal/domain/entities.Product has 2 independent groups of methods and fields",
+        "lcom4: github.com/sklinkert/go-ddd/internal/domain/events.BaseEvent has 3 independent groups of methods and fields",
+        "lcom4: github.com/sklinkert/go-ddd/internal/interface/api/rest.HealthController has 2 independent groups of methods and fields",
+        "balance: largest package github.com/sklinkert/go-ddd/internal/application/services has 323 of 1785 lines; smallest github.com/sklinkert/go-ddd/internal/interface/api/rest_test has 0"
+      ],
+      "undecided": "the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers",
+      "evidenceHash": "8f17f6442f74a05d7b65e64445837f98a573d6898e74edd767d0c49cd0df8b62",
+      "status": "pending"
+    },
+    {
+      "criterion": "1.1.6",
+      "question": "Do the packages map the technical layers and the subsystems (domain modules) of the target architecture, and is that the right mapping?",
+      "edition": "7006f2a1eb43deb9f0b9bf0aed536454f01658e2f7caa9426f933812c7358f60",
+      "evidence": [
+        "subsystems: 0 declared; 19 packages unassigned, 0 ambiguous",
+        "layers: 4 declared; 1 packages unassigned, 0 ambiguous"
+      ],
+      "undecided": "the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers",
+      "evidenceHash": "155657ac1864cb46030a1b2069b1a7f869e9d4a142f1d3eb3a2af2d859574fb0",
+      "status": "pending"
+    },
+    {
+      "criterion": "1.2.2",
+      "question": "Is each subsystem's internal interface mapped through packages that other subsystems can see and use?",
+      "edition": "e0a61ede6c6826d254695fbefcd650405b7f6ffb3a8c11447eb6a459138f335e",
+      "evidence": [
+        "subsystems: 0 declared"
+      ],
+      "undecided": "the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers",
+      "evidenceHash": "8008c111c307df74de3250e9b895871811faee5eb81f8471b3f5c3f6265e9656",
+      "status": "pending"
+    },
+    {
+      "criterion": "3.3",
+      "question": "Are the patterns mapped explicitly, through type names, embedding or directives, rather than left for readers to infer?",
+      "edition": "bbead25ebeef94e198483de8643e7bd9d244d20147ec2674d9edba2194bc0930",
+      "evidence": [
+        "roles: none declared, so no type's pattern is mapped explicitly"
+      ],
+      "undecided": "the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers",
+      "evidenceHash": "f44b856f93e4f7e90f9960b9e43069027c7f75349bc653260962d71956b56ec0",
+      "status": "pending"
+    },
+    {
+      "criterion": "3.4",
+      "question": "Are domain and technical code separated, as DDD, Quasar or hexagonal architecture separate them?",
+      "edition": "348152ace82b1819ad5a8597e50d1edbc8c739db41f76e7406dd2a32ce35d56e",
+      "evidence": [
+        "forbidden-import rules: 1 declared",
+        "forbidden import: github.com/sklinkert/go-ddd/internal/interface/api/rest -> github.com/sklinkert/go-ddd/internal/domain/entities",
+        "forbidden import: github.com/sklinkert/go-ddd/internal/interface/api/rest/dto/request -> github.com/sklinkert/go-ddd/internal/domain/entities"
+      ],
+      "undecided": "the MMI leaves this criterion to a reviewer (mmi.md §7.6): it asks what the structure means, which no measure of the structure answers",
+      "evidenceHash": "9c8670ed16c8bb0dc9ba7e9c30f92bd9cd8cc3729926f0751957fc79e0bfcef7",
+      "status": "pending"
+    }
+  ],
+  "findings": [
+    {
+      "fingerprint": "643effa643e74093",
+      "rule": "cognitive-complexity",
+      "severity": "warning",
+      "subject": "github.com/sklinkert/go-ddd/internal/application/services.ProductService.UpdateProduct",
+      "location": {
+        "file": "internal/application/services/product_service.go",
+        "start": 93,
+        "end": 141
+      },
+      "message": "github.com/sklinkert/go-ddd/internal/application/services.ProductService.UpdateProduct has cognitive complexity 22, above 15",
+      "fix": "flatten nested decisions with early returns, and extract nested branches and long boolean chains into named functions"
+    },
+    {
+      "fingerprint": "d3c34fb3a9f0b6e5",
+      "rule": "cognitive-complexity",
+      "severity": "warning",
+      "subject": "github.com/sklinkert/go-ddd/internal/application/services.withIdempotency",
+      "location": {
+        "file": "internal/application/services/idempotency.go",
+        "start": 37,
+        "end": 115
+      },
+      "message": "github.com/sklinkert/go-ddd/internal/application/services.withIdempotency has cognitive complexity 27, above 15",
+      "fix": "flatten nested decisions with early returns, and extract nested branches and long boolean chains into named functions"
+    },
+    {
+      "fingerprint": "21165431ad1d3a4c",
+      "rule": "complex-func",
+      "severity": "warning",
+      "criterion": "1.3.4",
+      "subject": "github.com/sklinkert/go-ddd/internal/application/services.withIdempotency",
+      "location": {
+        "file": "internal/application/services/idempotency.go",
+        "start": 37,
+        "end": 115
+      },
+      "message": "github.com/sklinkert/go-ddd/internal/application/services.withIdempotency has modified cyclomatic complexity 16, above 15",
+      "fix": "split the decisions into named predicates; the deepest nesting is 4"
+    },
+    {
+      "fingerprint": "4c15de594a4ae61a",
+      "rule": "forbidden-import",
+      "severity": "error",
+      "criterion": "3.4",
+      "subject": "github.com/sklinkert/go-ddd/internal/interface/api/rest",
+      "object": "github.com/sklinkert/go-ddd/internal/domain/entities",
+      "location": {
+        "file": "internal/interface/api/rest/errors.go",
+        "start": 9,
+        "end": 9
+      },
+      "message": "github.com/sklinkert/go-ddd/internal/interface/api/rest imports github.com/sklinkert/go-ddd/internal/domain/entities: the interface layer must not leak domain objects outward (go-ddd README)",
+      "fix": "move the use of github.com/sklinkert/go-ddd/internal/domain/entities into an adapter package and depend on an interface declared where github.com/sklinkert/go-ddd/internal/interface/api/rest needs it",
+      "modelRule": "forbiddenImports[0]",
+      "provenance": "types"
+    },
+    {
+      "fingerprint": "9f1c36116f9a2237",
+      "rule": "forbidden-import",
+      "severity": "error",
+      "criterion": "3.4",
+      "subject": "github.com/sklinkert/go-ddd/internal/interface/api/rest/dto/request",
+      "object": "github.com/sklinkert/go-ddd/internal/domain/entities",
+      "location": {
+        "file": "internal/interface/api/rest/dto/request/create_product_request.go",
+        "start": 6,
+        "end": 6
+      },
+      "message": "github.com/sklinkert/go-ddd/internal/interface/api/rest/dto/request imports github.com/sklinkert/go-ddd/internal/domain/entities: the interface layer must not leak domain objects outward (go-ddd README)",
+      "fix": "move the use of github.com/sklinkert/go-ddd/internal/domain/entities into an adapter package and depend on an interface declared where github.com/sklinkert/go-ddd/internal/interface/api/rest/dto/request needs it",
+      "modelRule": "forbiddenImports[0]",
+      "provenance": "types"
+    },
+    {
+      "fingerprint": "a0e81664e210d4e8",
+      "rule": "large-func",
+      "severity": "warning",
+      "criterion": "1.3.2",
+      "subject": "github.com/sklinkert/go-ddd/internal/application/services.withIdempotency",
+      "location": {
+        "file": "internal/application/services/idempotency.go",
+        "start": 37,
+        "end": 115
+      },
+      "message": "github.com/sklinkert/go-ddd/internal/application/services.withIdempotency has 62 lines of code, above 60",
+      "fix": "extract the steps that need no shared state into functions of their own"
+    },
+    {
+      "fingerprint": "6732e544baead1c5",
+      "rule": "unassigned-package",
+      "severity": "warning",
+      "subject": "github.com/sklinkert/go-ddd/internal/testhelpers",
+      "object": "layer",
+      "message": "package github.com/sklinkert/go-ddd/internal/testhelpers belongs to no layer",
+      "fix": "add a pattern matching github.com/sklinkert/go-ddd/internal/testhelpers to a layer in the model, or move the package"
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "go-acyclic-imports",
+      "text": "Go forbids import cycles, so 2.2.2 and 2.2.4 always score 10; read hierarchy problems from subsystem cycles and 2.1.x instead.",
+      "source": "mmi.md §4"
+    },
+    {
+      "id": "type-granularity",
+      "text": "A Go package-level named type stands in for the dissertation's class; the MMI's class thresholds were calibrated on Java, C# and PHP.",
+      "source": "mmi.md §3"
+    },
+    {
+      "id": "loc",
+      "text": "A line of code is a line on which a token other than a comment starts; test files and generated files are left out of every measure.",
+      "source": "mmi.md §7.3"
+    },
+    {
+      "id": "statements",
+      "text": "Number of Statements counts every statement except blocks, labels, empty statements and case clauses, including a for loop's init and post.",
+      "source": "mmi.md §7.3"
+    },
+    {
+      "id": "cognitive",
+      "text": "Cognitive complexity is github.com/uudashr/gocognit's SonarSource count; a function above 15 is a cognitive-complexity warning.",
+      "source": "SonarSource, Cognitive Complexity (2017)"
+    },
+    {
+      "id": "complexity-variant",
+      "text": "Criterion 1.3.4 uses the modified cyclomatic complexity, above 15.",
+      "source": "mmi.md §7.3; von Zitzewitz"
+    },
+    {
+      "id": "thresholds",
+      "text": "large type > 400 lines, large function > 60 lines, large package > 40 types, largest tolerable type cycle group 5, large file > 800 lines, deepest nesting 4: borrowed guidance, not the chapter's.",
+      "source": "mmi.md §7.3"
+    },
+    {
+      "id": "denominators",
+      "text": "1.2.1, 2.1.1, 2.1.2 and 3.2 divide violating imports or references by all candidates between different groups; the chapter gives no denominators.",
+      "source": "mmi.md §7.2"
+    },
+    {
+      "id": "communities",
+      "text": "Communities are gonum's Louvain communities (resolution 1, a fixed seed) of the package graph taken as undirected, an edge weighing the imports either way, each split into its connected parts. A package of a subsystem with other packages is misplaced when another subsystem holds more of its community than its own. They are advice and never gate.",
+      "source": "IMPROVEMENTS.md 9.3; codetospec internal/communities"
+    },
+    {
+      "id": "static-binding",
+      "text": "Dependencies are the imports and references go/types resolves in the build the report reads, for its platform and tags; reflection, dispatch by string and struct tags are not followed. The imports of files the build constraints exclude are read from their source and checked by the import rules alone: forbidden imports, isolations, and fitness's layer access, strict layers, onion, dependents and libraries; graphs, cycles, fan-out and metrics measure the build.",
+      "source": "go/types; techne RFC-0002"
+    },
+    {
+      "id": "largest-cycle",
+      "text": "Criteria 2.2.3 and 2.2.4 use the largest cycle group.",
+      "source": "mmi.md §4"
+    },
+    {
+      "id": "mmi-aggregation",
+      "text": "MMI = Σ weight(group) × mean(scores); unscored criteria count 0 toward the low bound and 10 toward the high bound.",
+      "source": "mmi.md §2"
+    },
+    {
+      "id": "lcom4",
+      "text": "LCOM4 links methods to the fields and methods they select through the receiver; a field no method uses is left out.",
+      "source": "mmi.md §7.5"
+    },
+    {
+      "id": "decoupling-level",
+      "text": "Decoupling Level (Mo et al., ICSE 2016) is not computed: US patent 11,422,800 covers its algorithm.",
+      "source": "mmi-ref.md A.1"
+    },
+    {
+      "id": "martin",
+      "text": "Martin's metrics count in-scope imports only; abstractness is the share of named types that are interfaces, and instability is 0 for an isolated package.",
+      "source": "mmi-ref.md A.1"
+    },
+    {
+      "id": "component-rank",
+      "text": "Component Rank is PageRank over type dependencies with damping 0.8, run for a fixed 50 iterations; types that depend on nothing spread their rank evenly.",
+      "source": "mmi-ref.md A.1; von Zitzewitz"
+    },
+    {
+      "id": "sdi-cut",
+      "text": "SDI cuts are exact for cycle groups of up to 12 elements and use the Eades–Lin–Smyth ordering above that; Coupling.CutMethod says which.",
+      "source": "mmi.md §7.5"
+    }
+  ]
+}

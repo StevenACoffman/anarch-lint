@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -14,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/StevenACoffman/anarch-lint/anarchtest"
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
 
@@ -420,12 +422,14 @@ func TestCheckExitCodes(t *testing.T) {
 // (anarch-baseline.json). A change that breaks the layering, imports I/O into
 // the domain, or adds a cycle fails here; run `go run . baseline` only after
 // deciding the new state is acceptable.
+// It runs through anarchtest, the gate as a go test, which the CLI's check
+// shares its pipeline with.
 func TestSelfCheck(t *testing.T) {
 	t.Parallel()
-	code, out, errOut := runCLI(t, "check")
-	if code != 0 {
-		t.Fatalf("self-check exit %d\n%s%s", code, out, errOut)
+	if testing.Short() {
+		t.Skip("loads and type-checks the module; skipped with -short")
 	}
+	anarchtest.Check(t, nil)
 }
 
 // Waivers turn a failing gate into a passing one until they expire. --today
@@ -485,10 +489,155 @@ func TestCheckWaivers(t *testing.T) {
 	}
 }
 
+// TestExplain: explain names the rules that examine an import and what each
+// decides, a missing import says so, and too few arguments are a usage error.
+func TestExplain(t *testing.T) {
+	t.Parallel()
+	cases := map[string]struct {
+		args  []string
+		code  int
+		wants []string
+	}{
+		"a bypass": {
+			args: []string{"example.com/fx/billing/tax", "example.com/fx/shop/catalog"},
+			wants: []string{
+				"example.com/fx/billing/tax imports example.com/fx/shop/catalog at billing/tax/tax.go:4",
+				"forbids  interfaces",
+			},
+		},
+		"no such import": {
+			args:  []string{"example.com/fx/shop/catalog", "example.com/fx/billing/tax"},
+			wants: []string{"does not import"},
+		},
+		"one argument": {args: []string{"example.com/fx/shop/catalog"}, code: 2},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			code, out, errOut := runCLI(
+				t,
+				append([]string{"-C", fixture, "explain"}, tc.args...)...)
+			if code != tc.code {
+				t.Fatalf("exit %d, want %d\nstdout:\n%s\nstderr:\n%s", code, tc.code, out, errOut)
+			}
+			for _, want := range tc.wants {
+				if !strings.Contains(out, want) {
+					t.Errorf("output lacks %q:\n%s", want, out)
+				}
+			}
+		})
+	}
+}
+
+// TestJudge: judge emit writes a prompt per item, admit records the tallies
+// of two judge configurations that answer alike as drafts in the
+// judgements file, and a configuration that misses a canary makes admit
+// exit 4, the status of an untrustworthy run.
+func TestJudge(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		wrongCanaries bool
+		code          int
+	}{
+		"trustworthy judges": {code: 0},
+		"a canary missed":    {wrongCanaries: true, code: 4},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			run, cache := filepath.Join(dir, "run"), filepath.Join(dir, "cache")
+			judgements := filepath.Join(dir, "judgements.json")
+			base := []string{
+				"-C", connascenceFixture, "--judgements", judgements, "judge",
+				"--run", run, "--cache", cache,
+			}
+			code, out, errOut := runCLI(t, append(base, "emit",
+				"--config", "a=model-one", "--config", "b=model-two")...)
+			if code != 0 {
+				t.Fatalf("emit exit %d: %s%s", code, out, errOut)
+			}
+			answerRun(t, run, tc.wrongCanaries)
+			code, out, errOut = runCLI(t, append(base, "admit", "--signer", "a reviewer")...)
+			if code != tc.code {
+				t.Fatalf("admit exit %d, want %d: %s%s", code, tc.code, out, errOut)
+			}
+			src, err := os.ReadFile(judgements)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(src), `"role": "judge"`) {
+				t.Fatalf("no judge's event was recorded:\n%s", src)
+			}
+			if code, out, errOut = runCLI(t, append(base, "report")...); code != 0 ||
+				!strings.Contains(out, "TALLIES") {
+				t.Fatalf("report exit %d: %s%s", code, out, errOut)
+			}
+		})
+	}
+}
+
+// answerRun writes a reply to every item of a judging run: a canary's
+// labelled answer, or its opposite when wrongCanaries; for any other item
+// the family's first answer, or a score of 5.
+func answerRun(t *testing.T, run string, wrongCanaries bool) {
+	t.Helper()
+	src, err := os.ReadFile(filepath.Join(run, "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m struct {
+		Items []struct {
+			Key  string `json:"key"`
+			Kind string `json:"kind"`
+			View struct {
+				ID      string   `json:"id"`
+				Answers []string `json:"answers"`
+			} `json:"view"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(src, &m); err != nil {
+		t.Fatal(err)
+	}
+	labels := map[string]string{
+		"connascence/5e1a07c2d9b34f18":                      "confirmed",
+		"connascence/9b03c6e14a7f5d22":                      "rejected",
+		"connascence/c4d8e2f0a6b19357":                      "rejected",
+		"contract-type/example.com/shop/api.OrderPlaced":    "contract",
+		"contract-type/example.com/shop/order.Order":        "model",
+		"contract-type/example.com/shop/order.OrderRequest": "model",
+	}
+	for _, it := range m.Items {
+		choice := `"score": 5`
+		if len(it.View.Answers) > 0 {
+			choice = fmt.Sprintf("%q: %q", "answer", it.View.Answers[0])
+		}
+		if label, ok := labels[it.View.ID]; ok && it.Kind == "canary" {
+			if wrongCanaries {
+				label = map[string]string{
+					"confirmed": "rejected", "rejected": "confirmed",
+					"contract": "model", "model": "contract",
+				}[label]
+			}
+			choice = fmt.Sprintf("%q: %q", "answer", label)
+		}
+		reply := fmt.Sprintf("```json\n{%s, \"confidence\": 0.7, \"cites\": [\"E1\"], "+
+			"\"rationale\": \"checked %s\"}\n```\n", choice, it.Key)
+		if err := os.WriteFile(
+			filepath.Join(run, it.Key+".reply.md"),
+			[]byte(reply),
+			0o600,
+		); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 // TestCorpusGoDDD is an acceptance test on a real codebase, sklinkert/go-ddd,
 // whose README documents its layers (mmi-ref-plan.md §5). Its interface layer
 // imports domain entities in two packages; the model in
-// testdata/corpus/go-ddd.json forbids that, so both must be found. Run it with
+// testdata/corpus/go-ddd.json forbids that, so both must be found. The whole
+// report is a golden file, so any change in what the pinned clone yields
+// shows in review (IMPROVEMENTS.md §8.1). Run it with
 // go test -run TestCorpusGoDDD -corpus ~/Documents/git
 func TestCorpusGoDDD(t *testing.T) {
 	t.Parallel()
@@ -504,6 +653,7 @@ func TestCorpusGoDDD(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
+	golden(t, "corpus-go-ddd.json", out)
 	var r struct {
 		Findings []struct {
 			Rule    string `json:"rule"`
@@ -650,6 +800,7 @@ func TestCorpusSkillet(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errOut)
 	}
+	golden(t, "corpus-skillet.json", out)
 	var r struct {
 		Findings []struct {
 			Rule    string `json:"rule"`
@@ -677,13 +828,15 @@ func TestCorpusSkillet(t *testing.T) {
 
 // A coChange rule gates check --new-from-rev: a change to the schema without
 // its generated code fails, and one with it passes.
-func TestCheckCoChange(t *testing.T) {
-	t.Parallel()
+// gitModule makes an empty directory for a module, and returns it with a
+// function that runs git there and one that writes a file.
+func gitModule(t *testing.T) (dir string, gitIn func(...string), write func(name, content string)) {
+	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("needs git")
 	}
-	dir := t.TempDir()
-	gitIn := func(args ...string) {
+	dir = t.TempDir()
+	gitIn = func(args ...string) {
 		t.Helper()
 		//nolint:gosec // G204: the program is the constant "git" and every argument is a literal of this test
 		cmd := exec.CommandContext(t.Context(), "git", append([]string{
@@ -694,7 +847,7 @@ func TestCheckCoChange(t *testing.T) {
 			t.Fatalf("git %v: %v\n%s", args, err, out)
 		}
 	}
-	write := func(name, content string) {
+	write = func(name, content string) {
 		t.Helper()
 		path := filepath.Join(dir, name)
 		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
@@ -704,6 +857,12 @@ func TestCheckCoChange(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	return dir, gitIn, write
+}
+
+func TestCheckCoChange(t *testing.T) {
+	t.Parallel()
+	dir, gitIn, write := gitModule(t)
 	write("go.mod", "module example.com/cc\n\ngo 1.24\n")
 	write("a/a.go", "package a\n\n// A is a.\nfunc A() {}\n")
 	write("api/schema.txt", "v1\n")
@@ -729,6 +888,120 @@ func TestCheckCoChange(t *testing.T) {
 	}
 }
 
+// TestCheckLockedBars: a change that raises a threshold, re-records the
+// baseline and changes code fails, naming the loosened bar; the same
+// loosening without code passes (IMPROVEMENTS.md §6.1).
+func TestCheckLockedBars(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		code bool
+		exit int
+	}{
+		"loosened with code":         {code: true, exit: 3},
+		"loosened in its own change": {exit: 0},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			dir, gitIn, write := gitModule(t)
+			write("go.mod", "module example.com/lb\n\ngo 1.24\n")
+			write("a/a.go", "package a\n\n// A is a.\nfunc A() {}\n")
+			write("anarch.json", `{"version": 1, "thresholds": {"largeFuncLines": 40}}`)
+			if code, _, errOut := runCLI(t, "-C", dir, "baseline"); code != 0 {
+				t.Fatalf("baseline: exit %d: %s", code, errOut)
+			}
+			gitIn("init", "-q")
+			gitIn("add", ".")
+			gitIn("commit", "-q", "-m", "init")
+
+			write("anarch.json", `{"version": 1, "thresholds": {"largeFuncLines": 80}}`)
+			if code, _, errOut := runCLI(t, "-C", dir, "baseline"); code != 0 {
+				t.Fatalf("baseline: exit %d: %s", code, errOut)
+			}
+			if tc.code {
+				write("a/a.go", "package a\n\n// A is a.\nfunc A() { _ = 1 }\n")
+			}
+			code, out, _ := runCLI(t, "-C", dir, "check", "--new-from-rev", "HEAD")
+			if code != tc.exit {
+				t.Fatalf("exit %d, want %d\n%s", code, tc.exit, out)
+			}
+			loosened := strings.Contains(out, "thresholds.largeFuncLines raised from 40 to 80")
+			if loosened != tc.code {
+				t.Fatalf("the loosened threshold is named: %v, want %v\n%s", loosened, tc.code, out)
+			}
+		})
+	}
+}
+
+// TestCheckBaselineRev: check --baseline-rev measures the revision in a
+// worktree under the current model, so an import the change adds is new
+// with no baseline file at all, and the revision itself passes.
+func TestCheckBaselineRev(t *testing.T) {
+	t.Parallel()
+	dir, gitIn, write := gitModule(t)
+	write("go.mod", "module example.com/br\n\ngo 1.24\n")
+	write("a/a.go", "package a\n\n// A is a.\nfunc A() {}\n")
+	write("b/b.go", "package b\n\n// B is b.\nfunc B() {}\n")
+	write("anarch.json", `{"version": 1, "forbiddenImports": [{"from": ["example.com/br/a"],
+		"imports": ["example.com/br/b"], "reason": "a stands alone"}]}`)
+	gitIn("init", "-q")
+	gitIn("add", ".")
+	gitIn("commit", "-q", "-m", "init")
+	if code, out, errOut := runCLI(t, "-C", dir, "check", "--baseline-rev", "HEAD"); code != 0 {
+		t.Fatalf("the revision itself: exit %d\n%s%s", code, out, errOut)
+	}
+	write("a/a.go", "package a\n\nimport \"example.com/br/b\"\n\n// A is a.\nfunc A() { b.B() }\n")
+	code, out, _ := runCLI(t, "-C", dir, "check", "--baseline-rev", "HEAD")
+	if code != 3 || !strings.Contains(out, "forbidden-import") {
+		t.Fatalf("an added forbidden import: exit %d, want 3 with forbidden-import\n%s", code, out)
+	}
+	if code, _, _ := runCLI(t, "-C", dir, "check", "--baseline-rev", "HEAD",
+		"--baseline", "x.json"); code != 2 {
+		t.Fatalf("two baselines: exit %d, want 2", code)
+	}
+}
+
+// TestCorpusTodoAPI runs analyze with the VTA call graph on
+// MarioCarrion/todo-api-microservice-example, whose REST server wires a
+// redis message broker into the service while kafka and rabbitmq brokers
+// implement the same interface. VTA finds the redis dependency the model
+// forbids, and none on kafka or rabbitmq, which CHA would link because they
+// implement the interface too (mmi-ref-plan.md §5).
+func TestCorpusTodoAPI(t *testing.T) {
+	t.Parallel()
+	if *corpus == "" {
+		t.Skip("set -corpus to the directory holding a clone of todo-api-microservice-example")
+	}
+	model, err := filepath.Abs(filepath.Join("testdata", "corpus", "todo-api.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, out, errOut := runCLI(t, "-C", corpusClone(t, "todo-api-microservice-example"),
+		"--model", model, "--format=json", "analyze", "./...")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	golden(t, "corpus-todo-api.json", out)
+	var r struct {
+		Findings []struct {
+			Rule   string `json:"rule"`
+			Object string `json:"object"`
+		} `json:"findings"`
+	}
+	if err := json.Unmarshal([]byte(out), &r); err != nil {
+		t.Fatal(err)
+	}
+	var hidden []string
+	for _, f := range r.Findings {
+		if f.Rule == "hidden-dependency" {
+			hidden = append(hidden, f.Object)
+		}
+	}
+	const in = "github.com/MarioCarrion/todo-api/internal/"
+	if !slices.Equal(hidden, []string{in + "redis.Task"}) {
+		t.Errorf("want the one wired broker, %sredis.Task; found %v", in, hidden)
+	}
+}
+
 // corpusPin is the commit a corpus test was checked against. A clone
 // elsewhere may find more or fewer violations, so the test fails rather than
 // lapse: check out the pinned commit, or recheck the test and move the pin.
@@ -738,6 +1011,8 @@ func corpusPin(name string) string {
 		return "1028139dacb3e850c4a282a31fb4e7cd40d80d77"
 	case "skillet":
 		return "e735cde4da04f6ad6c6c9adb984150cf09eed48f"
+	case "todo-api-microservice-example":
+		return "402ab6b35a250102d8251c776c3587a0ad9e4971"
 	default:
 		return ""
 	}

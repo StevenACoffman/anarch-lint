@@ -159,10 +159,11 @@ func writeTemporal(w io.Writer, r *balance.Report) {
 	for _, h := range r.Hotspots {
 		_, _ = fmt.Fprintf(
 			w,
-			"  %s\t%s\tcomplexity %d\t\n",
+			"  %s\t%s\tcomplexity %d\t%s\n",
 			h.Package,
 			arch.Plural(h.Commits, "commit"),
 			h.Complexity,
+			arch.Plural(h.Authors, "author"),
 		)
 	}
 }

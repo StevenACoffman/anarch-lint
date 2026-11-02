@@ -42,6 +42,9 @@ type Config struct {
 	// Facts asks for the connascence and Balanced Coupling facts of
 	// [arch.Facts], which only those measures read.
 	Facts bool
+	// Dispatches asks for the run-time wiring of a VTA call graph
+	// ([arch.Program.Dispatches]), which costs a whole-program SSA build.
+	Dispatches bool
 }
 
 // Load loads the packages cfg names and returns their facts, sorted as
@@ -78,21 +81,40 @@ func Load(ctx context.Context, cfg Config) (arch.Program, error) {
 		}}
 	}
 	prog, err := extract(dir, pkgs, cfg.Facts, os.ReadFile)
+	if err == nil {
+		err = complete(&prog, dir, &cfg, pkgs)
+	}
 	if err != nil {
 		return arch.Program{}, &arch.Error{Op: op, Err: err}
 	}
+	return prog, nil
+}
+
+// complete adds to the extracted program what needs the whole program: the
+// nested modules left out, the clones, and the run-time wiring, as cfg asks.
+func complete(prog *arch.Program, dir string, cfg *Config, pkgs []*packages.Package) error {
 	nested, err := nestedModules(dir, cfg.Patterns, pkgs)
 	if err != nil {
-		return arch.Program{}, &arch.Error{Op: op, Err: err}
+		return err
 	}
 	prog.Excluded = append(prog.Excluded, nested...)
 	slices.SortFunc(prog.Excluded, compareExcluded)
+	inScope := map[string]bool{}
+	for _, p := range pkgs {
+		inScope[p.PkgPath] = true
+	}
 	if cfg.Facts {
-		if prog.Facts.Clones, err = clonesOf(dir, &prog); err != nil {
-			return arch.Program{}, &arch.Error{Op: op, Err: err}
+		if prog.Facts.Clones, err = clonesOf(dir, prog); err != nil {
+			return err
+		}
+		if prog.Facts.TestUses, err = testUsesOf(pkgs, inScope); err != nil {
+			return err
 		}
 	}
-	return prog, nil
+	if cfg.Dispatches {
+		prog.Dispatches = dispatchesOf(pkgs, dir, inScope)
+	}
+	return nil
 }
 
 // loadErrors returns every error of the loaded packages and their

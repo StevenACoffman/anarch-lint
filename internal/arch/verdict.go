@@ -55,6 +55,12 @@ type VerificationEvent struct {
 	// Config identifies a judge's configuration: its model, version and
 	// prompt template. A human event has none.
 	Config string `json:"config,omitempty"`
+	// Confidence is the judge's stated confidence in [0, 1], and Cites the
+	// exhibits its reply cited; a human event has neither. Neither gates nor
+	// ranks anything until a gold set shows the confidence is calibrated
+	// (IMPROVEMENTS.md §7.5).
+	Confidence *float64 `json:"confidence,omitempty"`
+	Cites      []string `json:"cites,omitempty"`
 }
 
 // judgementsFile is the on-disk form of a set of verdicts. Signer names who
@@ -82,8 +88,10 @@ type verdictRecord struct {
 
 // eventRecord is an event as a file holds it: with no actor.
 type eventRecord struct {
-	Role   EventRole `json:"role"`
-	Config string    `json:"config,omitempty"`
+	Role       EventRole `json:"role"`
+	Config     string    `json:"config,omitempty"`
+	Confidence *float64  `json:"confidence,omitempty"`
+	Cites      []string  `json:"cites,omitempty"`
 }
 
 // DecodeJudgements reads a judgements file: {"version": 1, "signer": "…",
@@ -93,6 +101,13 @@ type eventRecord struct {
 // criterion, and a score or an invalid answer on a family slot are all
 // EINVALID.
 func DecodeJudgements(r io.Reader) ([]Verdict, error) {
+	_, verdicts, err := DecodeSignedJudgements(r)
+	return verdicts, err
+}
+
+// DecodeSignedJudgements reads a judgements file as DecodeJudgements does,
+// and returns its signer too, for a tool that rewrites the file.
+func DecodeSignedJudgements(r io.Reader) (string, []Verdict, error) {
 	const op = "arch.DecodeJudgements"
 	invalid := func(format string, args ...any) error {
 		return &Error{
@@ -104,29 +119,60 @@ func DecodeJudgements(r io.Reader) ([]Verdict, error) {
 	dec := json.NewDecoder(r)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&f); err != nil {
-		return nil, invalid("%v", err)
+		return "", nil, invalid("%v", err)
 	}
 	if f.Version != judgementsVersion {
-		return nil, invalid("version %d is not supported; want %d", f.Version, judgementsVersion)
+		return "", nil, invalid(
+			"version %d is not supported; want %d",
+			f.Version,
+			judgementsVersion,
+		)
 	}
 	seen := map[string]bool{}
 	out := make([]Verdict, 0, len(f.Verdicts))
 	for i := range f.Verdicts {
 		rec := &f.Verdicts[i]
 		if seen[rec.Criterion] {
-			return nil, invalid("criterion %s has two verdicts", rec.Criterion)
+			return "", nil, invalid("criterion %s has two verdicts", rec.Criterion)
 		}
 		v, msg := rec.verdict(f.Signer)
 		if msg == "" {
 			msg = v.problem()
 		}
 		if msg != "" {
-			return nil, invalid("criterion %s: %s", rec.Criterion, msg)
+			return "", nil, invalid("criterion %s: %s", rec.Criterion, msg)
 		}
 		seen[rec.Criterion] = true
 		out = append(out, v)
 	}
-	return out, nil
+	return f.Signer, out, nil
+}
+
+// EncodeJudgements writes verdicts as a judgements file signed by signer,
+// sorted by criterion, in the form DecodeJudgements reads. An event's actor
+// is not written: the signer is every event's actor.
+func EncodeJudgements(w io.Writer, signer string, verdicts []Verdict) error {
+	f := judgementsFile{
+		Version: judgementsVersion, Signer: signer,
+		Verdicts: make([]verdictRecord, 0, len(verdicts)),
+	}
+	for i := range verdicts {
+		v := &verdicts[i]
+		rec := verdictRecord{
+			Criterion: v.Criterion, Score: v.Score, Answer: v.Answer, Rationale: v.Rationale,
+			EvidenceHash: v.EvidenceHash, Edition: v.Edition,
+		}
+		for _, e := range v.Events {
+			rec.Events = append(rec.Events, eventRecord{
+				Role: e.Role, Config: e.Config, Confidence: e.Confidence, Cites: e.Cites,
+			})
+		}
+		f.Verdicts = append(f.Verdicts, rec)
+	}
+	slices.SortFunc(f.Verdicts, func(a, b verdictRecord) int {
+		return strings.Compare(a.Criterion, b.Criterion)
+	})
+	return WriteJSON(w, f)
 }
 
 // verdict converts a record, its events signed by signer, or says why it
@@ -170,7 +216,9 @@ func (rec *verdictRecord) signedEvents(signer string) ([]VerificationEvent, stri
 		if e.Role != RoleJudge && e.Role != RoleHuman {
 			return nil, fmt.Sprintf("role %q is not judge or human", e.Role)
 		}
-		out = append(out, VerificationEvent{Role: e.Role, Actor: signer, Config: e.Config})
+		out = append(out, VerificationEvent{
+			Role: e.Role, Actor: signer, Config: e.Config, Confidence: e.Confidence, Cites: e.Cites,
+		})
 	}
 	return out, ""
 }

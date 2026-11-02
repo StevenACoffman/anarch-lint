@@ -6,10 +6,6 @@ import (
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
 
-// ruleExposure is the finding of a widely used package with a strong
-// upstream dependency (connascence.md §9.6).
-const ruleExposure = "strong-upstream-exposure"
-
 // minExposureCa is the afferent coupling from which a strong upstream
 // dependency is a finding: borrowed guidance, listed among the assumptions.
 const minExposureCa = 10
@@ -124,7 +120,7 @@ func (v *packageView) exposureFindings(pkgs []PackageBalance) []arch.Finding {
 			continue
 		}
 		f := arch.NewFinding(
-			arch.FindingID{Rule: ruleExposure, Subject: pb.Path, Object: ""},
+			arch.FindingID{Rule: arch.RuleUpstreamExposure, Subject: pb.Path, Object: ""},
 			v.severity,
 		)
 		f.Message = fmt.Sprintf("%s has %d importers and a %s dependency on another subsystem; "+

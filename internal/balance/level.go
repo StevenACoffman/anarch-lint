@@ -5,6 +5,8 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
@@ -38,8 +40,11 @@ type evidence struct {
 	// nonImport marks a coupling that needs no import, which alone can cross
 	// a deploy boundary (connascence.md §9.3).
 	nonImport bool
-	site      arch.Site
-	note      string
+	// async marks a coupling through a message broker, known from a topic
+	// both sides name.
+	async bool
+	site  arch.Site
+	note  string
 }
 
 // classifier finds the integration level of every coupling between two
@@ -61,6 +66,9 @@ type classifier struct {
 	// whose fingerprint is in rejected are left out.
 	connascence []arch.Connascence
 	rejected    []string
+	// group, when set, groups packages other than by subsystem: by package
+	// itself, for the pairs within a subsystem.
+	group func(pkg string) string
 }
 
 // levelNames are the levels' names, indexed by level.
@@ -87,6 +95,83 @@ func (k *classifier) evidence() []evidence {
 	ev = append(ev, k.intrusiveEvidence()...)
 	ev = append(ev, k.useEvidence()...)
 	ev = append(ev, k.connascenceEvidence()...)
+	ev = append(ev, k.contractEvidence()...)
+	ev = append(ev, k.topicEvidence()...)
+	return ev
+}
+
+// topicEvidence is each pair of subsystems that pass one constant, a topic
+// or a queue's name, to the messaging clients the model names: they
+// integrate asynchronously through it, a fact that needs no reviewer, where
+// importing a client alone only asks one (connascence.md §9.3). The pair
+// has no direction, since a call does not say who publishes.
+func (k *classifier) topicEvidence() []evidence {
+	sites := k.topicSites()
+	var ev []evidence
+	for _, topic := range slices.Sorted(maps.Keys(sites)) {
+		subs := slices.Sorted(maps.Keys(sites[topic]))
+		for i, from := range subs {
+			for _, to := range subs[i+1:] {
+				a, b := sites[topic][from], sites[topic][to]
+				ev = append(ev, evidence{
+					from: from, to: to, fromPkg: a.Package, toPkg: b.Package,
+					level: LevelContract, basis: arch.BasisFact, kind: arch.StrengthName,
+					symmetric: true, nonImport: true, async: true, site: a,
+					note: fmt.Sprintf("%s and %s both name the topic %s to a messaging client",
+						siteName(a), siteName(b), topic),
+				})
+			}
+		}
+	}
+	return ev
+}
+
+// topicSites maps each constant passed to a messaging client the model
+// names, a topic or a queue's name, to the first site of each subsystem that
+// passes it.
+func (k *classifier) topicSites() map[string]map[string]arch.Site {
+	sites := map[string]map[string]arch.Site{}
+	if len(k.m.Balance.Messaging) == 0 {
+		return sites
+	}
+	for i := range k.p.Facts.ConstExprs {
+		e := &k.p.Facts.ConstExprs[i]
+		if e.Context != arch.ContextArgument || e.Type != "string" ||
+			!arch.MatchesAny(k.m.Balance.Messaging, arch.FuncPackage(e.Callee)) {
+			continue
+		}
+		if sites[e.Value] == nil {
+			sites[e.Value] = map[string]arch.Site{}
+		}
+		sub := k.subsystemOf(e.Site.Package)
+		if _, seen := sites[e.Value][sub]; !seen {
+			sites[e.Value][sub] = e.Site
+		}
+	}
+	return sites
+}
+
+// contractEvidence is each consumer of a contract another subsystem
+// provides, such as a request to a route its handler serves: coupling
+// through a published contract, which needs no import and so can cross a
+// deploy boundary (IMPROVEMENTS.md §5.1).
+func (k *classifier) contractEvidence() []evidence {
+	pairs, _ := arch.MatchContracts(arch.ContractsOf(&k.p.Facts))
+	var ev []evidence
+	for i := range pairs {
+		p := &pairs[i]
+		from, to := k.subsystemOf(p.Consumer.Package), k.subsystemOf(p.Provider.Package)
+		if from == to {
+			continue
+		}
+		ev = append(ev, evidence{
+			from: from, to: to, fromPkg: p.Consumer.Package, toPkg: p.Provider.Package,
+			level: LevelContract, basis: arch.BasisFact, kind: arch.StrengthName,
+			nonImport: true, site: p.Consumer,
+			note: fmt.Sprintf("%s consumes %s, which %s provides",
+				siteName(p.Consumer), p.ID, p.Provider.Package),
+		})
+	}
 	return ev
 }
 
@@ -147,7 +232,20 @@ func (k *classifier) intrusiveEvidence() []evidence {
 			fmt.Sprintf("%s converts %s through unsafe.Pointer", u.Site.Func, u.Type),
 		)
 	}
+	for i := range k.p.Facts.ReflectByNames {
+		rb := &k.p.Facts.ReflectByNames[i]
+		if t, ok := k.types[rb.Type]; ok && unexportedName(rb.Name) {
+			add(rb.Site, t.Package, fmt.Sprintf("%s looks up %s's unexported %q by reflection",
+				siteName(rb.Site), rb.Type, rb.Name))
+		}
+	}
 	return ev
+}
+
+// unexportedName reports a name that starts with a lower-case letter.
+func unexportedName(name string) bool {
+	first, _ := utf8.DecodeRuneInString(name)
+	return unicode.IsLower(first)
 }
 
 // useEvidence classifies each reference to another subsystem's object as
@@ -389,5 +487,8 @@ func siteName(s arch.Site) string {
 
 // subsystemOf returns a package's subsystem, or the package itself.
 func (k *classifier) subsystemOf(pkg string) string {
+	if k.group != nil {
+		return k.group(pkg)
+	}
 	return k.c.SubsystemOf(arch.Site{Package: pkg})
 }

@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "criterion": "connascence/5e1a07c2d9b34f18",
+      "evidence": [
+        "the regular expression \"^SKU-[0-9]{6}$\" is written in 2 packages",
+        "strength 5 (algorithm), locality system, degree 2",
+        "site: catalog/sku.go:12 (example.com/shop/catalog.ParseSKU)",
+        "site: warehouse/sku.go:30 (example.com/shop/warehouse.ValidSKU)"
+      ],
+      "undecided": "a detector found the shape of connascence, with high confidence that it is not chance, but not that the places must change together",
+      "answer": "confirmed",
+      "note": "both validate one SKU format: when it changes, both must change"
+    },
+    {
+      "criterion": "connascence/9b03c6e14a7f5d22",
+      "evidence": [
+        "2 packages call crypto/sha256",
+        "strength 5 (algorithm), locality system, degree 2",
+        "site: auth/token.go:20 (example.com/shop/auth.HashToken)",
+        "site: cache/key.go:8 (example.com/shop/cache.Key)"
+      ],
+      "undecided": "a detector found the shape of connascence, with low confidence that it is not chance, but not that the places must change together",
+      "answer": "rejected",
+      "note": "hashing a token and hashing a cache key are unrelated uses of a common library"
+    },
+    {
+      "criterion": "connascence/c4d8e2f0a6b19357",
+      "evidence": [
+        "the time layout \"2006-01-02\" is written in 2 packages",
+        "strength 5 (algorithm), locality system, degree 2",
+        "site: report/daily.go:15 (example.com/shop/report.DayLabel)",
+        "site: payments/webhook.go:41 (example.com/shop/payments.ParsePaidOn)"
+      ],
+      "undecided": "a detector found the shape of connascence, with high confidence that it is not chance, but not that the places must change together",
+      "answer": "rejected",
+      "note": "a decoy: one literal, but a report's display label and a payment provider's wire format evolve apart"
+    },
+    {
+      "criterion": "contract-type/example.com/shop/api.OrderPlaced",
+      "evidence": [
+        "type example.com/shop/api.OrderPlaced (struct) in package example.com/shop/api",
+        "fields: OrderID, PlacedAt, Total, SchemaVersion"
+      ],
+      "undecided": "the type plays no contract role, yet another subsystem uses it",
+      "answer": "contract",
+      "note": "a versioned event of plain fields, published for other subsystems"
+    },
+    {
+      "criterion": "contract-type/example.com/shop/order.Order",
+      "evidence": [
+        "type example.com/shop/order.Order (struct) in package example.com/shop/order",
+        "fields: id, lines, status, history"
+      ],
+      "undecided": "the type plays no contract role, yet another subsystem uses it",
+      "answer": "model",
+      "note": "unexported state: the aggregate itself, not a message about it"
+    },
+    {
+      "criterion": "contract-type/example.com/shop/order.OrderRequest",
+      "evidence": [
+        "type example.com/shop/order.OrderRequest (struct) in package example.com/shop/order",
+        "fields: lines, status, reserve, discountPolicy"
+      ],
+      "undecided": "the type plays no contract role, yet another subsystem uses it",
+      "answer": "model",
+      "note": "a decoy: named like a request, but its unexported fields and policy are the model's"
+    }
+  ]
+}

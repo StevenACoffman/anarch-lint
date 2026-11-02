@@ -4,18 +4,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
-)
-
-// Rules of the Balanced Coupling findings and candidates.
-const (
-	ruleTightCoupling = "tight-coupling-"
-	ruleLeakedModel   = "leaked-model"
-	ruleLowCohesion   = "low-cohesion"
-	ruleReflection    = "intrusive-reflection"
 )
 
 // judge turns pairs and the program's own structure into findings and
@@ -45,10 +35,10 @@ func (j *judge) judgePair(r *Report, p *Pair) {
 	switch {
 	case p.Quadrant == QuadrantTightCoupling && lowVolatility:
 		r.Suppressed = append(r.Suppressed,
-			j.slots.suppression("subdomain/"+p.To, ruleTightCoupling+p.Level.String(), p))
+			j.slots.suppression("subdomain/"+p.To, arch.TightCouplingRule(p.Level.String()), p))
 	case p.Quadrant == QuadrantTightCoupling:
 		j.gateable(r, p, &Candidate{
-			Rule:    ruleTightCoupling + p.Level.String(),
+			Rule:    arch.TightCouplingRule(p.Level.String()),
 			Subject: p.From,
 			Object:  p.To,
 			Message: fmt.Sprintf("%s couples to %s at the %s level across a distance of %d, "+
@@ -62,10 +52,10 @@ func (j *judge) judgePair(r *Report, p *Pair) {
 	}
 	if j.sharesModelOnPurpose(p) {
 		r.Suppressed = append(r.Suppressed,
-			j.slots.suppression("integration-pattern/"+p.From+"->"+p.To, ruleLeakedModel, p))
+			j.slots.suppression("integration-pattern/"+p.From+"->"+p.To, arch.RuleLeakedModel, p))
 	} else {
 		j.gateable(r, p, &Candidate{
-			Rule:    ruleLeakedModel,
+			Rule:    arch.RuleLeakedModel,
 			Subject: p.From,
 			Object:  p.To,
 			Message: fmt.Sprintf("bounded contexts %s and %s share %s's model", p.From, p.To, p.To),
@@ -186,7 +176,7 @@ func (j *judge) cohesionCandidates() []Candidate {
 	for _, c := range arch.CohesionOf(j.p) {
 		if c.LCOM4 > 1 {
 			out = append(out, fingerprinted(&Candidate{
-				Rule:    ruleLowCohesion,
+				Rule:    arch.RuleLowCohesion,
 				Subject: c.Type,
 				Message: fmt.Sprintf(
 					"%s has %d independent groups of methods and fields",
@@ -199,7 +189,7 @@ func (j *judge) cohesionCandidates() []Candidate {
 	}
 	for _, pkg := range j.unrelatedFilePackages() {
 		out = append(out, fingerprinted(&Candidate{
-			Rule:    ruleLowCohesion,
+			Rule:    arch.RuleLowCohesion,
 			Subject: pkg,
 			Message: fmt.Sprintf(
 				"no file of %s refers to a name another of its files declares",
@@ -237,19 +227,20 @@ func (j *judge) unrelatedFilePackages() []string {
 	return out
 }
 
-// reflectionCandidates are reflect lookups of an unexported name: access to
-// some type's implementation details, intrusive coupling to a type the
-// source does not name.
+// reflectionCandidates are reflect lookups of an unexported name in a type
+// the source does not name: access to some type's implementation details,
+// intrusive coupling to an unknown type. A lookup into a known type is a
+// fact, which the pairs read as intrusive evidence instead.
 func (j *judge) reflectionCandidates() []Candidate {
 	var out []Candidate
 	for i := range j.p.Facts.ReflectByNames {
 		rb := &j.p.Facts.ReflectByNames[i]
-		if first, _ := utf8.DecodeRuneInString(rb.Name); !unicode.IsLower(first) {
+		if !unexportedName(rb.Name) || rb.Type != "" {
 			continue
 		}
 		site := rb.Site
 		out = append(out, fingerprinted(&Candidate{
-			Rule: ruleReflection, Subject: rb.Site.Package, Object: rb.Name,
+			Rule: arch.RuleIntrusiveReflection, Subject: rb.Site.Package, Object: rb.Name,
 			Message: fmt.Sprintf(
 				"%s looks up the unexported name %q with %s",
 				siteName(

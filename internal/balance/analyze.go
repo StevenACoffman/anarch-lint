@@ -65,6 +65,15 @@ type Report struct {
 	// supporting or generic subdomain, or a model two bounded contexts share
 	// by design. Each names the slot and who attested it, for audit.
 	Suppressed []Suppression `json:"suppressed"`
+	// PackagePairs are the pairs of packages within one subsystem, when the
+	// model asks for them: where distance is low, so weak coupling, not
+	// strong, is the imbalance (connascence.md §9.8). Reported, never gated.
+	PackagePairs []Pair `json:"packagePairs,omitempty"`
+	// Contracts are the contracts the program provides and consumes, and
+	// ContractPairs those it both provides and consumes, in different
+	// packages: coupling through a contract (IMPROVEMENTS.md §5.1).
+	Contracts     []arch.Contract     `json:"contracts"`
+	ContractPairs []arch.ContractPair `json:"contractPairs"`
 	// Judgements ask a reviewer for subdomains, bounded contexts,
 	// integration patterns, contract types, asynchrony, and the candidates
 	// that would gate if confirmed.
@@ -149,6 +158,9 @@ func Analyze(in *Input) Report {
 		Suppressed:  make([]Suppression, 0),
 		Assumptions: assumptions(),
 	}
+	r.Contracts = append(make([]arch.Contract, 0), arch.ContractsOf(&s.p.Facts)...)
+	pairs, _ := arch.MatchContracts(r.Contracts)
+	r.ContractPairs = append(make([]arch.ContractPair, 0), pairs...)
 	ev := s.classifier().evidence()
 	owners, ownerFindings := s.subsystemOwners()
 	deploys := s.deployUnits()
@@ -163,7 +175,15 @@ func Analyze(in *Input) Report {
 	}
 	r.Pairs = s.pairs(groups, &pairContext{
 		owners: owners, deploys: deploys, async: async, volatility: volatility,
+		base: distanceSubsystem, locality: arch.LocalitySystem,
 	})
+	if s.m.Balance.Packages {
+		r.PackagePairs = s.packagePairs(&pairContext{
+			owners: in.Owners, deploys: deploys, async: async,
+			volatility: s.packageVolatility(volatility),
+			base:       distancePackage, locality: arch.LocalitySubsystem,
+		})
+	}
 	r.Skipped = slices.Concat(make([]SkippedSlot, 0), skippedSubdomains, s.boundedContexts(&r, ev))
 	view := &packageView{p: s.p, g: &s.g, severity: s.severity()}
 	r.Packages = view.packages(ev)
@@ -181,6 +201,30 @@ func Analyze(in *Input) Report {
 	sortCandidates(r.Candidates)
 	sortCandidates(r.Rejected)
 	return r
+}
+
+// packagePairs pairs the packages of each subsystem by the evidence
+// between them, which the classifier groups by package.
+func (s *subject) packagePairs(ctx *pairContext) []Pair {
+	k := s.classifier()
+	k.group = func(pkg string) string { return pkg }
+	all := k.evidence()
+	var within []evidence
+	for i := range all {
+		if s.subsystemOf(all[i].fromPkg) == s.subsystemOf(all[i].toPkg) {
+			within = append(within, all[i])
+		}
+	}
+	return s.pairs(groupPairs(within), ctx)
+}
+
+// packageVolatility gives each package its subsystem's volatility.
+func (s *subject) packageVolatility(bySubsystem map[string]string) map[string]string {
+	out := map[string]string{}
+	for _, pkg := range s.p.Packages {
+		out[pkg.Path] = bySubsystem[s.subsystemOf(pkg.Path)]
+	}
+	return out
 }
 
 // newSubject builds the graphs and lookups every part reads.

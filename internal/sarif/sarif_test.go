@@ -32,14 +32,16 @@ func TestWriteGate(t *testing.T) {
 		f.Location, f.Message, f.Fix = loc, rule+" message", "do something"
 		return f
 	}
+	governed := finding(
+		"layer-violation",
+		arch.SeverityError,
+		&arch.Span{File: "a/a.go", Start: 3, End: 3},
+	)
+	governed.ModelRule, governed.QualityAttribute = "layers", arch.QualityMaintainability
 	result := arch.GateResult{
 		Comparable: true,
 		New: []arch.Finding{
-			finding(
-				"layer-violation",
-				arch.SeverityError,
-				&arch.Span{File: "a/a.go", Start: 3, End: 3},
-			),
+			governed,
 			finding("package-outside-architecture", arch.SeverityError, nil),
 		},
 		NewWarnings: []arch.Finding{
@@ -102,6 +104,9 @@ func TestWriteGate(t *testing.T) {
 		equals(t, 1, len(r.PartialFingerprints))
 		results = append(results, g)
 	}
+	equals(t, map[string]any{"modelRule": "layers", "qualityAttribute": "maintainability"},
+		map[string]any(run.Results[0].Properties))
+	equals(t, 0, len(run.Results[1].Properties))
 	equals(t, []got{
 		{rule: "layer-violation", level: "error", file: "a/a.go", line: 3},
 		{rule: "package-outside-architecture", level: "error", file: "anarch.json"},

@@ -8,22 +8,6 @@ import (
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
 
-// Rule names of the fitness findings, one per kind.
-const (
-	ruleLayerAccess   = "layer-access"
-	ruleStrictLayers  = "strict-layers"
-	ruleOnion         = "onion-ring"
-	ruleSliceDep      = "slice-dependency"
-	ruleSliceCycle    = "slice-cycle"
-	ruleDependents    = "dependent-restriction"
-	ruleForbiddenCall = "forbidden-call"
-	ruleCallOnly      = "call-restriction"
-	ruleInterfaces    = "interfaces-only"
-	ruleEmptySelector = "empty-selector"
-	ruleNoReason      = "rule-without-reason"
-	ruleOutside       = "package-outside-architecture"
-)
-
 // constraint is one rule compiled to a predicate over an import: layer
 // access, strict layers, the onion, slices and dependents all become
 // constraints, which one pass over the imports checks.
@@ -94,27 +78,32 @@ func (s *subject) importConstraints() []constraint {
 // sorted order: the build's, then those of the files it excludes.
 func (s *subject) checkImports(cs []constraint) {
 	for _, imp := range s.p.RuleImports() {
-		_, inScope := s.g.SubsystemOf[imp.To]
 		for _, c := range cs {
-			if !inScope && !c.anyTarget {
-				continue
+			if f, ok := s.importFinding(&c, &imp); ok {
+				s.violation(c.rule, &f)
 			}
-			why := c.violates(imp.From, imp.To)
-			if why == "" {
-				continue
-			}
-			f := arch.NewFinding(arch.FindingID{
-				Rule: c.kind, Subject: imp.From, Object: c.rule.result.Name + ": " + imp.To,
-			}, arch.SeverityError)
-			f.Location = arch.SpanAt(imp.Pos)
-			f.Message = fmt.Sprintf("%s imports %s: %s", imp.From, imp.To, why)
-			f.Fix = c.fix
-			if imp.Inactive {
-				f.Evidence = []string{arch.InactiveEvidence}
-			}
-			s.violation(c.rule, &f)
 		}
 	}
+}
+
+// importFinding returns the finding of c's violation by imp, and false when
+// c does not check imp or imp breaks nothing c states.
+func (s *subject) importFinding(c *constraint, imp *arch.Import) (arch.Finding, bool) {
+	if _, inScope := s.g.SubsystemOf[imp.To]; !inScope && !c.anyTarget {
+		return arch.Finding{}, false
+	}
+	why := c.violates(imp.From, imp.To)
+	if why == "" {
+		return arch.Finding{}, false
+	}
+	f := arch.NewFinding(arch.FindingID{
+		Rule: c.kind, Subject: imp.From, Object: c.rule.result.Name + ": " + imp.To,
+	}, arch.SeverityError)
+	f.Location = arch.SpanAt(imp.Pos)
+	f.Message = fmt.Sprintf("%s imports %s: %s", imp.From, imp.To, why)
+	f.Fix = c.fix
+	f.Provenance = imp.Provenance()
+	return f, true
 }
 
 // strictLayers lets each layer import only the one directly below it. An
@@ -127,7 +116,7 @@ func (s *subject) strictLayers() constraint {
 		index[l.Name] = i
 	}
 	return constraint{
-		rule: r, kind: ruleStrictLayers, reads: s.layerKey,
+		rule: r, kind: arch.RuleStrictLayers, reads: s.layerKey,
 		fix: "import through the layer directly below, or move the code into it",
 		violates: func(from, to string) string {
 			a, okA := s.g.LayerAssignment.Of[from]
@@ -151,7 +140,7 @@ func (s *subject) layerAccess(la *arch.LayerAccess, i int) constraint {
 	}
 	return constraint{
 		rule:       r,
-		kind:       ruleLayerAccess,
+		kind:       arch.RuleLayerAccess,
 		fix:        "depend through a layer the rule allows, or change the rule if the dependency is intended",
 		violates:   func(from, to string) string { return s.layerViolation(la, from, to) },
 		reads:      s.layerKey,
@@ -249,7 +238,7 @@ func (s *subject) onion(o *arch.Onion) constraint {
 	r.result.Matched = len(rings)
 	names := []string{"domain model", "domain service", "application service", "adapter"}
 	return constraint{
-		rule: r, kind: ruleOnion,
+		rule: r, kind: arch.RuleOnion,
 		reads: func(pkg string) string {
 			if rg, ok := rings[pkg]; ok {
 				return fmt.Sprintf("ring %d %s", rg.level, rg.adapter)
@@ -310,7 +299,7 @@ func (s *subject) sliceIsolation(sl *arch.Slices, i int) constraint {
 	r := s.sliceRule(sl, i)
 	slice := s.sliceOf(sl.Pattern)
 	return constraint{
-		rule: r, kind: ruleSliceDep,
+		rule: r, kind: arch.RuleSliceDependency,
 		reads: func(pkg string) string {
 			if v, ok := slice[pkg]; ok {
 				return "slice " + v
@@ -365,7 +354,7 @@ func (s *subject) dependents(d *arch.Dependents, i int) constraint {
 	}
 	r.result.Matched = len(targets) + s.matchingPackages(d.Packages)
 	return constraint{
-		rule: r, kind: ruleDependents, anyTarget: true,
+		rule: r, kind: arch.RuleDependents, anyTarget: true,
 		reads:      func(pkg string) string { return matchBits(pkg, d.Packages, d.OnlyFrom) },
 		allowances: dependentAllowances(d),
 		fix:        "reach the package through one of the packages the rule allows",

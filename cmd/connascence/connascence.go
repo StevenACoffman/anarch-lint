@@ -10,6 +10,7 @@ import (
 
 	"github.com/StevenACoffman/anarch-lint/cmd/root"
 	"github.com/StevenACoffman/anarch-lint/internal/connascence"
+	"github.com/StevenACoffman/anarch-lint/internal/pipeline"
 	"github.com/StevenACoffman/anarch-lint/internal/text"
 )
 
@@ -49,7 +50,7 @@ otherwise. It always exits 0 once the packages load; use check to gate.`,
 }
 
 func (cfg *Config) exec(ctx context.Context, args []string) error {
-	l, err := cfg.Load(ctx, args, root.AllFacts)
+	l, err := cfg.Load(ctx, args, pipeline.AllFacts)
 	if err != nil {
 		return fmt.Errorf("connascence: %w", err)
 	}

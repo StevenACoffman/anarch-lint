@@ -64,6 +64,11 @@ type Facts struct {
 	ReflectByNames []ReflectByName `json:"reflectByNames"`
 	Calls          []Call          `json:"calls"`
 	Clones         []CloneGroup    `json:"clones"`
+	// TestUses are the package-level objects of the packages under analysis
+	// that their external test packages (package x_test) name, as
+	// "pkg.Name", sorted. They are read from the test files' syntax alone,
+	// since tests are not loaded, so a method called on a value is missed.
+	TestUses []string `json:"testUses,omitempty"`
 }
 
 // CloneGroup is a run of code repeated in several places, as
@@ -88,7 +93,10 @@ type Use struct {
 	// Owner is the type a method or field belongs to, "" otherwise.
 	Owner string `json:"owner,omitempty"`
 	Count int    `json:"count"`
-	Site  Site   `json:"site"`
+	// Writes counts the references that write a field: an assignment, an
+	// increment, or a keyed composite literal setting it.
+	Writes int  `json:"writes,omitempty"`
+	Site   Site `json:"site"`
 }
 
 // Call is one function's calls of one function or method, in scope or not,
@@ -258,6 +266,9 @@ type ReflectByName struct {
 	Method string `json:"method"`
 	// Name is the constant name looked up, "" when it is not a constant.
 	Name string `json:"name,omitempty"`
+	// Type is the in-scope type looked into, when the reflect value was made
+	// from a value of a known named type; "" otherwise.
+	Type string `json:"type,omitempty"`
 	Site Site   `json:"site"`
 }
 
@@ -272,6 +283,9 @@ type Churn struct {
 	// Commits maps a file, relative to the analysis root, to the sorted
 	// hashes of the commits in the range that changed it.
 	Commits map[string][]string `json:"commits"`
+	// Authors maps each commit to its author's email. Only their number is
+	// ever reported, and git authorship is never an owner.
+	Authors map[string]string `json:"-"`
 }
 
 // Coverage is a test coverage profile, as go test -coverprofile writes one,

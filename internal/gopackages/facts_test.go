@@ -197,14 +197,26 @@ func TestLoadFactsUsesAndPackages(t *testing.T) {
 func TestLoadFactsBodyHash(t *testing.T) {
 	t.Parallel()
 	p := loadFacts(t)
-	hashed := map[string]string{}
+	shape, exact := map[string]string{}, map[string]string{}
 	for _, fn := range p.Funcs {
 		if fn.BodyHash != "" {
-			hashed[fn.ID] = fn.BodyHash
+			shape[fn.ID], exact[fn.ID] = fn.BodyHash, fn.ExactHash
 		}
 	}
-	equals(t, 2, len(hashed))
-	equals(t, hashed["example.com/cx/billing.Total"], hashed["example.com/cx/web.Tally"])
+	const total = "example.com/cx/billing.Total"
+	equals(t, 4, len(shape))
+	for _, id := range []string{
+		"example.com/cx/web.Tally", "example.com/cx/audit.Count",
+		"example.com/cx/state.Total",
+	} {
+		equals(t, shape[total], shape[id])
+	}
+	// state.Total is a copy with a comment and a blank line; the others only
+	// share the shape.
+	equals(t, exact[total], exact["example.com/cx/state.Total"])
+	if exact[total] == exact["example.com/cx/web.Tally"] {
+		t.Error("a renamed copy hashes as a copy")
+	}
 }
 
 // Without Facts, the loader does no more than analyze needs.
@@ -227,4 +239,49 @@ func TestLoadFactsCalls(t *testing.T) {
 	equals(t, 1, calls["time.Sleep from example.com/cx/state.Wait"])
 	equals(t, 1, calls["example.com/cx/auth.Version from example.com/cx/audit.Record"])
 	equals(t, 1, calls["(*regexp.Regexp).MatchString from example.com/cx/billing.Valid"])
+}
+
+// A use of a field counts the references that write it: a keyed literal and
+// an assignment write N, and the right-hand side reads it.
+func TestLoadFactsFieldWrites(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("loads and type-checks a module; skipped with -short")
+	}
+	p, err := gopackages.Load(context.Background(), gopackages.Config{
+		Dir: "../../testdata/gx", Patterns: []string{"./kinds"}, Facts: true,
+	})
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	const counter = "example.com/gx/kinds.Counter"
+	var got []arch.Use
+	for _, u := range p.Facts.Uses {
+		if u.Object == counter+".N" {
+			got = append(got, u)
+		}
+	}
+	if len(got) != 1 {
+		t.Fatalf("want one use of %s.N, got %v", counter, got)
+	}
+	equals(t, "example.com/gx/kinds.Worker.Run", got[0].Site.Func)
+	equals(t, counter, got[0].Owner)
+	equals(t, 3, got[0].Count)
+	equals(t, 2, got[0].Writes)
+}
+
+// External tests are not loaded, but the names they qualify are read from
+// their syntax: memory's test names memory.Store.
+func TestLoadFactsTestUses(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("loads and type-checks a module; skipped with -short")
+	}
+	p, err := gopackages.Load(context.Background(), gopackages.Config{
+		Dir: "../../testdata/gx", Patterns: []string{"./wiring/..."}, Facts: true,
+	})
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	equals(t, []string{"example.com/gx/wiring/memory.Store"}, p.Facts.TestUses)
 }

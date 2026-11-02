@@ -14,29 +14,9 @@ const (
 	SeverityWarning Severity = "warning"
 )
 
-// Rule names, one per architecture predicate (mmi.md §7.4).
+// fingerprintBytes is how many bytes of the hash a fingerprint keeps.
 const (
-	RuleUnassignedPackage     = "unassigned-package"
-	RuleAmbiguousPackage      = "ambiguous-package"
-	RuleStalePattern          = "stale-pattern"
-	RuleLayerOrder            = "layer-order-violation"
-	RuleSubsystemOrder        = "subsystem-order-violation"
-	RuleInterfaceBypass       = "interface-bypass"
-	RuleSubsystemWithoutIface = "subsystem-without-interface"
-	RuleForbiddenImport       = "forbidden-import"
-	RuleIsolation             = "isolation-violation"
-	RuleHiddenDependency      = "hidden-dependency"
-	RuleRoleOrder             = "role-order-violation"
-	RuleUnknownRole           = "unknown-role-directive"
-	RuleSubsystemCycle        = "subsystem-cycle"
-	RuleTypeCycleTooLarge     = "type-cycle-too-large"
-	RuleLargeFunc             = "large-func"
-	RuleComplexFunc           = "complex-func"
-	RuleLargeType             = "large-type"
-	RuleLargeFile             = "large-file"
-	RuleDeepNesting           = "deep-nesting"
-	RuleCognitive             = "cognitive-complexity"
-	fingerprintBytes          = 8
+	fingerprintBytes = 8
 )
 
 // Severity says whether a finding can fail the gate.
@@ -67,6 +47,16 @@ type Finding struct {
 	// reader can find it in anarch.json; the compliance measure counts by it.
 	// It is not part of the fingerprint.
 	ModelRule string `json:"modelRule,omitempty"`
+	// QualityAttribute is the quality the model says the broken rule
+	// protects. It is not part of the fingerprint.
+	QualityAttribute QualityAttribute `json:"qualityAttribute,omitempty"`
+	// Provenance says how the edge the finding rests on was known, for a
+	// finding about an import or an injection. It is not part of the
+	// fingerprint.
+	Provenance Provenance `json:"provenance,omitempty"`
+	// Reach is how many packages depend on the package the finding is
+	// about, which check ranks by. It is not part of the fingerprint.
+	Reach int `json:"reach,omitempty"`
 	// sites are the places besides Location that the finding rests on, such
 	// as every import of a subsystem cycle: a change to any of them scopes
 	// the finding (docs/adr/0011). Only the gate reads them.

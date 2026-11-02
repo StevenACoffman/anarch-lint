@@ -14,7 +14,9 @@ import (
 	"errors"
 	"io"
 	"math"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -22,6 +24,13 @@ import (
 
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
+
+// FileAt names a file at a revision: Path is relative to the directory git
+// runs in.
+type FileAt struct {
+	Rev  string
+	Path string
+}
 
 // ChangedLines returns the lines added or modified since rev in the work tree
 // of dir, relative to dir, plus every line of each untracked file, which a
@@ -54,6 +63,77 @@ func ChangedLines(ctx context.Context, dir, rev string) (arch.ChangedLines, erro
 		}
 	}
 	return changed, nil
+}
+
+// Show returns the contents of a file at a revision, in the repository that
+// holds dir. An unknown revision, such as one a shallow clone lacks, is
+// EINVALID; a revision without the file is ENOTFOUND.
+func Show(ctx context.Context, dir string, file FileAt) ([]byte, error) {
+	const op = "git.Show"
+	rev, path := file.Rev, file.Path
+	if err := gitOnPath(); err != nil {
+		return nil, &arch.Error{Op: op, Err: err}
+	}
+	if _, err := run(ctx, dir, "rev-parse", "--verify", "--quiet", "--end-of-options",
+		rev+"^{commit}"); err != nil {
+		return nil, &arch.Error{Op: op, Err: &arch.Error{
+			Code: arch.EINVALID, Message: "unknown revision " + rev,
+		}}
+	}
+	// rev is a verified commit, so the object name cannot be read as an
+	// option; "./" makes the path relative to dir rather than to the root.
+	object := rev + ":./" + filepath.ToSlash(path)
+	if _, err := run(ctx, dir, "cat-file", "-e", object); err != nil {
+		return nil, &arch.Error{Op: op, Err: &arch.Error{
+			Code: arch.ENOTFOUND, Message: path + " does not exist at " + rev,
+		}}
+	}
+	out, err := run(ctx, dir, "cat-file", "blob", object)
+	if err != nil {
+		return nil, &arch.Error{Op: op, Err: err}
+	}
+	return out, nil
+}
+
+// Worktree checks rev out, detached, into a new temporary directory, and
+// returns the directory that corresponds there to dir, with a function that
+// removes the checkout. The work tree and index of dir are untouched.
+func Worktree(ctx context.Context, dir, rev string) (string, func() error, error) {
+	const op = "git.Worktree"
+	if err := gitOnPath(); err != nil {
+		return "", nil, &arch.Error{Op: op, Err: err}
+	}
+	prefix, err := run(ctx, dir, "rev-parse", "--show-prefix")
+	if err != nil {
+		return "", nil, &arch.Error{Op: op, Err: err}
+	}
+	if _, err := run(ctx, dir, "rev-parse", "--verify", "--quiet", "--end-of-options",
+		rev+"^{commit}"); err != nil {
+		return "", nil, &arch.Error{Op: op, Err: &arch.Error{
+			Code: arch.EINVALID, Message: "unknown revision " + rev,
+		}}
+	}
+	tmp, err := os.MkdirTemp("", "anarch-lint-base-")
+	if err != nil {
+		return "", nil, &arch.Error{
+			Op:  op,
+			Err: &arch.Error{Code: arch.EINTERNAL, Message: err.Error()},
+		}
+	}
+	root := filepath.Join(tmp, "base")
+	if _, err := run(ctx, dir, "worktree", "add", "--detach", "--quiet", "--end-of-options",
+		root, rev); err != nil {
+		_ = os.RemoveAll(tmp)
+		return "", nil, &arch.Error{Op: op, Err: err}
+	}
+	remove := func() error {
+		_, err := run(context.WithoutCancel(ctx), dir, "worktree", "remove", "--force", root)
+		if rmErr := os.RemoveAll(tmp); err == nil && rmErr != nil {
+			err = &arch.Error{Code: arch.EINTERNAL, Message: rmErr.Error()}
+		}
+		return err
+	}
+	return filepath.Join(root, strings.TrimSpace(string(prefix))), remove, nil
 }
 
 // ParseDiff parses a unified diff, as git diff writes it, into the ranges of

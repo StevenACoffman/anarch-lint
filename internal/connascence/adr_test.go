@@ -45,3 +45,52 @@ func TestCandidateSlotHidesTheLimits(t *testing.T) {
 	equals(t, 1, len(slot.Context))
 	equals(t, true, strings.HasPrefix(slot.Context[0], "over the limits: above maxStrength."))
 }
+
+// docs/adr/0013: within a group of one body shape, copies in two or more
+// packages are a fact with no slot, and the bodies that share only the shape
+// stay a candidate; the part that keeps the group's first function keeps its
+// fingerprint.
+func TestADR_0013_CopiesAreFactsAndShapesCandidates(t *testing.T) {
+	t.Parallel()
+	fn := func(id, pkg, exact string) arch.Func {
+		return arch.Func{
+			ID: id, Package: pkg, BodyHash: "shape", ExactHash: exact,
+			Span: arch.Span{File: pkg + ".go", Start: 1, End: 20},
+		}
+	}
+	shapeOnly := func(fs ...arch.Func) []arch.Connascence {
+		p := arch.Program{Funcs: fs, Packages: []arch.Package{
+			{Path: "m/auth", Module: "m"},
+			{Path: "m/billing", Module: "m"},
+			{Path: "m/web", Module: "m"},
+		}}
+		var out []arch.Connascence
+		for _, c := range connascence.Instances(&p, model(true)) {
+			if c.Detector == "algorithm.clone" {
+				out = append(out, c)
+			}
+		}
+		return out
+	}
+	before := shapeOnly(fn("m/auth.A", "m/auth", "x"), fn("m/web.C", "m/web", "z"))
+	after := shapeOnly(
+		fn("m/auth.A", "m/auth", "x"), fn("m/billing.B", "m/billing", "x"),
+		fn("m/web.C", "m/web", "z"), fn("m/billing.D", "m/billing", "y"),
+	)
+	if len(before) != 1 || len(after) != 2 {
+		t.Fatalf(
+			"want one group before and two parts after, got %d and %d",
+			len(before),
+			len(after),
+		)
+	}
+	copies, shapes := after[0], after[1]
+	if copies.Basis != arch.BasisFact {
+		copies, shapes = shapes, copies
+	}
+	equals(t, arch.BasisFact, copies.Basis)
+	equals(t, "m/auth.A", copies.Subject)
+	equals(t, before[0].Fingerprint, copies.Fingerprint)
+	equals(t, arch.BasisCandidate, shapes.Basis)
+	equals(t, "m/billing.D", shapes.Subject)
+}

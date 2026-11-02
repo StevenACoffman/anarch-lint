@@ -110,13 +110,17 @@ func gitAvailable() bool {
 	return err == nil
 }
 
-func TestChangedLinesInRepository(t *testing.T) {
-	t.Parallel()
+// repository makes an empty repository in a temporary directory, and
+// returns it with a function that runs git there and one that writes a file.
+func repository(
+	t *testing.T,
+) (dir string, gitIn func(...string), write func(name, content string)) {
+	t.Helper()
 	if testing.Short() || !gitAvailable() {
 		t.Skip("needs git; skipped with -short")
 	}
-	dir := t.TempDir()
-	gitIn := func(args ...string) {
+	dir = t.TempDir()
+	gitIn = func(args ...string) {
 		t.Helper()
 		//nolint:gosec // G204: the program is the constant "git" and every argument is a literal of this test
 		cmd := exec.CommandContext(t.Context(), "git", append([]string{
@@ -127,13 +131,23 @@ func TestChangedLinesInRepository(t *testing.T) {
 			t.Fatalf("git %v: %v\n%s", args, err, out)
 		}
 	}
-	write := func(name, content string) {
+	write = func(name, content string) {
 		t.Helper()
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {
+		path := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
 	gitIn("init", "-q")
+	return dir, gitIn, write
+}
+
+func TestChangedLinesInRepository(t *testing.T) {
+	t.Parallel()
+	dir, gitIn, write := repository(t)
 	write("a.go", "package a\n\nfunc A() {}\n")
 	gitIn("add", "a.go")
 	gitIn("commit", "-q", "-m", "init")
@@ -154,5 +168,64 @@ func TestChangedLinesInRepository(t *testing.T) {
 	}, changed)
 
 	_, err = git.ChangedLines(context.Background(), dir, "no-such-rev")
+	equals(t, arch.EINVALID, arch.ErrorCode(err))
+}
+
+// TestShow: a file at a revision, relative to a directory below the root;
+// a file the revision lacks; and an unknown revision.
+func TestShow(t *testing.T) {
+	t.Parallel()
+	dir, gitIn, write := repository(t)
+	write("sub/anarch.json", `{"version": 1}`)
+	gitIn("add", ".")
+	gitIn("commit", "-q", "-m", "init")
+	write("sub/anarch.json", `{"version": 1, "layers": []}`)
+	sub := filepath.Join(dir, "sub")
+
+	src, err := git.Show(context.Background(), sub, git.FileAt{Rev: "HEAD", Path: "anarch.json"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	equals(t, `{"version": 1}`, string(src))
+	_, err = git.Show(context.Background(), sub, git.FileAt{Rev: "HEAD", Path: "missing.json"})
+	equals(t, arch.ENOTFOUND, arch.ErrorCode(err))
+	_, err = git.Show(
+		context.Background(),
+		sub,
+		git.FileAt{Rev: "no-such-rev", Path: "anarch.json"},
+	)
+	equals(t, arch.EINVALID, arch.ErrorCode(err))
+}
+
+// TestWorktree: a revision checked out apart, at the directory that
+// corresponds to dir, and removed again; the work tree is untouched.
+func TestWorktree(t *testing.T) {
+	t.Parallel()
+	dir, gitIn, write := repository(t)
+	write("sub/a.go", "package a // v1\n")
+	gitIn("add", ".")
+	gitIn("commit", "-q", "-m", "init")
+	write("sub/a.go", "package a // v2\n")
+
+	base, remove, err := git.Worktree(context.Background(), filepath.Join(dir, "sub"), "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	equals(t, "sub", filepath.Base(base))
+	src, err := os.ReadFile(filepath.Join(base, "a.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	equals(t, "package a // v1\n", string(src))
+	if err := remove(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(base); !os.IsNotExist(err) {
+		t.Fatalf("the checkout remains: %v", err)
+	}
+	src, _ = os.ReadFile(filepath.Join(dir, "sub", "a.go"))
+	equals(t, "package a // v2\n", string(src))
+
+	_, _, err = git.Worktree(context.Background(), dir, "no-such-rev")
 	equals(t, arch.EINVALID, arch.ErrorCode(err))
 }

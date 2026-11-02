@@ -23,7 +23,10 @@ import (
 	"github.com/StevenACoffman/anarch-lint/cmd/baseline"
 	"github.com/StevenACoffman/anarch-lint/cmd/check"
 	"github.com/StevenACoffman/anarch-lint/cmd/connascence"
+	"github.com/StevenACoffman/anarch-lint/cmd/diagram"
+	"github.com/StevenACoffman/anarch-lint/cmd/explain"
 	"github.com/StevenACoffman/anarch-lint/cmd/fitness"
+	"github.com/StevenACoffman/anarch-lint/cmd/judge"
 	"github.com/StevenACoffman/anarch-lint/cmd/render"
 	"github.com/StevenACoffman/anarch-lint/cmd/root"
 	"github.com/StevenACoffman/anarch-lint/cmd/schema"
@@ -54,6 +57,9 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	fitness.New(r)
 	baseline.New(r)
 	check.New(r)
+	explain.New(r)
+	judge.New(r)
+	diagram.New(r)
 	schema.New(r)
 	render.New(r)
 	if err := r.Command.Parse(args, ff.WithEnvVarPrefix("ANARCH_LINT")); err != nil {

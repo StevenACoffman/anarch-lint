@@ -68,6 +68,7 @@ func (s *subject) reachFindings(fi *ForbiddenImport, instance, forbidden string)
 		f.Fix = reachFix(reach.Dominators(pkg)[forbiddenSink], pkg, forbidden)
 		if imp, ok := s.firstImport(pkg, path[1]); ok {
 			f.Location = SpanAt(imp.Pos)
+			f.Provenance = imp.Provenance()
 		}
 		fs = append(fs, f)
 	}
@@ -146,6 +147,7 @@ func hiddenDependencyRule(s *subject) []Finding {
 			f.ModelRule = instanceName("forbiddenImports", i)
 			f.Criterion = "3.4"
 			f.Location = SpanAt(inj.Pos)
+			f.Provenance = ProvenanceInjected
 			f.Message = fmt.Sprintf(
 				"%s receives a %s through an interface, a run-time dependency on %s: %s",
 				inj.CalleePackage,
@@ -161,6 +163,47 @@ func hiddenDependencyRule(s *subject) []Finding {
 				inj.Callee,
 				inj.Concrete,
 			)
+			fs = append(fs, f)
+			break
+		}
+	}
+	return append(fs, dispatchFindings(s, seen)...)
+}
+
+// dispatchFindings reports, for forbidden-import rules marked injected, each
+// call a package makes through an interface that the VTA call graph resolves
+// to a method of a type from a package it may not depend on. The finding is
+// about the calling package; seen holds the fingerprints already reported,
+// so an injection and the call it enables are reported once.
+func dispatchFindings(s *subject, seen map[string]bool) []Finding {
+	var fs []Finding
+	for _, d := range s.p.Dispatches {
+		concretePkg := s.g.PackageOf[d.Concrete]
+		for i := range s.m.ForbiddenImports {
+			fi := &s.m.ForbiddenImports[i]
+			if !fi.Injected || !MatchesAny(fi.From, d.CallerPackage) ||
+				!MatchesAny(fi.Imports, concretePkg) {
+				continue
+			}
+			f := NewFinding(FindingID{
+				Rule: RuleHiddenDependency, Subject: d.CallerPackage, Object: d.Concrete,
+			}, SeverityError)
+			if seen[f.Fingerprint] {
+				break
+			}
+			seen[f.Fingerprint] = true
+			f.ModelRule, f.Criterion = instanceName("forbiddenImports", i), "3.4"
+			f.Location, f.Provenance = SpanAt(d.Pos), ProvenanceDispatch
+			f.Message = fmt.Sprintf(
+				"%s calls %s through an interface at run time, a dependency on %s: %s",
+				d.CallerPackage, d.Callee, concretePkg, fi.Reason)
+			f.Evidence = []string{
+				fmt.Sprintf("the VTA call graph resolves the call in %s at %s:%d to %s",
+					d.Caller, d.Pos.File, d.Pos.Line, d.Callee),
+			}
+			f.Fix = fmt.Sprintf("wire %s with an implementation from a package it may depend "+
+				"on, or narrow the rule if %s is meant to be reached here",
+				d.CallerPackage, d.Concrete)
 			fs = append(fs, f)
 			break
 		}

@@ -7,9 +7,6 @@ import (
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
 
-// ruleFanOut names the finding of a fanOut rule.
-const ruleFanOut = "fan-out"
-
 // checkFanOut reports each package matching a fanOut rule that imports more
 // packages under analysis than the rule's max, at its first such import, with
 // the imported packages as evidence. importsOf maps each package under
@@ -30,7 +27,7 @@ func checkFanOut(l *ledger, rules []arch.FanOutRule, packages []string,
 				continue
 			}
 			f := arch.NewFinding(
-				arch.FindingID{Rule: ruleFanOut, Subject: pkg, Object: r.result.Name},
+				arch.FindingID{Rule: arch.RuleFanOut, Subject: pkg, Object: r.result.Name},
 				arch.SeverityError,
 			)
 			first := slices.MinFunc(imports, func(a, b arch.Import) int {

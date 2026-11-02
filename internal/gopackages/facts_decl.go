@@ -6,6 +6,8 @@ import (
 	"go/types"
 	"strings"
 
+	"golang.org/x/tools/go/types/typeutil"
+
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
 
@@ -40,7 +42,7 @@ func (s *factSink) funcFacts(fc *fileContext, d *ast.FuncDecl, fn *arch.Func) {
 		})
 	}
 	if fn.Statements >= minHashedStatements {
-		fn.BodyHash = bodyHash(d.Body)
+		fn.BodyHash, fn.ExactHash = bodyHash(d.Body), exactHash(fc.fset, d.Body)
 	}
 	w.walk(d)
 }
@@ -161,9 +163,72 @@ func (w *factWalker) reflectCall(fn *types.Func, c *ast.CallExpr, site arch.Site
 	if len(c.Args) == 1 {
 		name, _ = stringConst(w.info(), c.Args[0])
 	}
-	w.facts.ReflectByNames = append(w.facts.ReflectByNames, arch.ReflectByName{
-		Method: calleeName(fn), Name: name, Site: site,
-	})
+	rb := arch.ReflectByName{Method: calleeName(fn), Name: name, Site: site}
+	if sel, ok := ast.Unparen(c.Fun).(*ast.SelectorExpr); ok {
+		rb.Type = reflectedType(w.info(), sel.X)
+	}
+	w.facts.ReflectByNames = append(w.facts.ReflectByNames, rb)
+}
+
+// reflectedType returns the ID of the package-level type a reflect value or
+// type was made from, as in reflect.ValueOf(x).Elem().FieldByName: the
+// static type of x, through Elem and reflect.Indirect; "" when the chain
+// does not start at reflect.ValueOf or reflect.TypeOf of a value of a named
+// type.
+func reflectedType(info *types.Info, e ast.Expr) string {
+	for e != nil {
+		var typ string
+		e, typ = reflectStep(info, e)
+		if typ != "" {
+			return typ
+		}
+	}
+	return ""
+}
+
+// reflectStep takes one step back along a chain of reflect calls: it
+// returns the expression an Elem or reflect.Indirect call reflects, or the
+// type a reflect.ValueOf or reflect.TypeOf call starts from; nil and "" for
+// anything else.
+func reflectStep(info *types.Info, e ast.Expr) (ast.Expr, string) {
+	call, ok := ast.Unparen(e).(*ast.CallExpr)
+	if !ok {
+		return nil, ""
+	}
+	fn, _ := typeutil.Callee(info, call).(*types.Func)
+	if fn == nil {
+		return nil, ""
+	}
+	switch name := calleeName(fn); {
+	case elemOf(fn, call) != nil:
+		return elemOf(fn, call), ""
+	case name == "reflect.Indirect" && len(call.Args) == 1:
+		return call.Args[0], ""
+	case (name == "reflect.ValueOf" || name == "reflect.TypeOf") && len(call.Args) == 1:
+		return nil, namedTypeID(info, call.Args[0])
+	}
+	return nil, ""
+}
+
+// elemOf returns what a call of an Elem method with no arguments is called
+// on, such as v in v.Elem(); nil for any other call.
+func elemOf(fn *types.Func, call *ast.CallExpr) ast.Expr {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || fn.Name() != "Elem" || len(call.Args) != 0 {
+		return nil
+	}
+	return sel.X
+}
+
+// namedTypeID returns the ID of the package-level named type an expression
+// has, or points to; "" for any other type.
+func namedTypeID(info *types.Info, e ast.Expr) string {
+	if named := namedOf(info.TypeOf(e)); named != nil {
+		if tn := typeOwner(named.Origin().Obj()); tn != nil {
+			return typeID(tn)
+		}
+	}
+	return ""
 }
 
 // sortFacts returns the facts with every slice sorted by site, then by the rest of the fact, so

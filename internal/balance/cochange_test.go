@@ -39,10 +39,14 @@ func TestCoChange(t *testing.T) {
 		commits[fmt.Sprintf("other/f%d.go", i)] = []string{"c5"}
 	}
 	r := balance.Analyze(&balance.Input{
-		Input: in, Churn: &arch.Churn{Since: "a", Head: "b", Commits: commits},
+		Input: in,
+		Churn: &arch.Churn{Since: "a", Head: "b", Commits: commits, Authors: map[string]string{
+			"c1": "ann@x", "c2": "bob@x", "c3": "ann@x", "c4": "ann@x",
+		}},
 	})
 
-	// billing has 5 commits, web 3 and auth 2; the sweep shares none.
+	// billing has 5 commits, web 3 and auth 2; the sweep shares none. c5 has
+	// no known author, which counts as none.
 	equals(t, []balance.CoChange{
 		{A: "auth", B: "billing", Shared: 2, Score: 0.632456},
 		{A: "billing", B: "web", Shared: 2, Score: 0.516398},
@@ -55,8 +59,8 @@ func TestCoChange(t *testing.T) {
 	}
 	equals(t, []string{"billing ↔ web"}, hidden) // billing imports auth
 	equals(t, []balance.Hotspot{
-		{Package: "m/billing", Commits: 5, Complexity: 3},
-		{Package: "m/web", Commits: 3, Complexity: 2},
+		{Package: "m/billing", Commits: 5, Complexity: 3, Authors: 2},
+		{Package: "m/web", Commits: 3, Complexity: 2, Authors: 2},
 	}, r.Hotspots)
 }
 

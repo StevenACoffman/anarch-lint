@@ -72,7 +72,7 @@ func untestedDependencies(pcs []PackageCoverage) []Candidate {
 			continue
 		}
 		out = append(out, fingerprinted(&Candidate{
-			Rule:    "untested-dependency",
+			Rule:    arch.RuleUntestedDependency,
 			Subject: pc.Package,
 			Message: fmt.Sprintf("%d packages import %s, whose tests run %d of its %d statements",
 				pc.Ca, pc.Package, pc.Covered, pc.Statements),

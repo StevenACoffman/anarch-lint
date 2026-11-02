@@ -1,5 +1,5 @@
 anarch-lint report (anarch-lint.report.v1)
-patterns ./... · tags none · PLATFORM · model 7d350c6facc1 · GOVERSION
+patterns ./... · tags none · PLATFORM · model 6f513727ee19 · GOVERSION
 
 NOT MEASURED (2 files; test files are never measured)
   gen/gen.go         generated          

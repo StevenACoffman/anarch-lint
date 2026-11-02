@@ -143,7 +143,7 @@ func collectFindings(
 	fs := make([]Finding, 0)
 	fs = append(fs, assignmentRules(s)...)
 	fs = append(fs, unknownRoleRule(s)...)
-	fs = append(fs, isolationRule(s)...)
+	fs = append(fs, isolationRule(s).findings...)
 	fs = append(fs, transitiveForbiddenRule(s)...)
 	fs = append(fs, hiddenDependencyRule(s)...)
 	for _, rr := range []ruleResult{r.layers, r.subsystemOrder, r.iface, r.roles, forbidden} {
@@ -151,8 +151,10 @@ func collectFindings(
 	}
 	fs = append(fs, subsystemCycleRule(s)...)
 	fs = append(fs, typeCycleRule(s, limits.MaxTypeCycleGroup)...)
-	fs = append(fs, sizeRules(s, limits, lcom)...)
-	fs = append(fs, lengthAndDepthRules(s, limits)...)
+	perPackage := s.m.PackageLimits(packagePaths(s.p))
+	fs = append(fs, sizeRules(s, perPackage, lcom)...)
+	fs = append(fs, lengthAndDepthRules(s, perPackage)...)
+	fs = s.m.Govern(fs)
 	SortFindings(fs)
 	return fs
 }

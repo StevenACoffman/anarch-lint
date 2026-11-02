@@ -37,16 +37,21 @@ type DomainImport struct {
 	Path  string `json:"path"`
 }
 
-// DomainEnum is an enumerated type and the names of its values.
+// DomainEnum is an enumerated type and the names of its values, in the
+// order the model declares them.
 type DomainEnum struct {
 	Name   string   `json:"name"`
 	Values []string `json:"values"`
 }
 
-// DomainEntity is a named concept and the entities it relates to.
+// DomainEntity is a named concept, the entities it relates to, and its
+// stored attributes and actions in the order the model declares them; a
+// derived attribute, computed rather than stored, is left out.
 type DomainEntity struct {
 	Name          string               `json:"name"`
 	Relationships []DomainRelationship `json:"relationships,omitempty"`
+	Attributes    []string             `json:"attributes,omitempty"`
+	Actions       []string             `json:"actions,omitempty"`
 }
 
 // DomainRelationship relates an entity to another, by name: an entity of the

@@ -59,7 +59,8 @@ func WriteGate(w io.Writer, r *arch.GateResult, opts Options) error {
 	return nil
 }
 
-// addRules declares each rule the findings break, sorted by name.
+// addRules declares each rule the findings break, sorted by name, with the
+// catalog's summary as its description.
 func addRules(run *sarif.Run, findings []arch.Finding) {
 	names := make([]string, 0, len(findings))
 	for i := range findings {
@@ -67,8 +68,11 @@ func addRules(run *sarif.Run, findings []arch.Finding) {
 	}
 	slices.Sort(names)
 	for _, name := range slices.Compact(names) {
-		run.AddRule(name).WithName(name).WithHelpURI(informationURI + "#readme").
+		rule := run.AddRule(name).WithName(name).WithHelpURI(informationURI + "#readme").
 			WithShortDescription(sarif.NewMultiformatMessageString(name))
+		if info, ok := arch.RuleNamed(name); ok {
+			rule.WithFullDescription(sarif.NewMultiformatMessageString(info.Summary))
+		}
 	}
 }
 
@@ -83,6 +87,9 @@ func result(f *arch.Finding, waived bool, modelPath string) *sarif.Result {
 		WithMessage(sarif.NewTextMessage(text)).
 		WithBaselineState("new").
 		WithPartialFingerPrints(map[string]any{fingerprintKey: f.Fingerprint})
+	if props := properties(f); props != nil {
+		res.AttachPropertyBag(props)
+	}
 	loc := sarif.NewPhysicalLocation()
 	switch {
 	case f.Location != nil:
@@ -105,6 +112,22 @@ func result(f *arch.Finding, waived bool, modelPath string) *sarif.Result {
 			WithJustifcation("accepted by a waiver until it expires"))
 	}
 	return res
+}
+
+// properties are what the model says of the finding's rule: the rule it
+// breaks and the quality attribute it protects; nil when it says neither.
+func properties(f *arch.Finding) *sarif.PropertyBag {
+	if f.ModelRule == "" && f.QualityAttribute == "" {
+		return nil
+	}
+	props := sarif.NewPropertyBag()
+	if f.ModelRule != "" {
+		props.AddString("modelRule", f.ModelRule)
+	}
+	if f.QualityAttribute != "" {
+		props.AddString("qualityAttribute", string(f.QualityAttribute))
+	}
+	return props
 }
 
 // guidOf derives a stable GUID from a fingerprint: a name-based UUID

@@ -15,6 +15,10 @@ const (
 	// longParamList is the parameter count from which callers depend on the
 	// order of the arguments (connascence.md §2.4, detector 2).
 	longParamList = 4
+	// minWireNames is the fewest names two types must share in one encoding
+	// to count as one wire format; fewer, such as {id, name}, are often
+	// chance (connascence.md §9.7).
+	minWireNames = 3
 )
 
 // detectors returns every detector, in the order of
@@ -24,11 +28,12 @@ func detectors() []func(*subject) []arch.Connascence {
 	return []func(*subject) []arch.Connascence{
 		nameDetector, typeDetector,
 		repeatedLiteralDetector, shadowedConstantDetector, primitiveParamDetector, nilNilDetector,
+		wireTagsDetector,
 		unkeyedLiteralDetector, longParamDetector, sameTypeResultsDetector, constIndexDetector,
 		samePatternDetector, sameLayoutDetector, sameAlgorithmDetector, cloneDetector,
 		partialCloneDetector,
 		guardDetector, lifecycleDetector, unpairedLockDetector,
-		timeCallDetector, equalDurationDetector,
+		timeCallDetector, equalDurationDetector, noDeadlineDetector,
 		foreignSwitchDetector, equalConstantDetector,
 		sharedVariableDetector, sharedStateDetector, pointerIdentityDetector,
 		enumCollisionDetector, registrationDetector,

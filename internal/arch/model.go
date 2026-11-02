@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io"
 	"maps"
 	"slices"
@@ -57,7 +56,16 @@ type Model struct {
 	Roles            []Role            `json:"roles,omitempty"`
 	ForbiddenImports []ForbiddenImport `json:"forbiddenImports,omitempty"`
 	Isolations       []Isolation       `json:"isolations,omitempty"`
-	Thresholds       Thresholds        `json:"thresholds"`
+	// FindingRules gives a gate, a reason and a quality attribute to rules
+	// no entry above declares, by the finding's rule, such as
+	// "layer-order-violation" or "large-func".
+	FindingRules map[RuleName]FindingRule `json:"findingRules,omitempty"`
+	Thresholds   Thresholds               `json:"thresholds"`
+	// ThresholdOverrides give the packages they match other limits than
+	// Thresholds: the first that matches a package wins, and a limit it
+	// leaves zero is the module's (IMPROVEMENTS.md §1.6). The MMI's measures
+	// read only Thresholds.
+	ThresholdOverrides []ThresholdOverride `json:"thresholdOverrides,omitempty"`
 	// Gates are absolute floors the check gate applies on top of the
 	// baseline ratchet. omitzero keeps a model without them hashing as before.
 	Gates Gates `json:"gates,omitzero"`
@@ -70,6 +78,10 @@ type Model struct {
 	// Fitness declares ArchUnit-style fitness rules, which opt the fitness
 	// findings into the gate.
 	Fitness Fitness `json:"fitness,omitzero"`
+
+	// hash is the declared model's hash, set by Expand so an expanded model
+	// hashes as the model it came from.
+	hash string
 }
 
 // ConnascenceLimits are the strongest connascence and the largest degree
@@ -92,6 +104,9 @@ type BalanceSettings struct {
 	// that imports one may integrate asynchronously, which only a reviewer
 	// can confirm (connascence.md §9.3).
 	Messaging []string `json:"messaging,omitempty"`
+	// Packages also pairs the packages within each subsystem, a report of
+	// the coupling where distance is low; it never gates.
+	Packages bool `json:"packages,omitempty"`
 }
 
 // Subsystem is a named group of packages: a domain module in MMI terms.
@@ -147,6 +162,10 @@ type ForbiddenImport struct {
 	Reason     string   `json:"reason"`
 	Transitive bool     `json:"transitive,omitempty"`
 	Injected   bool     `json:"injected,omitempty"`
+	// Gate overrides the error severity of the rule's findings; off checks
+	// nothing.
+	Gate             RuleGate         `json:"gate,omitempty"`
+	QualityAttribute QualityAttribute `json:"qualityAttribute,omitempty"`
 }
 
 // Isolation limits what packages matching From may import within the
@@ -158,6 +177,10 @@ type Isolation struct {
 	From      string   `json:"from"`
 	MayImport []string `json:"mayImport"`
 	Reason    string   `json:"reason"`
+	// Gate overrides the error severity of the rule's findings; off checks
+	// nothing.
+	Gate             RuleGate         `json:"gate,omitempty"`
+	QualityAttribute QualityAttribute `json:"qualityAttribute,omitempty"`
 }
 
 // Gates are arch-go's coverage and compliance floors, as percentages; zero
@@ -167,6 +190,12 @@ type Gates struct {
 	MinCoverage float64 `json:"minCoverage,omitempty"`
 	// MinCompliance is the least share of declared rules with no error.
 	MinCompliance float64 `json:"minCompliance,omitempty"`
+}
+
+// ThresholdOverride is the limits for the packages matching Packages.
+type ThresholdOverride struct {
+	Packages   []string   `json:"packages"`
+	Thresholds Thresholds `json:"thresholds"`
 }
 
 // Thresholds are the limits the size and complexity measures use. A zero
@@ -194,14 +223,11 @@ func DecodeModel(r io.Reader) (Model, error) {
 	if err := dec.Decode(&m); err != nil {
 		// A field's own UnmarshalText reports an Error; keep its message
 		// rather than the code-prefixed text.
-		msg := err.Error()
+		code, msg := ProblemMalformed, err.Error()
 		if ErrorCode(err) == EINVALID {
-			msg = ErrorMessage(err)
+			code, msg = ProblemValue, ErrorMessage(err)
 		}
-		return Model{}, &Error{
-			Op:  op,
-			Err: &Error{Code: EINVALID, Message: "model: " + msg},
-		}
+		return Model{}, &Error{Op: op, Err: InvalidModel(code, "%s", msg)}
 	}
 	if err := m.validate(); err != nil {
 		return Model{}, &Error{Op: op, Err: err}
@@ -209,14 +235,63 @@ func DecodeModel(r io.Reader) (Model, error) {
 	return m, nil
 }
 
-// Hash returns a fingerprint of the model: the sha256 of its canonical JSON.
-// None of Model's methods modifies it.
+// Hash returns a fingerprint of the model: the sha256 of its canonical JSON,
+// in which a change that keeps the model's meaning changes nothing
+// (IMPROVEMENTS.md §1.4): the order of a set, the $schema key, and a
+// threshold set to its default. None of Model's methods modifies it.
 // A baseline is comparable only with a report whose model hash matches.
 func (m *Model) Hash() string {
+	if m.hash != "" {
+		return m.hash
+	}
 	var buf bytes.Buffer
-	_ = WriteJSON(&buf, m) // a Model always encodes
+	_ = WriteJSON(&buf, m.canonical()) // a Model always encodes
 	sum := sha256.Sum256(buf.Bytes())
 	return hex.EncodeToString(sum[:])
+}
+
+// PackageLimits returns the limits of each package: the first override
+// that matches it, with the module's limits for whatever it leaves zero, or
+// the module's limits.
+func (m *Model) PackageLimits(packages []string) map[string]Thresholds {
+	base := m.Limits()
+	out := make(map[string]Thresholds, len(packages))
+	for _, pkg := range packages {
+		out[pkg] = base
+		for i := range m.ThresholdOverrides {
+			if o := &m.ThresholdOverrides[i]; MatchesAny(o.Packages, pkg) {
+				out[pkg] = o.Thresholds.over(&base)
+				break
+			}
+		}
+	}
+	return out
+}
+
+// over returns base with every limit t sets replaced.
+func (t *Thresholds) over(base *Thresholds) Thresholds {
+	out := *base
+	for _, l := range []struct {
+		dst *int
+		src int
+	}{
+		{&out.LargeTypeLines, t.LargeTypeLines},
+		{&out.LargeFuncLines, t.LargeFuncLines},
+		{&out.LargePackageTypes, t.LargePackageTypes},
+		{&out.HighComplexity, t.HighComplexity},
+		{&out.MaxTypeCycleGroup, t.MaxTypeCycleGroup},
+		{&out.LargeFileLines, t.LargeFileLines},
+		{&out.MaxNesting, t.MaxNesting},
+		{&out.HighCognitive, t.HighCognitive},
+	} {
+		if l.src != 0 {
+			*l.dst = l.src
+		}
+	}
+	if t.ComplexityVariant != "" {
+		out.ComplexityVariant = t.ComplexityVariant
+	}
+	return out
 }
 
 // Limits returns the thresholds with every default filled in.
@@ -236,19 +311,66 @@ func (m *Model) Limits() Thresholds {
 	return t
 }
 
-func (m *Model) validate() error {
-	invalid := func(format string, args ...any) error {
-		return &Error{Code: EINVALID, Message: "model: " + fmt.Sprintf(format, args...)}
+// canonical returns the model as its hash reads it: with no $schema, the
+// thresholds with their defaults filled in, and every list in a sorted
+// order, except the lists whose order means something ([ordered]).
+func (m *Model) canonical() any {
+	c := *m
+	c.Schema, c.Thresholds = "", m.Limits()
+	src, _ := json.Marshal(&c) // a Model always encodes
+	var doc any
+	_ = json.Unmarshal(src, &doc)
+	return sortSets(doc, "")
+}
+
+// sortSets sorts every list in a decoded JSON document by its elements'
+// encodings, except a list under a key [ordered] names, and returns it.
+func sortSets(v any, key string) any {
+	switch v := v.(type) {
+	case map[string]any:
+		for k, x := range v {
+			v[k] = sortSets(x, k)
+		}
+	case []any:
+		for i := range v {
+			v[i] = sortSets(v[i], "")
+		}
+		if !ordered(key) {
+			slices.SortStableFunc(v, func(a, b any) int {
+				ja, _ := json.Marshal(a)
+				jb, _ := json.Marshal(b)
+				return bytes.Compare(ja, jb)
+			})
+		}
 	}
+	return v
+}
+
+// ordered reports a list of the model whose order means something: the
+// layers, the subsystem order and the roles, each from the top down, and the
+// threshold overrides, where the first match wins.
+func ordered(key string) bool {
+	return key == "layers" || key == "subsystemOrder" || key == "roles" ||
+		key == "thresholdOverrides"
+}
+
+func (m *Model) validate() error {
+	invalid := InvalidModel
 	if m.Version != modelVersion {
-		return invalid("version %d is not supported; want %d", m.Version, modelVersion)
+		return invalid(
+			ProblemVersion,
+			"version %d is not supported; want %d",
+			m.Version,
+			modelVersion,
+		)
 	}
 	// In a fixed order, so a model with several problems always reports the
 	// same one first.
-	for _, check := range []func(func(string, ...any) error) error{
-		m.validateNames, m.validateReferences, m.validateGates, m.Thresholds.validate,
+	for _, check := range []func(invalidFunc) error{
+		m.validateNames, m.validateReferences, m.validateGates, m.validateFindingRules,
+		m.Thresholds.validate, m.validateOverrides,
 		m.Connascence.validate, m.Balance.validate,
-		func(invalid func(string, ...any) error) error {
+		func(invalid invalidFunc) error {
 			return m.Fitness.validate(declaredNames{
 				layers:     namesOf(m.Layers, func(l Layer) string { return l.Name }),
 				subsystems: namesOf(m.Subsystems, func(s Subsystem) string { return s.Name }),
@@ -263,7 +385,7 @@ func (m *Model) validate() error {
 }
 
 // validateNames rejects a subsystem, layer or role declared twice.
-func (m *Model) validateNames(invalid func(string, ...any) error) error {
+func (m *Model) validateNames(invalid invalidFunc) error {
 	for _, set := range []struct {
 		kind  string
 		names []string
@@ -273,7 +395,7 @@ func (m *Model) validateNames(invalid func(string, ...any) error) error {
 		{"role", namesOf(m.Roles, func(r Role) string { return r.Name })},
 	} {
 		if dup := firstDuplicate(set.names); dup != "" {
-			return invalid("%s %q is declared twice", set.kind, dup)
+			return invalid(ProblemDuplicate, "%s %q is declared twice", set.kind, dup)
 		}
 	}
 	return nil
@@ -281,37 +403,101 @@ func (m *Model) validateNames(invalid func(string, ...any) error) error {
 
 // validateReferences rejects a back-reference past an isolation's captures,
 // and a subsystem order naming an undeclared subsystem.
-func (m *Model) validateReferences(invalid func(string, ...any) error) error {
+func (m *Model) validateReferences(invalid invalidFunc) error {
 	for _, iso := range m.Isolations {
 		for _, pat := range iso.MayImport {
 			if ref, n := highestReference(pat), captureCount(iso.From); ref > n {
-				return invalid("isolation %q: mayImport %q refers to $%d, but from captures %d",
-					iso.From, pat, ref, n)
+				return invalid(
+					ProblemReference,
+					"isolation %q: mayImport %q refers to $%d, but from captures %d",
+					iso.From,
+					pat,
+					ref,
+					n,
+				)
 			}
+		}
+	}
+	for _, sub := range m.Subsystems {
+		if err := sub.validateTemplate(invalid); err != nil {
+			return err
 		}
 	}
 	for _, name := range m.SubsystemOrder {
 		if !slices.ContainsFunc(m.Subsystems, func(s Subsystem) bool { return s.Name == name }) {
-			return invalid("subsystemOrder names unknown subsystem %q", name)
+			return invalid(ProblemReference, "subsystemOrder names unknown subsystem %q", name)
+		}
+	}
+	return nil
+}
+
+// validateTemplate rejects a subsystem template whose name, interface or
+// owner refers to a capture one of its package patterns lacks, and a
+// reference in the interface or owner of a subsystem that is no template.
+func (s *Subsystem) validateTemplate(invalid invalidFunc) error {
+	refs := highestReference(s.Name)
+	for _, pat := range slices.Concat(s.Interface, []string{s.Owner}) {
+		if r := highestReference(pat); r > 0 && refs == 0 {
+			return invalid(ProblemReference, "subsystem %q refers to $%d in %q, but its name "+
+				"refers to no capture, so it is not a template", s.Name, r, pat)
+		}
+		refs = max(refs, highestReference(pat))
+	}
+	if refs == 0 {
+		return nil
+	}
+	for _, pat := range s.Packages {
+		if n := captureCount(pat); n < refs {
+			return invalid(
+				ProblemReference,
+				"subsystem %q refers to $%d, but package pattern %q captures %d",
+				s.Name,
+				refs,
+				pat,
+				n,
+			)
+		}
+	}
+	if len(s.Packages) == 0 {
+		return invalid(
+			ProblemReference,
+			"subsystem %q refers to $%d, but has no package pattern",
+			s.Name,
+			refs,
+		)
+	}
+	return nil
+}
+
+// validateOverrides rejects an override that names no packages, and one
+// whose limits Thresholds would reject.
+func (m *Model) validateOverrides(invalid invalidFunc) error {
+	for i := range m.ThresholdOverrides {
+		o := &m.ThresholdOverrides[i]
+		if len(o.Packages) == 0 {
+			return invalid(ProblemIncomplete, "thresholdOverrides[%d] names no packages", i)
+		}
+		if err := o.Thresholds.validate(invalid); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
 // validateGates rejects a floor outside 0–100.
-func (m *Model) validateGates(invalid func(string, ...any) error) error {
+func (m *Model) validateGates(invalid invalidFunc) error {
 	for _, g := range []struct {
 		name  string
 		value float64
 	}{{"minCoverage", m.Gates.MinCoverage}, {"minCompliance", m.Gates.MinCompliance}} {
 		if g.value < 0 || g.value > 100 {
-			return invalid("gate %s %g is outside 0–100", g.name, g.value)
+			return invalid(ProblemRange, "gate %s %g is outside 0–100", g.name, g.value)
 		}
 	}
 	return nil
 }
 
-func (t *Thresholds) validate(invalid func(string, ...any) error) error {
+func (t *Thresholds) validate(invalid invalidFunc) error {
 	for _, limit := range []struct {
 		name  string
 		value int
@@ -326,14 +512,14 @@ func (t *Thresholds) validate(invalid func(string, ...any) error) error {
 		{"highCognitive", t.HighCognitive},
 	} {
 		if limit.value < 0 {
-			return invalid("threshold %s is negative", limit.name)
+			return invalid(ProblemRange, "threshold %s is negative", limit.name)
 		}
 	}
 	switch t.ComplexityVariant {
 	case "", CCPlain, CCModified, CCExtended:
 		return nil
 	default:
-		return invalid(
+		return invalid(ProblemValue,
 			"complexityVariant %q is not plain, modified or extended",
 			t.ComplexityVariant,
 		)
@@ -374,15 +560,15 @@ func (c *ConnascenceLimits) Enabled() bool {
 }
 
 // validate rejects a strength limit outside 1–9 and a degree limit below 1.
-func (c ConnascenceLimits) validate(invalid func(string, ...any) error) error {
+func (c ConnascenceLimits) validate(invalid invalidFunc) error {
 	for _, l := range slices.Sorted(maps.Keys(c.MaxStrength)) {
 		if v := c.MaxStrength[l]; v < 1 || v > int(StrengthIdentity) {
-			return invalid("connascence maxStrength %s %d is outside 1–9", l, v)
+			return invalid(ProblemRange, "connascence maxStrength %s %d is outside 1–9", l, v)
 		}
 	}
 	for _, l := range slices.Sorted(maps.Keys(c.MaxDegree)) {
 		if v := c.MaxDegree[l]; v < 1 {
-			return invalid("connascence maxDegree %s %d is below 1", l, v)
+			return invalid(ProblemRange, "connascence maxDegree %s %d is below 1", l, v)
 		}
 	}
 	return nil
@@ -393,9 +579,9 @@ func (c ConnascenceLimits) validate(invalid func(string, ...any) error) error {
 func (b *BalanceSettings) Enabled() bool { return b.Gate }
 
 // validate rejects an empty messaging pattern.
-func (b BalanceSettings) validate(invalid func(string, ...any) error) error {
+func (b BalanceSettings) validate(invalid invalidFunc) error {
 	if slices.Contains(b.Messaging, "") {
-		return invalid("balance messaging has an empty pattern")
+		return invalid(ProblemPattern, "balance messaging has an empty pattern")
 	}
 	return nil
 }

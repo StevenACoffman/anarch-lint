@@ -25,7 +25,14 @@ func shop() arch.Program {
 			typ("m/shop", "State", arch.KindOther),
 			typ("m/shop", "Status", arch.KindOther),
 		},
-		Refs: []arch.Ref{{From: "m/shop.Order", To: "m/shop.Line", Weight: 1}},
+		Refs: []arch.Ref{
+			{
+				From:   "m/shop.Order",
+				To:     "m/shop.Line",
+				Weight: 1,
+				Kinds:  []arch.RefKind{arch.RefField},
+			},
+		},
 		Facts: arch.Facts{Constants: []arch.Constant{
 			{ID: "m/shop.Open", Type: "m/shop.Status", Value: `"open"`},
 			{ID: "m/shop.Closed", Type: "m/shop.Status", Value: `"closed"`},
@@ -109,4 +116,97 @@ func TestDomainConformanceWithinASubsystem(t *testing.T) {
 	}
 	r := fitness.Analyze(&arch.Input{Program: shop(), Model: m, Domains: []arch.DomainModel{model}})
 	equals(t, []string(nil), rules(&r))
+}
+
+// shape is a program whose Cart owns Item, though Wishlist holds an Item
+// too, and whose Wishlist uses a Cart only in a method body; whose Cart has a field total and a
+// method Checkout, with a function
+// Empty that takes a Cart; and whose Size constants are iota values in
+// another order than the model's, with the type's name as their prefix.
+func shape() arch.Program {
+	typ := func(name string, kind arch.TypeKind, fields ...string) arch.Type {
+		return arch.Type{
+			ID: "m/shop." + name, Package: "m/shop", Name: name, Kind: kind,
+			Fields: fields,
+		}
+	}
+	field := []arch.RefKind{arch.RefField}
+	return arch.Program{
+		Packages: []arch.Package{{Path: "m/shop"}},
+		Types: []arch.Type{
+			typ("Cart", arch.KindStruct, "Items", "Total"), typ("Item", arch.KindStruct),
+			typ("Size", arch.KindOther), typ("Wishlist", arch.KindStruct, "Items"),
+		},
+		Funcs: []arch.Func{
+			{
+				ID:       "m/shop.Cart.Checkout",
+				Package:  "m/shop",
+				Receiver: "m/shop.Cart",
+				Name:     "Checkout",
+			},
+		},
+		Refs: []arch.Ref{
+			{From: "m/shop.Cart", To: "m/shop.Item", Weight: 1, Kinds: field},
+			{
+				From:   "m/shop.Wishlist",
+				To:     "m/shop.Cart",
+				Weight: 1,
+				Kinds:  []arch.RefKind{arch.RefBody},
+			},
+			{From: "m/shop.Wishlist", To: "m/shop.Item", Weight: 1, Kinds: field},
+		},
+		Facts: arch.Facts{
+			Constants: []arch.Constant{
+				{ID: "m/shop.SizeLarge", Type: "m/shop.Size", Value: "0"},
+				{ID: "m/shop.SizeSmall", Type: "m/shop.Size", Value: "1"},
+			},
+			Signatures: []arch.Signature{
+				{
+					Func: "m/shop.Empty",
+					Site: arch.Site{Package: "m/shop"},
+					Params: []arch.TypeRef{
+						{Type: "*m/shop.Cart", Named: "m/shop.Cart", Package: "m/shop"},
+					},
+				},
+			},
+		},
+	}
+}
+
+// The model's ownership, attributes, actions and enum order each conform or
+// drift: Item is shared, Wishlist holds no Cart it owns, total is a field and
+// discount is not, checkout and
+// empty exist and pay does not, and Size's constants run large before small.
+func TestDomainShape(t *testing.T) {
+	t.Parallel()
+	model := arch.DomainModel{
+		Path:  "docs/shop.modelith.yaml",
+		Enums: []arch.DomainEnum{{Name: "Size", Values: []string{"small", "large"}}},
+		Entities: []arch.DomainEntity{
+			{
+				Name:          "Cart",
+				Relationships: []arch.DomainRelationship{{Entity: "Item", Owned: true}},
+				Attributes:    []string{"total", "discount"},
+				Actions:       []string{"checkout", "empty", "pay"},
+			},
+			{Name: "Item"},
+			{Name: "Wishlist", Relationships: []arch.DomainRelationship{
+				{Entity: "Cart", Owned: true}, {Entity: "Item"},
+			}},
+		},
+	}
+	m := arch.Model{Version: 1, Fitness: arch.Fitness{Domains: []arch.DomainRule{{
+		RuleOptions: arch.RuleOptions{Name: "shop", Reason: "r"}, Path: model.Path,
+	}}}}
+	r := fitness.Analyze(
+		&arch.Input{Program: shape(), Model: m, Domains: []arch.DomainModel{model}},
+	)
+	const at = "docs/shop.modelith.yaml:"
+	equals(t, []string{
+		"domain-action-missing " + at + "Cart pay",
+		"domain-attribute-missing " + at + "Cart discount",
+		"domain-enum-order " + at + "Size m/shop.Size",
+		"domain-ownership-drift " + at + "Cart Item shared by Wishlist",
+		"domain-ownership-drift " + at + "Wishlist Cart",
+	}, rules(&r))
 }

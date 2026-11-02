@@ -11,9 +11,6 @@ import (
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
 
-// ruleMissingCoChange names the finding of a coChange rule.
-const ruleMissingCoChange = "missing-co-change"
-
 // checkCoChange checks each coChange rule against the change set: when a
 // changed file matches When and not Except, some changed file must match
 // Require. Without a change set every such rule is no-change. Matched counts
@@ -42,7 +39,7 @@ func checkCoChange(l *ledger, rules []arch.CoChangeRule, changed arch.ChangedLin
 		}
 		first := changed[triggers[0]][0]
 		f := arch.NewFinding(
-			arch.FindingID{Rule: ruleMissingCoChange, Subject: r.result.Name},
+			arch.FindingID{Rule: arch.RuleMissingCoChange, Subject: r.result.Name},
 			arch.SeverityError,
 		)
 		f.Location = &arch.Span{File: triggers[0], Start: first.Start, End: first.Start}

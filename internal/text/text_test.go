@@ -190,3 +190,28 @@ func TestWriteBalanceTemporal(t *testing.T) {
 		})
 	}
 }
+
+// The gate lists its new findings with the widest reach first, saying how
+// many packages depend on each, and names each loosened bar.
+func TestWriteGateRanksByReach(t *testing.T) {
+	t.Parallel()
+	finding := func(subject string, reach int) arch.Finding {
+		f := arch.NewFinding(arch.FindingID{Rule: "r", Subject: subject}, arch.SeverityError)
+		f.Reach = reach
+		return f
+	}
+	var buf bytes.Buffer
+	g := arch.GateResult{
+		New:      []arch.Finding{finding("narrow", 1), finding("wide", 5)},
+		Loosened: []string{"thresholds.largeFuncLines raised from 40 to 80"},
+	}
+	if err := text.WriteGate(&buf, &g); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if strings.Index(out, "wide") > strings.Index(out, "narrow") {
+		t.Errorf("the wider finding is not first:\n%s", out)
+	}
+	contains(t, out, "reach: 5 packages depend on it", "reach: 1 package depends on it",
+		"loosened  thresholds.largeFuncLines raised from 40 to 80")
+}
