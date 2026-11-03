@@ -1,0 +1,6 @@
+query ListTasks {
+  tasks {
+    id
+    title
+  }
+}

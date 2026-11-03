@@ -84,7 +84,12 @@ func ContractsOf(f *Facts) []Contract {
 // grpcContract is the contract of a generated gRPC function's match: the
 // service, named by the generated package and the service's name.
 func grpcContract(m []string, role string, site Site) Contract {
-	return Contract{ID: "grpc::" + m[1] + "." + m[2], Kind: contractGRPC, Role: role, Site: site}
+	return Contract{ID: grpcID(m[1], m[2]), Kind: contractGRPC, Role: role, Site: site}
+}
+
+// grpcID is the ID of the gRPC service a generated Go package holds.
+func grpcID(goPackage, service string) string {
+	return "grpc::" + goPackage + "." + service
 }
 
 // httpContracts finds HTTP routes in constant call arguments: a handler

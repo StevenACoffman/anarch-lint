@@ -1,0 +1,3 @@
+extend type Query {
+  task_search(text: String!): [Task!]!
+}

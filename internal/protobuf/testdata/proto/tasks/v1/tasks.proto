@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package tasks.v1;
+
+import "buf/validate/validate.proto";
+import "common/page.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "example.com/gen/tasks/v1;tasksv1";
+
+service Tasks {
+  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
+}
+
+service task_admin {
+  rpc Purge(ListTasksRequest) returns (ListTasksResponse);
+}
+
+message ListTasksRequest {
+  common.Page page = 1;
+  string owner = 2 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Timestamp since = 3;
+}
+
+message ListTasksResponse {
+  repeated Task tasks = 1;
+
+  message Task {
+    string id = 1 [(buf.validate.field).string.uuid = true];
+  }
+}
+
+message BadRule {
+  int32 count = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message BadExpression {
+  option (buf.validate.message).cel = {
+    id: "bad"
+    message: "never compiles"
+    expression: "this.missing > 0"
+  };
+  int32 count = 1;
+}

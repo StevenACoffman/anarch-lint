@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package common;
+
+option go_package = "example.com/gen/common";
+
+message Page {
+  int32 size = 1;
+}
