@@ -39,7 +39,7 @@ func checkOpenAPI(l *ledger, rules []arch.OpenAPIRule, docs []arch.APIDocument,
 		}
 		for _, ct := range contracts {
 			if _, ok := ct.Route(); ok && ct.Role == arch.ContractProvider &&
-				served(o, ct.Site.Package) {
+				served(o.ServedBy, ct.Site.Package) {
 				c.routes = append(c.routes, ct)
 			}
 		}
@@ -52,9 +52,10 @@ func checkOpenAPI(l *ledger, rules []arch.OpenAPIRule, docs []arch.APIDocument,
 	}
 }
 
-// served reports whether pkg is one of a rule's serving packages.
-func served(o *arch.OpenAPIRule, pkg string) bool {
-	return len(o.ServedBy) == 0 || arch.MatchesAny(o.ServedBy, pkg)
+// served reports whether pkg is one of a rule's serving packages: any
+// package, when the rule names none.
+func served(servedBy []string, pkg string) bool {
+	return len(servedBy) == 0 || arch.MatchesAny(servedBy, pkg)
 }
 
 // unserved reports each operation the document declares that no serving
@@ -62,7 +63,7 @@ func served(o *arch.OpenAPIRule, pkg string) bool {
 // register as evidence.
 func (c *apiCheck) unserved() {
 	for _, op := range c.doc.Operations {
-		paths := c.pathsOf(op.Path)
+		paths := c.doc.PathsOf(&op)
 		var others []string
 		found := false
 		for i := range c.routes {
@@ -70,7 +71,7 @@ func (c *apiCheck) unserved() {
 			if !slices.Contains(paths, rt.Path) {
 				continue
 			}
-			if methodAgrees(rt.Method, op.Method) {
+			if rt.MethodServes(op.Method) {
 				found = true
 				break
 			}
@@ -102,10 +103,7 @@ func (c *apiCheck) undocumented() {
 	for i := range c.routes {
 		site := c.routes[i].Site
 		rt, _ := c.routes[i].Route()
-		if slices.ContainsFunc(c.doc.Operations, func(op arch.APIOperation) bool {
-			return methodAgrees(rt.Method, op.Method) &&
-				slices.Contains(c.pathsOf(op.Path), rt.Path)
-		}) {
+		if _, ok := c.doc.Serves(rt); ok {
 			continue
 		}
 		f := arch.NewFinding(arch.FindingID{
@@ -119,20 +117,4 @@ func (c *apiCheck) undocumented() {
 		f.Fix = "document the operation, or stop serving it"
 		c.ledger.violation(c.r, &f)
 	}
-}
-
-// pathsOf returns the canonical paths an operation's path template is
-// served at: as written, and under each of the document's base paths.
-func (c *apiCheck) pathsOf(path string) []string {
-	out := []string{arch.NormalizeRoute(path)}
-	for _, bp := range c.doc.BasePaths {
-		out = append(out, arch.NormalizeRoute(bp+path))
-	}
-	return out
-}
-
-// methodAgrees reports whether a route's method serves a documented one: the
-// same, or a route registered for every method.
-func methodAgrees(route, documented string) bool {
-	return route == "*" || route == documented
 }

@@ -66,6 +66,9 @@ type classifier struct {
 	// whose fingerprint is in rejected are left out.
 	connascence []arch.Connascence
 	rejected    []string
+	// apis are the documents of the model's fitness.openapi rules, in the
+	// rules' order.
+	apis []arch.APIDocument
 	// group, when set, groups packages other than by subsystem: by package
 	// itself, for the pairs within a subsystem.
 	group func(pkg string) string
@@ -96,6 +99,7 @@ func (k *classifier) evidence() []evidence {
 	ev = append(ev, k.useEvidence()...)
 	ev = append(ev, k.connascenceEvidence()...)
 	ev = append(ev, k.contractEvidence()...)
+	ev = append(ev, k.documentEvidence()...)
 	ev = append(ev, k.topicEvidence()...)
 	return ev
 }

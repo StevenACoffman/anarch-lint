@@ -97,7 +97,7 @@ func (o *Options) Load(
 }
 
 // readInputs reads the files a measurement reads besides the code: the
-// model, the judgements, the domain models and the API documents.
+// model, the judgements, the domain models and the contract files.
 func (o *Options) readInputs(ctx context.Context) (arch.Input, error) {
 	model, err := o.readModel()
 	if err != nil {
@@ -111,11 +111,14 @@ func (o *Options) readInputs(ctx context.Context) (arch.Input, error) {
 	if err != nil {
 		return arch.Input{}, err
 	}
-	apis, err := o.readAPIs(ctx, &model)
+	contracts, err := o.readContractFiles(ctx, &model)
 	if err != nil {
 		return arch.Input{}, err
 	}
-	return arch.Input{Model: model, Verdicts: verdicts, Domains: domains, APIs: apis}, nil
+	return arch.Input{
+		Model: model, Verdicts: verdicts, Domains: domains,
+		APIs: contracts.apis, GraphQL: contracts.graphql, Protos: contracts.protos,
+	}, nil
 }
 
 // Analyze loads the packages and measures them for the MMI report.

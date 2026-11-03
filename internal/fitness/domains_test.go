@@ -118,6 +118,33 @@ func TestDomainConformanceWithinASubsystem(t *testing.T) {
 	equals(t, []string(nil), rules(&r))
 }
 
+// TestEntityDirectives: an "//arch:entity" directive settles which of two
+// same-named types expresses an entity, and maps one whose name differs; a
+// directive naming no entity of a covering model is a warning.
+func TestEntityDirectives(t *testing.T) {
+	t.Parallel()
+	p := shop()
+	for i := range p.Types {
+		switch p.Types[i].ID {
+		case "m/shop.Customer":
+			p.Types[i].Entity = "Customer"
+		case "m/shop.State":
+			p.Types[i].Entity = "Invoice"
+		case "m/shop.Line":
+			p.Types[i].Entity = "Lien"
+		}
+	}
+	m := arch.Model{Version: 1, Fitness: arch.Fitness{Domains: []arch.DomainRule{{
+		RuleOptions: arch.RuleOptions{Name: "shop"}, Path: "docs/shop.modelith.yaml",
+	}}}}
+	model := arch.DomainModel{
+		Path:     "docs/shop.modelith.yaml",
+		Entities: []arch.DomainEntity{{Name: "Customer"}, {Name: "Invoice"}, {Name: "Line"}},
+	}
+	r := fitness.Analyze(&arch.Input{Program: p, Model: m, Domains: []arch.DomainModel{model}})
+	equals(t, []string{"unknown-entity-directive m/shop.Line Lien"}, rules(&r))
+}
+
 // shape is a program whose Cart owns Item, though Wishlist holds an Item
 // too, and whose Wishlist uses a Cart only in a method body; whose Cart has a field total and a
 // method Checkout, with a function

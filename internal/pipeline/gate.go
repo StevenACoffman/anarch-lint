@@ -103,11 +103,9 @@ func (o *Options) BalanceInput(
 		return balance.Input{}, &arch.Error{Op: op, Err: err}
 	}
 	if h.SinceRev != "" {
-		churn, err := git.Churn(ctx, o.Dir, h.SinceRev)
-		if err != nil {
+		if in.Churn, in.Input, err = readRange(ctx, o.Dir, l, h.SinceRev); err != nil {
 			return balance.Input{}, &arch.Error{Op: op, Err: err}
 		}
-		in.Churn = &churn
 	}
 	if h.CoverProfile != "" {
 		src, err := ReadFile(h.CoverProfile)
@@ -121,6 +119,29 @@ func (o *Options) BalanceInput(
 		in.Coverage = &cov
 	}
 	return in, nil
+}
+
+// readRange reads the churn of the repository at dir since rev and, unless
+// l has a change set already, a copy of l whose change set is the range,
+// which the untested crossings are drawn from; l itself is left as it was.
+func readRange(
+	ctx context.Context, dir string, l *arch.Input, rev string,
+) (*arch.Churn, *arch.Input, error) {
+	const op = "pipeline.readRange"
+	churn, err := git.Churn(ctx, dir, rev)
+	if err != nil {
+		return nil, nil, &arch.Error{Op: op, Err: err}
+	}
+	if l.Changed != nil {
+		return &churn, l, nil
+	}
+	changed, err := git.ChangedLines(ctx, dir, rev)
+	if err != nil {
+		return nil, nil, &arch.Error{Op: op, Err: err}
+	}
+	withChange := *l
+	withChange.Changed = changed
+	return &churn, &withChange, nil
 }
 
 // readOwners reads the CODEOWNERS file, if any, and resolves each package's

@@ -8,6 +8,7 @@ package balance
 
 import (
 	"cmp"
+	"fmt"
 	"slices"
 
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
@@ -16,8 +17,9 @@ import (
 // Schema names the Balanced Coupling report format.
 const Schema = "anarch-lint.balance.v1"
 
-// maxListed caps the evidence and dependents a record lists; a count beside
-// each keeps the total.
+// maxListed caps the evidence and dependents a record lists, with a count
+// beside each that keeps the total, and the hotspots and coverage the report
+// lists, with Capped saying so.
 const maxListed = 20
 
 // Input is what the measure reads beyond the program and the model.
@@ -55,6 +57,9 @@ type Report struct {
 	// Coverage lists the packages a coverage profile instruments, riskiest
 	// first; it needs --coverprofile.
 	Coverage []PackageCoverage `json:"coverage"`
+	// Capped names each list the report cut at maxListed entries, with its
+	// whole length, such as "hotspots: 20 of 57".
+	Capped []string `json:"capped"`
 	// Unbound lists the packages no binary in scope contains, when some
 	// binary is in scope; their deploy boundary is unknown.
 	Unbound    []string       `json:"unbound"`
@@ -80,8 +85,8 @@ type Report struct {
 	Judgements []arch.JudgementSlot `json:"judgements"`
 	// Skipped lists the slots not opened because no answer would change
 	// anything, each with the reason.
-	Skipped     []SkippedSlot     `json:"skipped"`
-	Assumptions []arch.Assumption `json:"assumptions"`
+	Skipped     []arch.SkippedSlot `json:"skipped"`
+	Assumptions []arch.Assumption  `json:"assumptions"`
 }
 
 // Suppression is a finding, or a candidate, that a verdict lifted: the rule
@@ -94,12 +99,6 @@ type Suppression struct {
 	Criterion string                   `json:"criterion"`
 	Answer    string                   `json:"answer"`
 	Events    []arch.VerificationEvent `json:"events"`
-}
-
-// SkippedSlot is a judgement slot a measure did not open, and why.
-type SkippedSlot struct {
-	Criterion string `json:"criterion"`
-	Reason    string `json:"reason"`
 }
 
 // ReportInputs are a report's inputs: the analysis inputs, and what bounds
@@ -157,6 +156,7 @@ func Analyze(in *Input) Report {
 		Rejected:    make([]Candidate, 0),
 		Suppressed:  make([]Suppression, 0),
 		Assumptions: assumptions(),
+		Capped:      make([]string, 0),
 	}
 	r.Contracts = append(make([]arch.Contract, 0), arch.ContractsOf(&s.p.Facts)...)
 	pairs, _ := arch.MatchContracts(r.Contracts)
@@ -167,7 +167,7 @@ func Analyze(in *Input) Report {
 	r.Unbound = deploys.unbound
 	async := s.asyncPackages()
 	groups := groupPairs(ev)
-	var skippedSubdomains []SkippedSlot
+	var skippedSubdomains []arch.SkippedSlot
 	r.Subsystems, skippedSubdomains = s.volatility(ev, groups)
 	volatility := map[string]string{}
 	for _, v := range r.Subsystems {
@@ -184,17 +184,17 @@ func Analyze(in *Input) Report {
 			base:       distancePackage, locality: arch.LocalitySubsystem,
 		})
 	}
-	r.Skipped = slices.Concat(make([]SkippedSlot, 0), skippedSubdomains, s.boundedContexts(&r, ev))
+	r.Skipped = slices.Concat(
+		make([]arch.SkippedSlot, 0),
+		skippedSubdomains,
+		s.boundedContexts(&r, ev),
+	)
 	view := &packageView{p: s.p, g: &s.g, severity: s.severity()}
 	r.Packages = view.packages(ev)
 	r.Findings = append(r.Findings, ownerFindings...)
 	r.Findings = append(r.Findings, view.exposureFindings(r.Packages)...)
 	r.Candidates = append(r.Candidates, s.churnCandidates(r.Subsystems)...)
-	h := &history{churn: in.Churn, p: s.p, g: &s.g, variant: s.m.Limits().ComplexityVariant}
-	r.CoChange, r.Hotspots = h.coChange(), h.hotspots()
-	r.Candidates = append(r.Candidates, h.hiddenCouplings(r.CoChange)...)
-	r.Coverage = coverageOf(in.Coverage, s.p, r.Packages)
-	r.Candidates = append(r.Candidates, untestedDependencies(r.Coverage)...)
+	s.historyAndCoverage(&r)
 	(&judge{p: s.p, slots: s.slots, domains: s.domains, severity: s.severity()}).apply(&r)
 	r.Judgements = s.slots.all()
 	arch.SortFindings(r.Findings)
@@ -261,7 +261,7 @@ func (s *subject) classifier() *classifier {
 	return &classifier{
 		p: s.p, m: s.m, g: &s.g, c: s.c, roles: s.roles, sigs: sigs, consts: consts,
 		types: s.types, slots: s.slots, connascence: s.in.Connascence, rejected: s.in.Rejected,
-		entities: s.in.EntityTypes(&s.g),
+		entities: s.in.EntityTypes(&s.g), apis: s.in.APIs,
 	}
 }
 
@@ -321,4 +321,29 @@ func (r *Report) AddTo(in *arch.GateInput) {
 		}
 	}
 	in.Add(r.Findings, metrics)
+}
+
+// listed returns the first maxListed items, and records in r.Capped when
+// the cap left some out.
+func listed[T any](r *Report, name string, items []T) []T {
+	if len(items) <= maxListed {
+		return items
+	}
+	r.Capped = append(r.Capped, fmt.Sprintf("%s: %d of %d", name, maxListed, len(items)))
+	return items[:maxListed]
+}
+
+// historyAndCoverage adds what the revision range and the coverage profile
+// show, when the input has them: co-change, hotspots and coverage, and the
+// candidates drawn from them.
+func (s *subject) historyAndCoverage(r *Report) {
+	h := &history{churn: s.in.Churn, p: s.p, g: &s.g, variant: s.m.Limits().ComplexityVariant}
+	r.CoChange = h.coChange()
+	r.Hotspots = listed(r, "hotspots", h.hotspots())
+	r.Candidates = append(r.Candidates, h.hiddenCouplings(r.CoChange)...)
+	coverage := coverageOf(s.in.Coverage, s.p, r.Packages)
+	r.Candidates = append(r.Candidates, untestedDependencies(coverage)...)
+	crossings := crossingCheck{in: s.in, p: s.p, c: s.c, subsystemOf: s.subsystemOf}
+	r.Candidates = append(r.Candidates, crossings.untestedCrossings()...)
+	r.Coverage = listed(r, "coverage", coverage)
 }

@@ -23,6 +23,7 @@
   },
   "sizes": {
     "lines": 2865,
+    "files": 35,
     "types": 46,
     "funcs": 114,
     "generated": 7,

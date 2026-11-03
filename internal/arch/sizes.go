@@ -8,8 +8,10 @@ import (
 // Sizes holds the size and complexity aggregates behind MMI criteria 1.1.3,
 // 1.1.4 and 1.3.1–1.3.4 (mmi.md §7.2).
 type Sizes struct {
-	// Lines is the lines of code of every analyzed package.
+	// Lines is the lines of code of every analyzed package, and Files the
+	// source files that hold them.
 	Lines int `json:"lines"`
+	Files int `json:"files"`
 	Types int `json:"types"`
 	Funcs int `json:"funcs"`
 	// Generated counts the generated files left out of every measure,
@@ -50,7 +52,7 @@ type Cohesion struct {
 
 // sizesOf computes the size aggregates of p under the limits t.
 func sizesOf(p *Program, g *Graphs, t *Thresholds) Sizes {
-	z := Sizes{Types: len(p.Types), Funcs: len(p.Funcs)}
+	z := Sizes{Files: len(p.Files), Types: len(p.Types), Funcs: len(p.Funcs)}
 	z.LinesInLargeTypes, z.TypesInLargePackages = typeSizes(p, t)
 	z.LinesInLargeFuncs, z.ComplexFuncs = funcSizes(p, t)
 	for _, f := range p.Excluded {
@@ -169,4 +171,16 @@ func groupSizes(lines map[string]int) []GroupSize {
 	}
 	slices.SortFunc(gs, func(a, b GroupSize) int { return cmp.Compare(a.Name, b.Name) })
 	return gs
+}
+
+// ExcludedShare is the share of the module's source files that no measure
+// reads, generated or left out by the build constraints, rounded to six
+// places; 0 when there are none. The gate ratchets it, so code cannot leave
+// the measures by gaining a "Code generated" header (IMPROVEMENTS.md §2.3).
+func (z *Sizes) ExcludedShare() float64 {
+	excluded := z.Generated + z.BuildExcluded
+	if excluded == 0 {
+		return 0
+	}
+	return round6(float64(excluded) / float64(z.Files+excluded))
 }

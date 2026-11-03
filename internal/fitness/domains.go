@@ -9,6 +9,14 @@ import (
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
 
+// entityCheck checks the "//arch:entity" directives against the domain
+// models of the rules that cover them.
+type entityCheck struct {
+	p           *arch.Program
+	rules       []arch.DomainRule
+	subsystemOf map[string]string
+}
+
 // domainCheck compares one domain model with the code: a reflexion model,
 // after Murphy, Notkin and Sullivan, comparing the concepts a modelith
 // domain model declares with the code that should express them.
@@ -66,6 +74,54 @@ func (s *subject) checkDomains(domains []arch.DomainModel) {
 		c.actions(matched)
 		c.enums()
 	}
+	ec := entityCheck{p: s.p, rules: s.m.Fitness.Domains, subsystemOf: s.g.SubsystemAssignment.Of}
+	s.findings = append(s.findings, ec.unknown(domains)...)
+}
+
+// unknown reports each "//arch:entity" directive that names no
+// entity of a domain model whose rule covers the type's package, so a typo
+// cannot quietly fall back to matching by name. Without a domains rule
+// there is nothing to check a directive against.
+//
+// Requires: domains holds one model per rule, in the rules' order.
+func (c *entityCheck) unknown(domains []arch.DomainModel) []arch.Finding {
+	if len(domains) == 0 {
+		return nil
+	}
+	var out []arch.Finding
+	for i := range c.p.Types {
+		t := &c.p.Types[i]
+		if t.Entity == "" || c.declares(domains, t) {
+			continue
+		}
+		f := arch.NewFinding(arch.FindingID{
+			Rule: arch.RuleUnknownEntity, Subject: t.ID, Object: t.Entity,
+		}, arch.SeverityWarning)
+		f.Location = &t.Span
+		f.Message = fmt.Sprintf("%s names entity %q, which no domain model covering %s declares",
+			t.ID, t.Entity, t.Package)
+		f.Fix = fmt.Sprintf("declare entity %q in the domain model, or correct the directive",
+			t.Entity)
+		out = append(out, f)
+	}
+	return out
+}
+
+// declares reports whether a domain model whose rule covers t's
+// package declares the entity t's directive names.
+func (c *entityCheck) declares(domains []arch.DomainModel, t *arch.Type) bool {
+	for i := range c.rules {
+		d := &c.rules[i]
+		if d.Subsystem != "" && c.subsystemOf[t.Package] != d.Subsystem {
+			continue
+		}
+		if slices.ContainsFunc(domains[i].Entities, func(e arch.DomainEntity) bool {
+			return e.Name == t.Entity
+		}) {
+			return true
+		}
+	}
+	return false
 }
 
 // subjectOf names a model item in a finding: the model's path and the name.

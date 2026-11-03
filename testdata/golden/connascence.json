@@ -89,8 +89,8 @@
       "kind": "timing",
       "locality": "function",
       "facts": 1,
-      "candidates": 1,
-      "degree": 2
+      "candidates": 2,
+      "degree": 3
     },
     {
       "kind": "value",
@@ -771,6 +771,28 @@
       "fix": "declare the value once and refer to it from both packages"
     },
     {
+      "fingerprint": "55e30e679442601a",
+      "kind": "timing",
+      "strength": 7,
+      "detector": "timing.no-retry",
+      "subject": "example.com/cx/audit.Invoices",
+      "basis": "candidate",
+      "confidence": "low",
+      "locality": "function",
+      "degree": 1,
+      "siteCount": 1,
+      "sites": [
+        {
+          "file": "audit/fetch.go",
+          "line": 6,
+          "package": "example.com/cx/audit",
+          "func": "example.com/cx/audit.Invoices"
+        }
+      ],
+      "message": "example.com/cx/audit.Invoices calls net/http.Get, and nothing its package imports retries the call or breaks a circuit around it",
+      "fix": "retry the errors that are safe to retry, with backoff and jitter, and put a circuit breaker around a remote that can fail for long"
+    },
+    {
       "fingerprint": "b46b00ba87456c3b",
       "kind": "timing",
       "strength": 7,
@@ -1235,6 +1257,36 @@
       "status": "pending"
     }
   ],
+  "skipped": [
+    {
+      "criterion": "connascence/2bcf62021dc1d4dd",
+      "reason": "within the limits at function locality, so confirming it would make no finding"
+    },
+    {
+      "criterion": "connascence/fc76cc5ee7553731",
+      "reason": "within the limits at function locality, so confirming it would make no finding"
+    },
+    {
+      "criterion": "connascence/3e03038eab244068",
+      "reason": "within the limits at type locality, so confirming it would make no finding"
+    },
+    {
+      "criterion": "connascence/9411ff24cfd65cce",
+      "reason": "within the limits at type locality, so confirming it would make no finding"
+    },
+    {
+      "criterion": "connascence/278b472348f2e7aa",
+      "reason": "within the limits at type locality, so confirming it would make no finding"
+    },
+    {
+      "criterion": "connascence/55e30e679442601a",
+      "reason": "within the limits at function locality, so confirming it would make no finding"
+    },
+    {
+      "criterion": "connascence/b46b00ba87456c3b",
+      "reason": "within the limits at function locality, so confirming it would make no finding"
+    }
+  ],
   "assumptions": [
     {
       "id": "strength-order",
@@ -1300,6 +1352,11 @@
       "id": "site-cap",
       "text": "An instance lists its first 20 sites in sorted order; siteCount gives the total.",
       "source": "connascence.md §6"
+    },
+    {
+      "id": "runtime-coupling",
+      "text": "An outbound call is a net/http request or the making of a generated gRPC client. Through the default client it is a no-deadline fact; in a package that imports no retry or circuit-breaker library (backoff, retry-go, go-retry, go-retryablehttp, gobreaker, hystrix-go, go-resiliency, failsafe-go, the gRPC middleware's retry), imports no package under analysis that does, and sets no gRPC service config, it is a no-retry candidate.",
+      "source": "connascence.md §9.7"
     }
   ]
 }

@@ -99,7 +99,7 @@ FINDINGS (3 errors, 3 warnings)
   error    subsystem-cycle  billing ↔ shop  billing/tax/tax.go:4
            subsystems billing ↔ shop form a cycle
            evidence: example.com/fx/billing/tax imports example.com/fx/shop/catalog at billing/tax/tax.go:4
-           fix: cut billing → shop (1 import): move each importing package to the subsystem it serves, or invert the import through an interface
+           fix: cut billing → shop (1 import in billing/tax/tax.go; 1 type use, as field), which closes billing → shop → billing: move each importing package to the subsystem it serves, or invert the import through an interface
   warning  subsystem-without-interface  shop  
            subsystem shop declares no interface package
            fix: list the packages other subsystems may import as its interface; Siedersleben's advice is its topmost package (mmi.md §7.6)

@@ -29,6 +29,9 @@ type DomainTypes struct {
 	rule   *DomainRule
 	exists map[string]bool
 	byName map[string][]string
+	// byDirective maps an entity name to the in-scope types whose
+	// "//arch:entity" directive names it.
+	byDirective map[string][]string
 }
 
 // DomainImport is another domain model this one refers to as Scope.Name.
@@ -63,26 +66,36 @@ type DomainRelationship struct {
 
 // NewDomainTypes indexes the program's types for one domain rule.
 func NewDomainTypes(p *Program, g *Graphs, r *DomainRule) DomainTypes {
-	d := DomainTypes{rule: r, exists: map[string]bool{}, byName: map[string][]string{}}
+	d := DomainTypes{
+		rule: r, exists: map[string]bool{}, byName: map[string][]string{},
+		byDirective: map[string][]string{},
+	}
 	for i := range p.Types {
 		t := &p.Types[i]
 		d.exists[t.ID] = true
 		if r.Subsystem == "" || g.SubsystemAssignment.Of[t.Package] == r.Subsystem {
 			d.byName[t.Name] = append(d.byName[t.Name], t.ID)
+			if t.Entity != "" {
+				d.byDirective[t.Entity] = append(d.byDirective[t.Entity], t.ID)
+			}
 		}
 	}
 	return d
 }
 
 // Match returns the types a model name stands for: its explicit mapping when
-// that names a type of the program, nothing when it names none, and
-// otherwise the in-scope types of that name.
+// that names a type of the program, nothing when it names none; otherwise
+// the in-scope types whose "//arch:entity" directive names it, and failing
+// those the in-scope types of that name.
 func (d DomainTypes) Match(name string) []string {
 	if id, ok := d.rule.Types[name]; ok {
 		if d.exists[id] {
 			return []string{id}
 		}
 		return nil
+	}
+	if ids := d.byDirective[name]; len(ids) > 0 {
+		return ids
 	}
 	return d.byName[name]
 }

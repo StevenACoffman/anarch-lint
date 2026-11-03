@@ -46,17 +46,17 @@ type SubsystemVolatility struct {
 // it or a revision range gives its churn; otherwise its slot is skipped.
 func (s *subject) volatility(
 	ev []evidence, groups map[pairKey][]evidence,
-) ([]SubsystemVolatility, []SkippedSlot) {
+) ([]SubsystemVolatility, []arch.SkippedSlot) {
 	upstream := map[string]bool{}
 	for k := range groups {
 		upstream[k.to] = true
 	}
 	out := make([]SubsystemVolatility, 0, len(s.m.Subsystems))
-	var skipped []SkippedSlot
+	var skipped []arch.SkippedSlot
 	for _, sub := range s.m.Subsystems {
 		v := SubsystemVolatility{Name: sub.Name, Subdomain: subdomainUnjudged}
 		if s.in.Churn == nil && !upstream[sub.Name] {
-			skipped = append(skipped, SkippedSlot{
+			skipped = append(skipped, arch.SkippedSlot{
 				Criterion: "subdomain/" + sub.Name,
 				Reason: "no subsystem depends on it and no revision range gives its churn, " +
 					"so its volatility decides nothing",
@@ -84,18 +84,18 @@ func (s *subject) volatility(
 // boundedContexts asks whether each subsystem at either end of a
 // model-level pair is a bounded context, which decides whether the pair
 // leaks a model, and skips the others.
-func (s *subject) boundedContexts(r *Report, ev []evidence) []SkippedSlot {
+func (s *subject) boundedContexts(r *Report, ev []evidence) []arch.SkippedSlot {
 	ends := map[string]bool{}
 	for i := range r.Pairs {
 		if p := &r.Pairs[i]; p.Level == LevelModel {
 			ends[p.From], ends[p.To] = true, true
 		}
 	}
-	var skipped []SkippedSlot
+	var skipped []arch.SkippedSlot
 	for i := range r.Subsystems {
 		v := &r.Subsystems[i]
 		if !ends[v.Name] {
-			skipped = append(skipped, SkippedSlot{
+			skipped = append(skipped, arch.SkippedSlot{
 				Criterion: "bounded-context/" + v.Name,
 				Reason: "it shares no model with another subsystem, " +
 					"so whether it is a bounded context decides nothing",

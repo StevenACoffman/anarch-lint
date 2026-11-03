@@ -160,9 +160,8 @@ func (h *history) hiddenCouplings(cc []CoChange) []Candidate {
 	return out
 }
 
-// hotspots returns the packages whose commits times complexity is highest,
-// at most maxListed, by that product and then by path; it is empty without a
-// range.
+// hotspots returns the packages that changed and have complexity, by
+// commits times complexity and then by path; it is empty without a range.
 func (h *history) hotspots() []Hotspot {
 	out := make([]Hotspot, 0)
 	if h.churn == nil {
@@ -186,7 +185,7 @@ func (h *history) hotspots() []Hotspot {
 		return cmp.Or(cmp.Compare(y.Commits*y.Complexity, x.Commits*x.Complexity),
 			cmp.Compare(x.Package, y.Package))
 	})
-	return out[:min(len(out), maxListed)]
+	return out
 }
 
 // commitsTo returns the distinct commits that changed any of the files.

@@ -70,6 +70,9 @@ type RuleResult struct {
 	Matched    int           `json:"matched"`
 	Violations int           `json:"violations"`
 	Status     RuleStatus    `json:"status"`
+	// Truncated marks a rule that stopped at a cap, the first maxCycles
+	// cycles in sorted order: its violations are a lower bound.
+	Truncated bool `json:"truncated,omitempty"`
 }
 
 // CycleSet is the elementary cycles of one graph, at most maxCycles of them.
@@ -137,7 +140,11 @@ func Analyze(in *arch.Input) Report {
 		&s.p.Facts,
 		s.packagePaths(),
 	)
+	checkGraphQL(s.ledger, s.m.Fitness.GraphQL, in.GraphQL, s.p.Funcs, s.packagePaths())
+	checkProtobuf(s.ledger, s.m.Fitness.Protobuf, in.Protos, &s.p.Facts, s.packagePaths())
+	checkCases(s.ledger, in, s.packagePaths())
 	checkCoChange(s.ledger, s.m.Fitness.CoChange, in.Changed)
+	checkBoundaries(s.ledger, s.m.Fitness.Boundaries, in.Changed, &s.p.Facts, s.p.Imports)
 	checkFanOut(s.ledger, s.m.Fitness.FanOut, s.packagePaths(), importsInScope(s.p, &s.g))
 	(&existing{p: s.p, m: s.m, types: s.types, packages: s.packagePaths(), ledger: s.ledger}).check()
 	s.unexplained(s.m)

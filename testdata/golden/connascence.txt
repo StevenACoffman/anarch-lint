@@ -10,7 +10,7 @@ SUMMARY (facts+candidates at each locality)
   4 position        2+1       -     -     -        -          1+0     -         
   5 algorithm       -         -     -     -        -          1+4     -         
   6 execution       -         0+3   -     -        -          -       -         
-  7 timing          1+1       -     -     -        -          -       -         
+  7 timing          1+2       -     -     -        -          -       -         
   8 value           -         -     -     -        -          1+1     -         
   9 identity        -         -     -     -        -          1+0     -         
 
@@ -42,11 +42,15 @@ FINDINGS (4 errors, 0 warnings)
          evidence: site: billing/invoice.go:31 (example.com/cx/billing.Describe)
          fix: move the behaviour into a method on the type, or a table in its package, so a new value is added in one place
 
-CANDIDATES (11, 0 rejected; the first 11, strongest and farthest first)
+CANDIDATES (12, 0 rejected; the first 12, strongest and farthest first)
   value.equal-constants         8080 (untyped int)  auth/role.go:30
                                 2 packages declare constants of type untyped int equal to 8080
                                 strength 8 (value), locality system, degree 2, 2 sites, confidence high
                                 fix: declare the value once and refer to it from both packages
+  timing.no-retry               example.com/cx/audit.Invoices  audit/fetch.go:6
+                                example.com/cx/audit.Invoices calls net/http.Get, and nothing its package imports retries the call or breaks a circuit around it
+                                strength 7 (timing), locality function, degree 1, 1 sites, confidence low
+                                fix: retry the errors that are safe to retry, with backoff and jitter, and put a circuit breaker around a remote that can fail for long
   timing.wait                   example.com/cx/state.Wait  state/email.go:39
                                 example.com/cx/state.Wait waits on elapsed time with time.Sleep
                                 strength 7 (timing), locality function, degree 1, 1 sites, confidence low
@@ -135,4 +139,6 @@ JUDGEMENTS (for a human expert or an adversarial LLM; an approved verdict confir
                                          context, hidden from a judge: over the limits: above maxStrength.system 3
                                          evidence hash: 6db1fb538159d9c167bf1348f2250a25ca4b7983c479c98b47cc16d9f7e2f9fa
 
-ASSUMPTIONS: 13, listed in the JSON report (--format=json)
+SKIPPED SLOTS: 7 candidates within every limit, where an answer would change nothing; listed in the JSON report
+
+ASSUMPTIONS: 14, listed in the JSON report (--format=json)

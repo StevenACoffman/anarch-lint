@@ -23,6 +23,7 @@
   },
   "sizes": {
     "lines": 84,
+    "files": 8,
     "types": 15,
     "funcs": 11,
     "generated": 1,
@@ -669,7 +670,7 @@
         "end": 4
       },
       "message": "subsystems billing ↔ shop form a cycle",
-      "fix": "cut billing → shop (1 import): move each importing package to the subsystem it serves, or invert the import through an interface",
+      "fix": "cut billing → shop (1 import in billing/tax/tax.go; 1 type use, as field), which closes billing → shop → billing: move each importing package to the subsystem it serves, or invert the import through an interface",
       "evidence": [
         "example.com/fx/billing/tax imports example.com/fx/shop/catalog at billing/tax/tax.go:4"
       ]

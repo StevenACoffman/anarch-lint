@@ -30,8 +30,11 @@ type ImportExplanation struct {
 	// Location is the import's first site; nil when From does not import To.
 	Location *Span `json:"location,omitempty"`
 	// Inactive marks an import read from a file the build excludes.
-	Inactive bool              `json:"inactive,omitempty"`
-	Rules    []RuleExplanation `json:"rules"`
+	Inactive bool `json:"inactive,omitempty"`
+	// Hypothetical marks the decisions about an import From does not have:
+	// what the rules would decide if it did.
+	Hypothetical bool              `json:"hypothetical,omitempty"`
+	Rules        []RuleExplanation `json:"rules"`
 }
 
 // RuleExplanation is one rule's decision about one import.
@@ -66,6 +69,7 @@ func ExplainImport(in *Input, from, to string) ImportExplanation {
 		return out
 	}
 	p.Imports, p.InactiveImports = only(p.Imports), only(p.InactiveImports)
+	p.TestImports = only(p.TestImports)
 	imps := p.RuleImports()
 	if len(imps) == 0 {
 		return e
@@ -95,6 +99,18 @@ func ExplainImport(in *Input, from, to string) ImportExplanation {
 	}
 	SortExplanations(e.Rules)
 	return e
+}
+
+// WithImport returns a copy of the input whose program also imports to from
+// from, at pos, for asking what the rules would decide about an import the
+// code does not have. The input is not modified.
+func (in *Input) WithImport(from, to string, pos Position) Input {
+	out := *in
+	out.Program.Imports = slices.Concat(
+		in.Program.Imports,
+		[]Import{{From: from, To: to, Pos: pos}},
+	)
+	return out
 }
 
 // Forbids returns the explanation of a finding that forbids an import.

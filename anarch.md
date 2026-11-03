@@ -1,6 +1,6 @@
 # Architecture
 
-<!-- Rendered by anarch-lint render from the model f08f3d6461b1. Edit the model, not this file. -->
+<!-- Rendered by anarch-lint render from the model a075fbaf8bee. Edit the model, not this file. -->
 
 ## Subsystems
 
@@ -52,10 +52,10 @@ flowchart TD
   s10 -->|1| s13
   s0 -->|2| s10
   s0 -->|3| s11
-  s0 -->|1| s5
+  s0 -->|3| s5
   s0 -->|1| s8
   s0 -->|1| s4
-  s0 -->|10| s13
+  s0 -->|12| s13
   s0 -->|1| s6
   s0 -->|3| s9
   s0 -->|1| s12
@@ -109,15 +109,19 @@ flowchart TD
 
 ## Fitness Rules
 
-| Rule                    | Kind          | Gate | Reason                                                                                                                                                          |
-| ----------------------- | ------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| pure-domain             | layerAccess   | fail | the domain and the measures depend on nothing but themselves (summary_rules §5)                                                                                 |
-| adapters-to-domain      | layerAccess   | fail | an adapter translates for the domain and knows no command (summary_rules §1)                                                                                    |
-| x-tools-only-in-loader  | dependents    | fail | go/packages is the loader's dependency, and cover the coverage reader's (summary_rules §1)                                                                      |
-| core-approved-libraries | libraries     | fail | the core imports only pure, deterministic, well-tested libraries, each approved here (docs/adr/0012)                                                            |
-| no-clock-or-os-in-core  | calls         | fail | the functional core reads no clock, does no I/O and draws nothing from the global random source; a source seeded with constants, as Louvain's, is deterministic |
-| no-unused-api           | unusedExports | fail | an identifier exported for no other package widens the API and the visibility metrics for nothing; unexport it (IMPROVEMENTS.md §9.2)                           |
-| core-speaks-its-model   | domains       | fail | the functional core keeps the vocabulary of its domain model (docs/adr/0005)                                                                                    |
+| Rule                        | Kind          | Gate | Reason                                                                                                                                                          |
+| --------------------------- | ------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| pure-domain                 | layerAccess   | fail | the domain and the measures depend on nothing but themselves (summary_rules §5)                                                                                 |
+| adapters-to-domain          | layerAccess   | fail | an adapter translates for the domain and knows no command (summary_rules §1)                                                                                    |
+| x-tools-only-in-loader      | dependents    | fail | go/packages is the loader's dependency, and cover the coverage reader's (summary_rules §1)                                                                      |
+| core-approved-libraries     | libraries     | fail | the core imports only pure, deterministic, well-tested libraries, each approved here (docs/adr/0012)                                                            |
+| no-clock-or-os-in-core      | calls         | fail | the functional core reads no clock, does no I/O and draws nothing from the global random source; a source seeded with constants, as Louvain's, is deterministic |
+| no-unused-api               | unusedExports | fail | an identifier exported for no other package widens the API and the visibility metrics for nothing; unexport it (IMPROVEMENTS.md §9.2)                           |
+| core-speaks-its-model       | domains       | fail | the functional core keeps the vocabulary of its domain model (docs/adr/0005)                                                                                    |
+| core-stays-out-of-the-shell | cases         | fail | the functional core never reaches into the shell (summary_rules §5)                                                                                             |
+| adapters-stay-apart         | cases         | fail | adapters do not import each other; only cmd wires them (summary_rules §1)                                                                                       |
+| measures-stay-apart         | cases         | fail | each measure reads only the core's vocabulary                                                                                                                   |
+| commands-use-the-core       | cases         | fail | the shell may use the core, or nothing works                                                                                                                    |
 
 ## Finding Rules
 
@@ -129,10 +133,10 @@ flowchart TD
 
 ## Quality Attributes
 
-| Attribute       | Rules                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| security        | `fitness.libraries core-approved-libraries`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| maintainability | `layers`, `subsystemOrder`, `interfaces`, `forbiddenImports[0]`, `forbiddenImports[1]`, `forbiddenImports[2]`, `forbiddenImports[3]`, `forbiddenImports[4]`, `isolations[0]`, `isolations[1]`, `isolations[2]`, `isolations[3]`, `isolations[4]`, `isolations[5]`, `isolations[6]`, `isolations[7]`, `isolations[8]`, `isolations[9]`, `isolations[10]`, `isolations[11]`, `fitness.layerAccess pure-domain`, `fitness.layerAccess adapters-to-domain`, `fitness.dependents x-tools-only-in-loader`, `fitness.calls no-clock-or-os-in-core`, `fitness.unusedExports no-unused-api`, `fitness.domains core-speaks-its-model` |
+| Attribute       | Rules                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| security        | `fitness.libraries core-approved-libraries`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| maintainability | `layers`, `subsystemOrder`, `interfaces`, `forbiddenImports[0]`, `forbiddenImports[1]`, `forbiddenImports[2]`, `forbiddenImports[3]`, `forbiddenImports[4]`, `isolations[0]`, `isolations[1]`, `isolations[2]`, `isolations[3]`, `isolations[4]`, `isolations[5]`, `isolations[6]`, `isolations[7]`, `isolations[8]`, `isolations[9]`, `isolations[10]`, `isolations[11]`, `fitness.layerAccess pure-domain`, `fitness.layerAccess adapters-to-domain`, `fitness.dependents x-tools-only-in-loader`, `fitness.calls no-clock-or-os-in-core`, `fitness.unusedExports no-unused-api`, `fitness.domains core-speaks-its-model`, `fitness.cases core-stays-out-of-the-shell`, `fitness.cases adapters-stay-apart`, `fitness.cases measures-stay-apart`, `fitness.cases commands-use-the-core` |
 
 ## Domain Models
 

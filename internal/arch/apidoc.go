@@ -2,6 +2,7 @@ package arch
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -36,8 +37,8 @@ type HTTPRoute struct {
 }
 
 // NormalizeRoute returns an HTTP path in canonical form: each parameter is
-// "{}", whether written {id}, {id:[0-9]+}, :id or *rest, and a trailing
-// slash is dropped, so a route and the document describing it compare equal.
+// "{}", whether written {id}, {id:[0-9]+}, :id or *rest, and trailing
+// slashes are dropped, so a route and the document describing it compare equal.
 func NormalizeRoute(path string) string {
 	segments := strings.Split(path, "/")
 	for i, seg := range segments {
@@ -51,10 +52,10 @@ func NormalizeRoute(path string) string {
 		}
 	}
 	path = strings.Join(segments, "/")
-	if len(path) > 1 {
-		path = strings.TrimSuffix(path, "/")
+	if trimmed := strings.TrimRight(path, "/"); trimmed != "" || path == "" {
+		return trimmed
 	}
-	return path
+	return "/"
 }
 
 // Route returns an HTTP contract's route; false for a contract of another
@@ -66,4 +67,32 @@ func (c *Contract) Route() (HTTPRoute, bool) {
 	}
 	method, path, ok := strings.Cut(rest, "::")
 	return HTTPRoute{Method: method, Path: path}, ok
+}
+
+// PathsOf returns the canonical paths an operation of the document is
+// served at: its path template as written, and under each base path.
+func (d *APIDocument) PathsOf(op *APIOperation) []string {
+	out := []string{NormalizeRoute(op.Path)}
+	for _, bp := range d.BasePaths {
+		out = append(out, NormalizeRoute(bp+op.Path))
+	}
+	return out
+}
+
+// MethodServes reports whether the route's method serves a documented one:
+// the same, or a route for every method.
+func (r HTTPRoute) MethodServes(documented string) bool {
+	return r.Method == "*" || r.Method == documented
+}
+
+// Serves returns the operation of the document a route serves, or false
+// when the document declares none.
+func (d *APIDocument) Serves(r HTTPRoute) (APIOperation, bool) {
+	for i := range d.Operations {
+		op := &d.Operations[i]
+		if r.MethodServes(op.Method) && slices.Contains(d.PathsOf(op), r.Path) {
+			return *op, true
+		}
+	}
+	return APIOperation{}, false
 }

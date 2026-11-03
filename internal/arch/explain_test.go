@@ -100,3 +100,17 @@ func TestExplainImport(t *testing.T) {
 		equals(t, arch.OutcomeForbids, late.Rules[0].Outcome)
 	})
 }
+
+// TestWithImport: the copy has the added import, and the input is
+// unchanged, so asking about an import cannot leak into what is checked.
+func TestWithImport(t *testing.T) {
+	t.Parallel()
+	in := arch.Input{Program: arch.Program{Imports: make([]arch.Import, 1, 2)}}
+	in.Program.Imports[0] = arch.Import{From: "m/a", To: "m/b"}
+	out := in.WithImport("m/b", "m/a", arch.Position{File: "case c", Line: 1})
+	equals(t, []arch.Import{{From: "m/a", To: "m/b"}}, in.Program.Imports)
+	equals(t, []arch.Import{
+		{From: "m/a", To: "m/b"},
+		{From: "m/b", To: "m/a", Pos: arch.Position{File: "case c", Line: 1}},
+	}, out.Program.Imports)
+}

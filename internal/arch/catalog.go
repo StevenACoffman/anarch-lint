@@ -65,6 +65,14 @@ const (
 	RuleFanOut                   = "fan-out"
 	RuleOperationUnserved        = "openapi-operation-unserved"
 	RuleRouteUndocumented        = "openapi-route-undocumented"
+	RuleFieldUnresolved          = "graphql-field-unresolved"
+	RuleOperationInvalid         = "graphql-operation-invalid"
+	RuleServiceUnregistered      = "proto-service-unregistered"
+	RuleServiceUndeclared        = "proto-service-undeclared"
+	RuleConstraintInvalid        = "proto-constraint-invalid"
+	RuleCaseContradicted         = "model-case-contradicted"
+	RuleBoundaryCrossed          = "boundary-crossed"
+	RuleUnknownEntity            = "unknown-entity-directive"
 	RuleMissingCoChange          = "missing-co-change"
 	ruleTightCouplingFunctional  = "tight-coupling-functional"
 	ruleTightCouplingIntrusive   = "tight-coupling-intrusive"
@@ -74,6 +82,7 @@ const (
 	RuleOwnersDiffer             = "subsystem-owners-differ"
 	RuleUpstreamExposure         = "strong-upstream-exposure"
 	RuleUntestedDependency       = "untested-dependency"
+	RuleUntestedCrossing         = "untested-crossing"
 	RuleAccidentalVolatility     = "accidental-volatility"
 	RuleFrozenCore               = "frozen-core"
 	RuleHiddenCoupling           = "hidden-coupling"
@@ -206,6 +215,14 @@ func fitnessRules() map[string]string {
 		RuleFanOut:                 "a package imports more packages than its fanOut rule allows",
 		RuleOperationUnserved:      "an OpenAPI document declares an operation no serving package registers",
 		RuleRouteUndocumented:      "a serving package registers a route its OpenAPI document does not declare",
+		RuleFieldUnresolved:        "a GraphQL root field has no resolver method in a serving package",
+		RuleOperationInvalid:       "a GraphQL operation document is invalid against its schema",
+		RuleServiceUnregistered:    "a .proto file declares a gRPC service no serving package registers",
+		RuleServiceUndeclared:      "a serving package registers a gRPC service its .proto files do not declare",
+		RuleConstraintInvalid:      "a message's buf.validate constraints do not compile",
+		RuleCaseContradicted:       "the rules decide a declared case's import otherwise than it expects",
+		RuleBoundaryCrossed:        "a changed line uses a package its boundaries rule keeps the file from",
+		RuleUnknownEntity:          "an //arch:entity directive names no entity of a domain model covering it",
 		RuleMissingCoChange:        "a change lacks the change its coChange rule requires",
 	}
 }
@@ -221,6 +238,7 @@ func balanceRules() map[string]string {
 		RuleOwnersDiffer:            "a subsystem's packages have different owners",
 		RuleUpstreamExposure:        "a widely imported package depends strongly on another subsystem",
 		RuleUntestedDependency:      "a widely imported package's tests run little of it",
+		RuleUntestedCrossing:        "a changed function calls into another subsystem, and no test runs it",
 		RuleAccidentalVolatility:    "a subsystem judged generic or supporting changes often",
 		RuleFrozenCore:              "a subsystem judged core never changed",
 		RuleHiddenCoupling:          "two subsystems change together without importing each other",

@@ -183,13 +183,18 @@ func TestCandidateVerdicts(t *testing.T) {
 	}
 }
 
-// A candidate under every limit asks no reviewer anything.
+// A candidate under every limit asks no reviewer anything, and the report
+// lists its slot as skipped, with why.
 func TestCandidateUnderTheLimitsHasNoSlot(t *testing.T) {
 	t.Parallel()
 	m := model(true)
 	m.Connascence.MaxStrength[arch.LocalitySystem] = 9
 	r := analyze(m)
 	equals(t, 0, len(r.Judgements))
+	equals(t, []arch.SkippedSlot{{
+		Criterion: "connascence/" + r.Candidates[0].Fingerprint,
+		Reason:    "within the limits at system locality, so confirming it would make no finding",
+	}}, r.Skipped)
 	equals(t, 0, len(r.Findings))
 	equals(t, "algorithm.same-pattern", r.Candidates[0].Detector)
 	equals(t, arch.ConfidenceHigh, r.Candidates[0].Confidence)

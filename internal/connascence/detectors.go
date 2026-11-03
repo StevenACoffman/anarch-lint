@@ -33,7 +33,7 @@ func detectors() []func(*subject) []arch.Connascence {
 		samePatternDetector, sameLayoutDetector, sameAlgorithmDetector, cloneDetector,
 		partialCloneDetector,
 		guardDetector, lifecycleDetector, unpairedLockDetector,
-		timeCallDetector, equalDurationDetector, noDeadlineDetector,
+		timeCallDetector, equalDurationDetector, noDeadlineDetector, noRetryDetector,
 		foreignSwitchDetector, equalConstantDetector,
 		sharedVariableDetector, sharedStateDetector, pointerIdentityDetector,
 		enumCollisionDetector, registrationDetector,

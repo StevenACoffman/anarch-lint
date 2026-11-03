@@ -41,8 +41,12 @@ func writeRuleTable(w io.Writer, rules []fitness.RuleResult) {
 	_, _ = fmt.Fprintln(w, "\nRULES")
 	_, _ = fmt.Fprintln(w, "  rule\tkind\tgate\tmatched\tviolations\tstatus\treason\t")
 	for _, r := range rules {
+		status := string(r.Status)
+		if r.Truncated {
+			status += ", truncated"
+		}
 		_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\t%d\t%d\t%s\t%s\t\n",
-			r.Name, r.Kind, r.Gate, r.Matched, r.Violations, r.Status, orNone(r.Reason))
+			r.Name, r.Kind, r.Gate, r.Matched, r.Violations, status, orNone(r.Reason))
 	}
 }
 

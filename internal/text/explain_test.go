@@ -16,8 +16,20 @@ func TestWriteExplanation(t *testing.T) {
 		wants []string
 	}{
 		"not imported": {
-			e:     arch.ImportExplanation{From: "m/a", To: "m/b"},
-			wants: []string{"m/a does not import m/b\n"},
+			e:     arch.ImportExplanation{From: "m/a", To: "m/b", Hypothetical: true},
+			wants: []string{"m/a does not import m/b; no declared rule would examine it\n"},
+		},
+		"not imported, but a rule would forbid it": {
+			e: arch.ImportExplanation{
+				From: "m/a", To: "m/b", Hypothetical: true,
+				Rules: []arch.RuleExplanation{
+					{ModelRule: "layers", Outcome: arch.OutcomeForbids, Why: "m/a sits below m/b"},
+				},
+			},
+			wants: []string{
+				"m/a does not import m/b; if it did:\n",
+				"  forbids  layers  m/a sits below m/b\n",
+			},
 		},
 		"no rule": {
 			e:     arch.ImportExplanation{From: "m/a", To: "m/b", Location: at},

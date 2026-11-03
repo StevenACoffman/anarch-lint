@@ -233,6 +233,38 @@ func TestGateCountsUnread(t *testing.T) {
 	equals(t, "", arch.DescribeUnread(nil))
 }
 
+// TestExcludedShare: the share of source files no measure reads counts
+// generated and build-excluded files, not nested modules, and growing it
+// fails the gate, so code cannot leave the measures by being marked
+// generated.
+func TestExcludedShare(t *testing.T) {
+	t.Parallel()
+	cases := map[string]struct {
+		sizes arch.Sizes
+		share float64
+	}{
+		"none excluded": {sizes: arch.Sizes{Files: 9, OtherModules: 2}},
+		"one in four": {
+			sizes: arch.Sizes{Files: 6, Generated: 1, BuildExcluded: 1},
+			share: 0.25,
+		},
+		"an empty module": {},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			equals(t, tc.share, tc.sizes.ExcludedShare())
+		})
+	}
+	m := fixtureModel()
+	r := analyze(&m)
+	baseline := arch.NewBaseline(gateInput(&r))
+	r.Sizes.Generated += 3
+	g := arch.Gate(gateInput(&r), &baseline, nil)
+	assert(t, !g.Passed, "the gate passed a growing excluded share")
+	equals(t, "files.excludedShare", g.Regressions[0].Metric)
+}
+
 // A baseline measured in another build is named, and does not fail the
 // gate; a baseline that records no build, or the same one, is not.
 func TestGateNamesAnotherBuild(t *testing.T) {

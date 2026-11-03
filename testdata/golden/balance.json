@@ -308,6 +308,7 @@
   "coChange": [],
   "hotspots": [],
   "coverage": [],
+  "capped": [],
   "unbound": [
     "example.com/cx/audit",
     "example.com/cx/state"
@@ -756,6 +757,11 @@
       "id": "coverage",
       "text": "Coverage attributes each block of a go test -coverprofile profile to the function holding its first line. A package at least 3 packages import, whose tests run less than 50% of its statements, is an untested-dependency candidate.",
       "source": "IMPROVEMENTS.md 6.4 (codegrapher coverage)"
+    },
+    {
+      "id": "lists",
+      "text": "A pair lists at most 20 pieces of evidence, with evidenceCount the total, and an upstream-exposure finding at most 20 dependents, with the total in its message. The report lists at most 20 hotspots and 20 packages of coverage, ranked; capped says when a list was cut, and candidates are drawn from the whole list.",
+      "source": "IMPROVEMENTS.md 1.5"
     }
   ]
 }

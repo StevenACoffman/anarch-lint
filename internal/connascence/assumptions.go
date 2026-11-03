@@ -5,7 +5,22 @@ import "github.com/StevenACoffman/anarch-lint/internal/arch"
 // assumptions lists the choices behind the connascence measures: how the
 // axes are defined, and the fixed inputs of the detectors.
 func assumptions() []arch.Assumption {
-	return append(axisAssumptions(), detectorAssumptions()...)
+	return append(append(axisAssumptions(), detectorAssumptions()...), runtimeAssumption())
+}
+
+// runtimeAssumption is what the runtime-coupling detectors count as an
+// outbound call, and as its protection.
+func runtimeAssumption() arch.Assumption {
+	return arch.Assumption{
+		ID: "runtime-coupling",
+		Text: "An outbound call is a net/http request or the making of a generated gRPC " +
+			"client. Through the default client it is a no-deadline fact; in a package that " +
+			"imports no retry or circuit-breaker library (backoff, retry-go, go-retry, " +
+			"go-retryablehttp, gobreaker, hystrix-go, go-resiliency, failsafe-go, the gRPC " +
+			"middleware's retry), imports no package under analysis that does, and sets no gRPC " +
+			"service config, it is a no-retry candidate.",
+		Source: "connascence.md §9.7",
+	}
 }
 
 // axisAssumptions are the definitions of strength, locality and degree, and

@@ -9,7 +9,10 @@ type Repository interface {
 	Find(id int) string
 }
 
-// Customer is an entity because it embeds the marker.
+// Customer is an entity because it embeds the marker, and the domain
+// model's Client, by its directive.
+//
+//arch:entity Client
 type Customer struct {
 	Entity
 	Name string

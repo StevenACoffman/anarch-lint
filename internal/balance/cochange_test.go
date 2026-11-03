@@ -116,3 +116,26 @@ func TestCoverage(t *testing.T) {
 	}
 	equals(t, []string{"m/auth"}, untested)
 }
+
+// TestHotspotsAreCapped: past 20 hotspots the report lists the 20 highest
+// and says how many there were.
+func TestHotspotsAreCapped(t *testing.T) {
+	t.Parallel()
+	in := &arch.Input{}
+	commits := map[string][]string{}
+	for i := range 25 {
+		pkg, file := fmt.Sprintf("m/p%02d", i), fmt.Sprintf("p%02d/a.go", i)
+		in.Program.Packages = append(in.Program.Packages,
+			arch.Package{Path: pkg, Name: "p", Module: "m", Files: []string{file}})
+		in.Program.Funcs = append(in.Program.Funcs, arch.Func{
+			ID: pkg + ".F", Package: pkg, Name: "F", Complexity: arch.Complexity{Modified: i + 1},
+		})
+		commits[file] = []string{"c1"}
+	}
+	r := balance.Analyze(&balance.Input{
+		Input: in, Churn: &arch.Churn{Since: "a", Head: "b", Commits: commits},
+	})
+	equals(t, 20, len(r.Hotspots))
+	equals(t, "m/p24", r.Hotspots[0].Package)
+	equals(t, []string{"hotspots: 20 of 25"}, r.Capped)
+}

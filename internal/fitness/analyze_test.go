@@ -2,6 +2,7 @@ package fitness_test
 
 import (
 	"cmp"
+	"fmt"
 	"reflect"
 	"slices"
 	"strings"
@@ -579,6 +580,37 @@ func TestFanOutRule(t *testing.T) {
 			equals(t, 5, r.Rules[0].Matched)
 		})
 	}
+}
+
+// TestFanOutEvidenceIsCapped: past 20 imports the evidence says how many
+// more there are, so the list is never taken for the whole.
+func TestFanOutEvidenceIsCapped(t *testing.T) {
+	t.Parallel()
+	var p arch.Program
+	p.Packages = append(p.Packages, arch.Package{Path: "m/hub"})
+	for i := range 22 {
+		to := fmt.Sprintf("m/leaf%02d", i)
+		p.Packages = append(p.Packages, arch.Package{Path: to})
+		p.Imports = append(p.Imports, arch.Import{
+			From: "m/hub", To: to, Pos: arch.Position{File: "hub/h.go", Line: i + 3},
+		})
+	}
+	slices.SortFunc(p.Packages, func(a, b arch.Package) int { return cmp.Compare(a.Path, b.Path) })
+	m := arch.Model{Fitness: arch.Fitness{FanOut: []arch.FanOutRule{
+		{
+			RuleOptions: arch.RuleOptions{
+				Name:   "fan",
+				Reason: "r",
+			},
+			Packages: []string{"m/hub"},
+			Max:      5,
+		},
+	}}}
+	r := fitness.Analyze(&arch.Input{Program: p, Model: m})
+	equals(t, []string{"fan-out m/hub fan"}, rules(&r))
+	ev := r.Findings[0].Evidence
+	equals(t, 21, len(ev))
+	equals(t, "and 2 more imports for m/hub, past the cap of 20", ev[20])
 }
 
 // TestLibrariesRule: beyond the standard library and the packages under

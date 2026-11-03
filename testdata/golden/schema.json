@@ -18,6 +18,62 @@
       },
       "type": "object"
     },
+    "BoundaryRule": {
+      "additionalProperties": false,
+      "properties": {
+        "files": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "uses": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "files",
+        "uses"
+      ],
+      "type": "object"
+    },
     "CallRule": {
       "additionalProperties": false,
       "properties": {
@@ -439,9 +495,21 @@
     "Fitness": {
       "additionalProperties": false,
       "properties": {
+        "boundaries": {
+          "items": {
+            "$ref": "#/$defs/BoundaryRule"
+          },
+          "type": "array"
+        },
         "calls": {
           "items": {
             "$ref": "#/$defs/CallRule"
+          },
+          "type": "array"
+        },
+        "cases": {
+          "items": {
+            "$ref": "#/$defs/RuleCase"
           },
           "type": "array"
         },
@@ -475,6 +543,12 @@
           },
           "type": "array"
         },
+        "graphql": {
+          "items": {
+            "$ref": "#/$defs/GraphQLRule"
+          },
+          "type": "array"
+        },
         "interfacesOnly": {
           "items": {
             "$ref": "#/$defs/InterfacesOnly"
@@ -499,6 +573,12 @@
         "openapi": {
           "items": {
             "$ref": "#/$defs/OpenAPIRule"
+          },
+          "type": "array"
+        },
+        "protobuf": {
+          "items": {
+            "$ref": "#/$defs/ProtobufRule"
           },
           "type": "array"
         },
@@ -569,6 +649,9 @@
         "reason": {
           "type": "string"
         },
+        "tests": {
+          "type": "boolean"
+        },
         "transitive": {
           "type": "boolean"
         }
@@ -590,6 +673,67 @@
           "type": "number"
         }
       },
+      "type": "object"
+    },
+    "GraphQLRule": {
+      "additionalProperties": false,
+      "properties": {
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "operations": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "schema": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "servedBy": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "schema"
+      ],
       "type": "object"
     },
     "InterfacesOnly": {
@@ -687,6 +831,9 @@
         },
         "reason": {
           "type": "string"
+        },
+        "tests": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -956,6 +1103,67 @@
       ],
       "type": "object"
     },
+    "ProtobufRule": {
+      "additionalProperties": false,
+      "properties": {
+        "files": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
+        "importPaths": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "servedBy": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "files"
+      ],
+      "type": "object"
+    },
     "Role": {
       "additionalProperties": false,
       "properties": {
@@ -986,6 +1194,63 @@
       },
       "required": [
         "name"
+      ],
+      "type": "object"
+    },
+    "RuleCase": {
+      "additionalProperties": false,
+      "properties": {
+        "by": {
+          "type": "string"
+        },
+        "expect": {
+          "type": "string"
+        },
+        "from": {
+          "type": "string"
+        },
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
+        "imports": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "expect",
+        "from",
+        "imports"
       ],
       "type": "object"
     },

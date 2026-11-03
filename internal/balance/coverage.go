@@ -28,8 +28,8 @@ type PackageCoverage struct {
 }
 
 // coverageOf sums the profile's coverage by package and returns the packages
-// it instruments, by Ca × uncovered statements, then by path, at most
-// maxListed of them; it is empty without a profile.
+// it instruments, by Ca × uncovered statements, then by path; it is empty
+// without a profile.
 func coverageOf(cov *arch.Coverage, p *arch.Program, packages []PackageBalance) []PackageCoverage {
 	out := make([]PackageCoverage, 0)
 	if cov == nil {
@@ -59,7 +59,7 @@ func coverageOf(cov *arch.Coverage, p *arch.Program, packages []PackageBalance) 
 		return cmp.Or(cmp.Compare(b.Ca*(b.Statements-b.Covered), a.Ca*(a.Statements-a.Covered)),
 			cmp.Compare(a.Package, b.Package))
 	})
-	return out[:min(len(out), maxListed)]
+	return out
 }
 
 // untestedDependencies returns a candidate for each package many import

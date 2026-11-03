@@ -14,6 +14,7 @@ import (
 // and a package's subsystem and whether it is part of its interface.
 const (
 	roleDirective      = "//arch:role "
+	entityDirective    = "//arch:entity "
 	subsystemDirective = "//arch:subsystem "
 	exposesDirective   = "//arch:exposes"
 )
@@ -53,10 +54,10 @@ func embeddedTypes(tn *types.TypeName) []types.Type {
 	return embedded
 }
 
-// directiveOf returns the role an "//arch:role NAME" comment gives a type
-// spec, or "". The comment may sit on the spec or, for a declaration with one
-// spec, on the declaration.
-func directiveOf(ts *ast.TypeSpec, d *ast.GenDecl) string {
+// directiveOf returns the name a directive comment, such as
+// "//arch:role NAME", gives a type spec, or "". The comment may sit on the
+// spec or, for a declaration with one spec, on the declaration.
+func directiveOf(ts *ast.TypeSpec, d *ast.GenDecl, directive string) string {
 	docs := []*ast.CommentGroup{ts.Doc}
 	if len(d.Specs) == 1 {
 		docs = append(docs, d.Doc)
@@ -66,7 +67,7 @@ func directiveOf(ts *ast.TypeSpec, d *ast.GenDecl) string {
 			continue
 		}
 		for _, c := range doc.List {
-			if name, ok := strings.CutPrefix(c.Text, roleDirective); ok {
+			if name, ok := strings.CutPrefix(c.Text, directive); ok {
 				return strings.TrimSpace(name)
 			}
 		}

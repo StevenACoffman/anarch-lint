@@ -82,7 +82,9 @@ func TestAnalyzeFixtureFindings(t *testing.T) {
 	cycles := findingsOf(&r, arch.RuleSubsystemCycle)
 	equals(t, 1, len(cycles))
 	equals(t, "billing ↔ shop", cycles[0].Subject)
-	assert(t, strings.Contains(cycles[0].Fix, "cut "), "cycle finding has no cut: "+cycles[0].Fix)
+	equals(t, "cut billing → shop (1 import; 1 type use), which closes billing → shop → billing: "+
+		"move each importing package to the subsystem it serves, or invert the import through "+
+		"an interface", cycles[0].Fix)
 
 	// shop declares no interface, so tax's import of catalog bypasses it;
 	// catalog's import of invoice uses billing's interface.

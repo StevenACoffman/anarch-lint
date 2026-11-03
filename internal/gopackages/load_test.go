@@ -235,7 +235,7 @@ func TestLoadRoleMarkers(t *testing.T) {
 	p := loadFixture(t)
 	type markers struct {
 		Embeds, Implements []string
-		Directive          string
+		Directive, Entity  string
 	}
 	got := map[string]markers{}
 	for _, typ := range p.Types {
@@ -244,6 +244,7 @@ func TestLoadRoleMarkers(t *testing.T) {
 				Embeds:     typ.Embeds,
 				Implements: typ.Implements,
 				Directive:  typ.Directive,
+				Entity:     typ.Entity,
 			}
 		}
 	}
@@ -251,12 +252,41 @@ func TestLoadRoleMarkers(t *testing.T) {
 	equals(t, map[string]markers{
 		"Entity":     {},
 		"Repository": {},
-		"Customer":   {Embeds: []string{roles + "Entity"}},
+		"Customer":   {Embeds: []string{roles + "Entity"}, Entity: "Client"},
 		// Find has a pointer receiver: the pointer implements Repository.
 		"SQLStore": {Implements: []string{roles + "Repository", "example.com/fx/service.Finder"}},
 		"Handler":  {Directive: "handler"},
 		"Untagged": {},
 	}, got)
+}
+
+// TestLoadTestImports: a test file's imports are read from its source, an
+// external test's as its package's, without the import of the package it
+// tests; the build's imports do not include them.
+func TestLoadTestImports(t *testing.T) {
+	t.Parallel()
+	p := loadFixture(t)
+	var got []arch.Import
+	for _, imp := range p.TestImports {
+		if imp.From == "example.com/fx/roles" {
+			got = append(got, imp)
+		}
+	}
+	equals(t, []arch.Import{
+		{
+			From: "example.com/fx/roles", To: "example.com/fx/service",
+			Pos: arch.Position{File: "roles/roles_test.go", Line: 7}, Test: true,
+		},
+		{
+			From: "example.com/fx/roles", To: "testing",
+			Pos: arch.Position{File: "roles/roles_test.go", Line: 4}, Test: true,
+		},
+	}, got)
+	for _, imp := range p.Imports {
+		if imp.From == "example.com/fx/roles" && imp.To == "example.com/fx/service" {
+			t.Fatal("a test's import reached the build's")
+		}
+	}
 }
 
 func TestLoadInjections(t *testing.T) {

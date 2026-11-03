@@ -16,7 +16,7 @@ const maxListedCandidates = 20
 
 // WriteConnascence writes a connascence report: the summary matrix of kinds
 // by locality, the findings, the strongest candidates, the judgement slots,
-// and a count of the assumptions.
+// and counts of the slots skipped and the assumptions.
 func WriteConnascence(w io.Writer, r *connascence.Report) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	_, _ = fmt.Fprintf(tw, "anarch-lint connascence (%s)\n", connascence.Schema)
@@ -26,6 +26,8 @@ func WriteConnascence(w io.Writer, r *connascence.Report) error {
 	writeFindings(tw, r.Findings)
 	writeCandidates(tw, r.Candidates, len(r.Rejected))
 	writeSlots(tw, r.Judgements)
+	_, _ = fmt.Fprintf(tw, "\nSKIPPED SLOTS: %d candidates within every limit, where an answer "+
+		"would change nothing; listed in the JSON report\n", len(r.Skipped))
 	_, _ = fmt.Fprintf(tw, "\nASSUMPTIONS: %d, listed in the JSON report (--format=json)\n",
 		len(r.Assumptions))
 	if err := tw.Flush(); err != nil {

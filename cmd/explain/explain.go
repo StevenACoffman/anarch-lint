@@ -53,7 +53,8 @@ examines the import of IMPORTED by IMPORTER, with its decision:
 The structural rules (layers, subsystem order, interfaces, forbidden imports,
 isolations) say why they allow an import; a fitness rule is listed when it
 forbids the import or allows it by name, as a layer in mayOnlyAccess. The
-rules run exactly as check runs them.`,
+rules run exactly as check runs them. For an import the code does not have,
+it lists what the rules would decide if it did, as fitness.cases checks.`,
 		Flags: cfg.Flags,
 		Exec:  cfg.exec,
 	}
@@ -74,10 +75,11 @@ func (cfg *Config) exec(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("explain: %w", err)
 	}
-	e := arch.ExplainImport(&l, from, to)
-	if l.Model.Fitness.Enabled() {
-		e.Rules = slices.Concat(e.Rules, fitness.ExplainImport(&l, from, to))
-		arch.SortExplanations(e.Rules)
+	e := explain(&l, from, to)
+	if e.Location == nil {
+		hypothetical := l.WithImport(from, to, arch.Position{File: "(hypothetical)", Line: 1})
+		e = explain(&hypothetical, from, to)
+		e.Location, e.Hypothetical = nil, true
 	}
 	e.Waive(waivers, today)
 	if err := cfg.Write(&e, func(w io.Writer) error {
@@ -86,4 +88,14 @@ func (cfg *Config) exec(ctx context.Context, args []string) error {
 		return fmt.Errorf("explain: %w", err)
 	}
 	return nil
+}
+
+// explain is every rule's decision about one import of in's program.
+func explain(in *arch.Input, from, to string) arch.ImportExplanation {
+	e := arch.ExplainImport(in, from, to)
+	if in.Model.Fitness.Enabled() {
+		e.Rules = slices.Concat(e.Rules, fitness.ExplainImport(in, from, to))
+		arch.SortExplanations(e.Rules)
+	}
+	return e
 }

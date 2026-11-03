@@ -84,6 +84,13 @@ type JudgementSlot struct {
 	Verdict      *Verdict   `json:"verdict,omitempty"`
 }
 
+// SkippedSlot is a judgement slot a measure did not open, because no answer
+// would change anything, and why.
+type SkippedSlot struct {
+	Criterion string `json:"criterion"`
+	Reason    string `json:"reason"`
+}
+
 // SlotRequest is what a measure asks a reviewer: the slot's criterion, the
 // evidence a judge may see, and the context only a human sees. Undecided,
 // when set, replaces the family's reason that no measure could decide, with

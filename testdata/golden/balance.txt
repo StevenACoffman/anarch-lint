@@ -161,4 +161,4 @@ SKIPPED SLOTS (7; an answer would change nothing)
   bounded-context/state    it shares no model with another subsystem, so whether it is a bounded context decides nothing
   bounded-context/audit    it shares no model with another subsystem, so whether it is a bounded context decides nothing
 
-ASSUMPTIONS: 11, listed in the JSON report (--format=json)
+ASSUMPTIONS: 12, listed in the JSON report (--format=json)

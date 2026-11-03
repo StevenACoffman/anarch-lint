@@ -117,6 +117,28 @@ func TestDecodeModel(t *testing.T) {
 				"require": ["gen/**"]}]}}`,
 			message: `model: bad-pattern: fitness coChange rule "c" has malformed glob "api/[x"`,
 		},
+		"fitness graphql without a schema": {
+			input:   `{"version": 1, "fitness": {"graphql": [{"name": "g"}]}}`,
+			message: `model: incomplete-rule: fitness graphql rule "g" names no schema`,
+		},
+		"fitness graphql with a malformed glob": {
+			input: `{"version": 1, "fitness": {"graphql": [{"name": "g",
+				"schema": ["graph/[x"]}]}}`,
+			message: `model: bad-pattern: fitness graphql rule "g" has malformed glob "graph/[x"`,
+		},
+		"fitness protobuf without files": {
+			input:   `{"version": 1, "fitness": {"protobuf": [{"name": "p"}]}}`,
+			message: `model: incomplete-rule: fitness protobuf rule "p" names no files`,
+		},
+		"fitness protobuf with a malformed glob": {
+			input: `{"version": 1, "fitness": {"protobuf": [{"name": "p",
+				"files": ["proto/[x"]}]}}`,
+			message: `model: bad-pattern: fitness protobuf rule "p" has malformed glob "proto/[x"`,
+		},
+		"fitness boundaries without uses": {
+			input:   `{"version": 1, "fitness": {"boundaries": [{"name": "b", "files": ["web/**"]}]}}`,
+			message: `model: incomplete-rule: fitness boundaries rule "b" needs files and uses`,
+		},
 		"fitness strict layers with one layer": {
 			input:   `{"version": 1, "layers": [{"name": "a"}], "fitness": {"strictLayers": true}}`,
 			message: "model: incomplete-rule: fitness strictLayers needs at least two layers",

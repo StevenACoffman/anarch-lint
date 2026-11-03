@@ -6,6 +6,7 @@ import (
 	"io"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -122,7 +123,8 @@ func (r *renderer) layerList(layers []arch.Layer) {
 
 // dependencyChart draws the measured dependencies between declared
 // subsystems, each edge labelled with the number of package imports it
-// stands for.
+// stands for, and an edge that runs up the subsystem order or lies on a
+// cycle drawn in red and labelled so (IMPROVEMENTS.md §9.9).
 func (r *renderer) dependencyChart(m *arch.Model, g arch.Graph) {
 	b := &r.b
 	if len(m.Subsystems) == 0 {
@@ -136,14 +138,50 @@ func (r *renderer) dependencyChart(m *arch.Model, g arch.Graph) {
 		id[s.Name] = fmt.Sprintf("s%d", i)
 		fmt.Fprintf(b, "  %s[\"%s\"]\n", id[s.Name], r.mer.Replace(s.Name))
 	}
+	problems := edgeProblems(m, g)
+	var red []string
+	n := 0
 	for _, e := range g.Edges() {
 		from, okFrom := id[e.From]
 		to, okTo := id[e.To]
-		if okFrom && okTo {
-			fmt.Fprintf(b, "  %s -->|%d| %s\n", from, e.Weight, to)
+		if !okFrom || !okTo {
+			continue
 		}
+		label := strconv.Itoa(e.Weight)
+		if p := problems[[2]string{e.From, e.To}]; p != "" {
+			label += ", " + p
+			red = append(red, strconv.Itoa(n))
+		}
+		fmt.Fprintf(b, "  %s -->|%s| %s\n", from, label, to)
+		n++
+	}
+	if len(red) > 0 {
+		fmt.Fprintf(b, "  linkStyle %s stroke:#d62728,stroke-width:2px\n", strings.Join(red, ","))
 	}
 	b.WriteString("```\n")
+}
+
+// edgeProblems names what is wrong with each edge between subsystems:
+// "cycle" when both ends are in one cycle group, else "upward" when it runs
+// up the subsystem order.
+func edgeProblems(m *arch.Model, g arch.Graph) map[[2]string]string {
+	group := map[string]int{}
+	for i, grp := range g.CycleGroups() {
+		for _, sub := range grp {
+			group[sub] = i + 1
+		}
+	}
+	out := map[[2]string]string{}
+	for _, e := range g.Edges() {
+		from, to := slices.Index(m.SubsystemOrder, e.From), slices.Index(m.SubsystemOrder, e.To)
+		switch {
+		case group[e.From] != 0 && group[e.From] == group[e.To]:
+			out[[2]string{e.From, e.To}] = "cycle"
+		case from >= 0 && to >= 0 && from > to:
+			out[[2]string{e.From, e.To}] = "upward"
+		}
+	}
+	return out
 }
 
 func (r *renderer) importRules(m *arch.Model) {

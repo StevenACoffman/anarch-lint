@@ -26,8 +26,11 @@ type extractor struct {
 	// inactive holds the imports of the files the build constraints
 	// exclude, keyed like imports.
 	inactive map[[2]string]*arch.Import
-	types    map[string]int             // type ID -> index into prog.Types
-	named    map[string]*types.TypeName // type ID -> its object, for interface checks
+	// tests holds the imports of the packages' test files, keyed like
+	// imports.
+	tests map[[2]string]*arch.Import
+	types map[string]int             // type ID -> index into prog.Types
+	named map[string]*types.TypeName // type ID -> its object, for interface checks
 	// facts collects the connascence facts; nil when they are not wanted.
 	facts *factSink
 }
@@ -53,6 +56,7 @@ func newExtractor(dir string, inScope map[string]bool, facts bool) *extractor {
 		refs:     map[[2]string]*arch.Ref{},
 		imports:  map[[2]string]*arch.Import{},
 		inactive: map[[2]string]*arch.Import{},
+		tests:    map[[2]string]*arch.Import{},
 		types:    map[string]int{},
 		named:    map[string]*types.TypeName{},
 	}
@@ -99,7 +103,7 @@ func (x *extractor) addPackage(
 		}
 		methods = append(methods, x.addDecls(&fc, f)...)
 	}
-	if err := x.addInactiveImports(p, readFile); err != nil {
+	if err := x.addSourceImports(p, readFile); err != nil {
 		return err
 	}
 	syntax := make([]*ast.File, len(files))
@@ -191,7 +195,8 @@ func (x *extractor) addTypeSpecs(fc *fileContext, d *ast.GenDecl) {
 			Fields:    fieldNames(ts),
 			WireNames: wireNames(ts),
 			Embeds:    embedsOf(tn, x.inScope),
-			Directive: directiveOf(ts, d),
+			Directive: directiveOf(ts, d, roleDirective),
+			Entity:    directiveOf(ts, d, entityDirective),
 		}
 		x.types[t.ID] = len(x.prog.Types)
 		x.named[t.ID] = tn
@@ -324,6 +329,11 @@ func (x *extractor) program() arch.Program {
 		}
 	}
 	slices.SortFunc(p.InactiveImports, compareImports)
+	p.TestImports = make([]arch.Import, 0, len(x.tests))
+	for _, imp := range x.tests {
+		p.TestImports = append(p.TestImports, *imp)
+	}
+	slices.SortFunc(p.TestImports, compareImports)
 	return p
 }
 

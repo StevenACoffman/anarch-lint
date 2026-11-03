@@ -1,0 +1,14 @@
+# 2026/11/02 17:04:59.503976 [TestNormalizeRouteIsIdempotent] [rapid] draw segments: []string{"", "", ""}
+# 2026/11/02 17:04:59.504033 [TestNormalizeRouteIsIdempotent] NormalizeRoute("///") = "//", but NormalizeRoute("//") = "/"
+# 
+v0.4.8#5370766263267287348
+0x8000000000000
+0x0
+0x0
+0x8000000000000
+0x0
+0x0
+0x8000000000000
+0x0
+0x0
+0x0

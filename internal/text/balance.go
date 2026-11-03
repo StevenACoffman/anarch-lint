@@ -32,6 +32,9 @@ func WriteBalance(w io.Writer, r *balance.Report) error {
 	if len(r.Unbound) > 0 {
 		_, _ = fmt.Fprintf(tw, "\nNO DEPLOY UNIT: %s\n", strings.Join(r.Unbound, ", "))
 	}
+	if len(r.Capped) > 0 {
+		_, _ = fmt.Fprintf(tw, "\nCAPPED: %s\n", strings.Join(r.Capped, ", "))
+	}
 	writeSlots(tw, r.Judgements)
 	writeSkipped(tw, r.Skipped)
 	_, _ = fmt.Fprintf(tw, "\nASSUMPTIONS: %d, listed in the JSON report (--format=json)\n",
@@ -118,7 +121,7 @@ func writeSuppressed(w io.Writer, ss []balance.Suppression) {
 
 // writeSkipped counts the slots not opened, with why each would decide
 // nothing.
-func writeSkipped(w io.Writer, skipped []balance.SkippedSlot) {
+func writeSkipped(w io.Writer, skipped []arch.SkippedSlot) {
 	_, _ = fmt.Fprintf(w, "\nSKIPPED SLOTS (%d; an answer would change nothing)\n", len(skipped))
 	for _, s := range skipped {
 		_, _ = fmt.Fprintf(w, "  %s\t%s\n", s.Criterion, s.Reason)

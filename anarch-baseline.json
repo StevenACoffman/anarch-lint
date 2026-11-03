@@ -1,6 +1,6 @@
 {
   "schema": "anarch-lint.baseline.v1",
-  "modelHash": "f08f3d6461b185454bcf90133065071fab352cd25d6cb710983128c1eff6a771",
+  "modelHash": "a075fbaf8beeff11e0f7d8700f9439754ba7e0516b70afeb79022e5012126254",
   "findings": [],
   "metrics": [
     {
@@ -39,6 +39,11 @@
       "higherIsBetter": false
     },
     {
+      "name": "files.excludedShare",
+      "value": 0,
+      "higherIsBetter": false
+    },
+    {
       "name": "fitness.cycles.subsystems",
       "value": 0,
       "higherIsBetter": false
@@ -50,7 +55,7 @@
     },
     {
       "name": "fitness.nccd.packages",
-      "value": 2.258503,
+      "value": 2.553459,
       "higherIsBetter": false
     },
     {

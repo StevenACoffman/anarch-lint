@@ -125,3 +125,47 @@ func (j *johnson) unblock(v int) {
 		}
 	}
 }
+
+// ClosingCycle returns the shortest cycle through the edge from → to: from,
+// to, and the shortest path from to back to from, without repeating from;
+// nil when the edge is absent or no path leads back. Successors are visited
+// in sorted order, so among equally short cycles the result is the same on
+// every run (IMPROVEMENTS.md §2.4).
+func (g Graph) ClosingCycle(from, to string) []string {
+	f, okF := g.index[from]
+	t, okT := g.index[to]
+	if !okF || !okT || g.Weight(from, to) == 0 {
+		return nil
+	}
+	parent := g.searchFrom(t, f)
+	if parent[f] < 0 {
+		return nil
+	}
+	var back []string // from, then back along the path to to
+	for v := f; v != t; v = parent[v] {
+		back = append(back, g.nodes[v])
+	}
+	back = append(back, g.nodes[t])
+	slices.Reverse(back[1:]) // to … the node before from
+	return back
+}
+
+// searchFrom searches breadth first from start until it reaches goal, and
+// returns each reached node's parent on a shortest path from start; start
+// is its own parent, and an unreached node's is -1.
+func (g Graph) searchFrom(start, goal int) []int {
+	parent := make([]int, len(g.nodes))
+	for i := range parent {
+		parent[i] = -1
+	}
+	parent[start] = start
+	for queue := []int{start}; len(queue) > 0 && parent[goal] < 0; queue = queue[1:] {
+		for _, a := range g.out[queue[0]] {
+			if parent[a.to] < 0 {
+				parent[a.to] = queue[0]
+				queue = append(queue, a.to)
+			}
+		}
+	}
+	return parent
+}

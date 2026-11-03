@@ -19,6 +19,12 @@ const (
 	GateOff RuleGate = "off"
 )
 
+// The decisions a rule case expects.
+const (
+	ExpectForbidden CaseExpectation = "forbidden"
+	ExpectAllowed   CaseExpectation = "allowed"
+)
+
 // RuleGate says what a fitness rule's violations do; empty means GateFail.
 type RuleGate string
 
@@ -47,12 +53,80 @@ type Fitness struct {
 	// CoChange rules name files that must change together; they check
 	// only a change set, as check --new-from-rev gives one.
 	CoChange []CoChangeRule `json:"coChange,omitempty"`
-	FanOut   []FanOutRule   `json:"fanOut,omitempty"`
+	// Boundaries keep changed code in some files from using some packages;
+	// like CoChange, they check only a change set.
+	Boundaries []BoundaryRule `json:"boundaries,omitempty"`
+	FanOut     []FanOutRule   `json:"fanOut,omitempty"`
 	// Domains compare modelith domain models with the code that should
 	// express them (mmi-plan.md §10).
 	Domains []DomainRule `json:"domains,omitempty"`
 	// OpenAPI compares OpenAPI documents with the routes the code serves.
 	OpenAPI []OpenAPIRule `json:"openapi,omitempty"`
+	// GraphQL compares GraphQL schemas with the resolvers that serve them,
+	// and validates operation documents against them.
+	GraphQL []GraphQLRule `json:"graphql,omitempty"`
+	// Protobuf compares .proto files with the gRPC services the code
+	// registers, and compiles their buf.validate constraints.
+	Protobuf []ProtobufRule `json:"protobuf,omitempty"`
+	// Cases are declared imports and what the rules should decide about
+	// each, so a model change that stops catching one fails.
+	Cases []RuleCase `json:"cases,omitempty"`
+}
+
+// CaseExpectation is what a rule case expects the rules to decide.
+type CaseExpectation string
+
+// RuleCase declares one import, which need not exist, and what the import
+// rules should decide about it (IMPROVEMENTS.md §1.3): "billing/internal
+// importing shipping is forbidden by isolations[0]". It is checked against
+// the same evaluator as explain, on the program with that import added.
+type RuleCase struct {
+	RuleOptions
+	// From and Imports are the importing and the imported package; both
+	// must be under analysis.
+	From    string          `json:"from"`
+	Imports string          `json:"imports"`
+	Expect  CaseExpectation `json:"expect"`
+	// By names the rule that should forbid the import, as findings name it
+	// in modelRule; with "allowed", a rule that should allow it by name. Empty
+	// means any rule, or with "allowed", none forbids it.
+	By string `json:"by,omitempty"`
+}
+
+// ProtobufRule compares a set of .proto files with the code
+// (IMPROVEMENTS.md §5.1): every service they declare should be registered
+// by a serving package, every service a serving package registers from
+// their Go packages declared, and every buf.validate constraint should
+// compile.
+type ProtobufRule struct {
+	RuleOptions
+	// Files lists the .proto files, as doublestar globs relative to the
+	// analysis root.
+	Files []string `json:"files"`
+	// ImportPaths are the directories, relative to the analysis root, that
+	// imports and the files' own names resolve against, as protoc's -I;
+	// empty means the analysis root.
+	ImportPaths []string `json:"importPaths,omitempty"`
+	// ServedBy are the packages whose registrations serve the services;
+	// empty means every package under analysis.
+	ServedBy []string `json:"servedBy,omitempty"`
+}
+
+// GraphQLRule compares one GraphQL schema with the code (IMPROVEMENTS.md
+// §5.1): every field of a root operation type should have a gqlgen
+// resolver method in a serving package, and every operation document
+// should be valid against the schema.
+type GraphQLRule struct {
+	RuleOptions
+	// Schema lists the schema's files, as doublestar globs relative to the
+	// analysis root; together they are one schema, extend type included.
+	Schema []string `json:"schema"`
+	// Operations lists the operation documents a client sends, such as
+	// genqlient's, as globs like Schema's.
+	Operations []string `json:"operations,omitempty"`
+	// ServedBy are the packages whose resolvers serve the schema; empty
+	// means every package under analysis.
+	ServedBy []string `json:"servedBy,omitempty"`
 }
 
 // OpenAPIRule compares one OpenAPI document with the HTTP routes the code
@@ -217,6 +291,17 @@ type CoChangeRule struct {
 	Except  []string `json:"except,omitempty"`
 }
 
+// BoundaryRule forbids a change to the files matching Files, doublestar
+// globs relative to the analysis root, to import or use anything of the
+// packages matching Uses (gortex's boundary guard, IMPROVEMENTS.md §4.2):
+// code that already does may stay, but no changed line may add more, so a
+// dependency being retired can only shrink.
+type BoundaryRule struct {
+	RuleOptions
+	Files []string `json:"files"`
+	Uses  []string `json:"uses"`
+}
+
 // FanOutRule caps the number of packages under analysis that a package
 // matching Packages may import: its efferent coupling, Martin's Ce. A package
 // that depends on many others changes whenever any of them does.
@@ -295,6 +380,16 @@ func (f *Fitness) Rules() []DeclaredRule {
 	)
 	add("domains", optionsOf(f.Domains, func(r DomainRule) RuleOptions { return r.RuleOptions }))
 	add("openapi", optionsOf(f.OpenAPI, func(r OpenAPIRule) RuleOptions { return r.RuleOptions }))
+	add("graphql", optionsOf(f.GraphQL, func(r GraphQLRule) RuleOptions { return r.RuleOptions }))
+	add(
+		"protobuf",
+		optionsOf(f.Protobuf, func(r ProtobufRule) RuleOptions { return r.RuleOptions }),
+	)
+	add("cases", optionsOf(f.Cases, func(r RuleCase) RuleOptions { return r.RuleOptions }))
+	add(
+		"boundaries",
+		optionsOf(f.Boundaries, func(r BoundaryRule) RuleOptions { return r.RuleOptions }),
+	)
 	add(
 		"coChange",
 		optionsOf(f.CoChange, func(r CoChangeRule) RuleOptions { return r.RuleOptions }),
@@ -386,9 +481,13 @@ func (f *Fitness) validateSelectors(names declaredNames, invalid invalidFunc) er
 		problemsOf(f.UnusedExports),
 		problemsOf(f.InterfacesOnly),
 		problemsOf(f.CoChange),
+		problemsOf(f.Boundaries),
 		problemsOf(f.FanOut),
 		problemsOf(f.Domains),
 		problemsOf(f.OpenAPI),
+		problemsOf(f.GraphQL),
+		problemsOf(f.Protobuf),
+		problemsOf(f.Cases),
 	)
 	for i := range f.Domains {
 		if sub := f.Domains[i].Subsystem; sub != "" && !slices.Contains(names.subsystems, sub) {
@@ -510,6 +609,20 @@ func (c *CoChangeRule) problem() ruleProblem {
 }
 
 // problem says what makes the rule unusable, if anything.
+func (b *BoundaryRule) problem() ruleProblem {
+	if len(b.Files) == 0 || len(b.Uses) == 0 {
+		return incomplete("fitness boundaries rule %q needs files and uses", b.Name)
+	}
+	for _, pat := range b.Files {
+		if !doublestar.ValidatePattern(pat) {
+			return ruleProblem{ProblemPattern, fmt.Sprintf(
+				"fitness boundaries rule %q has malformed glob %q", b.Name, pat)}
+		}
+	}
+	return ruleProblem{}
+}
+
+// problem says what makes the rule unusable, if anything.
 func (r *FanOutRule) problem() ruleProblem {
 	if len(r.Packages) == 0 || r.Max < 0 {
 		return incomplete("fitness fanOut rule %q needs packages and a max of 0 or more", r.Name)
@@ -521,6 +634,46 @@ func (r *FanOutRule) problem() ruleProblem {
 func (o *OpenAPIRule) problem() ruleProblem {
 	if o.Path == "" {
 		return incomplete("fitness openapi rule %q names no path", o.Name)
+	}
+	return ruleProblem{}
+}
+
+// problem says what makes the rule unusable, if anything.
+func (g *GraphQLRule) problem() ruleProblem {
+	if len(g.Schema) == 0 {
+		return incomplete("fitness graphql rule %q names no schema", g.Name)
+	}
+	for _, pat := range slices.Concat(g.Schema, g.Operations) {
+		if !doublestar.ValidatePattern(pat) {
+			return ruleProblem{ProblemPattern, fmt.Sprintf(
+				"fitness graphql rule %q has malformed glob %q", g.Name, pat)}
+		}
+	}
+	return ruleProblem{}
+}
+
+// problem says what makes the rule unusable, if anything.
+func (p *ProtobufRule) problem() ruleProblem {
+	if len(p.Files) == 0 {
+		return incomplete("fitness protobuf rule %q names no files", p.Name)
+	}
+	for _, pat := range p.Files {
+		if !doublestar.ValidatePattern(pat) {
+			return ruleProblem{ProblemPattern, fmt.Sprintf(
+				"fitness protobuf rule %q has malformed glob %q", p.Name, pat)}
+		}
+	}
+	return ruleProblem{}
+}
+
+// problem says what makes the case unusable, if anything.
+func (c *RuleCase) problem() ruleProblem {
+	if c.From == "" || c.Imports == "" {
+		return incomplete("fitness case %q needs from and imports", c.Name)
+	}
+	if c.Expect != ExpectForbidden && c.Expect != ExpectAllowed {
+		return ruleProblem{ProblemValue, fmt.Sprintf(
+			"fitness case %q expects %q, not forbidden or allowed", c.Name, c.Expect)}
 	}
 	return ruleProblem{}
 }

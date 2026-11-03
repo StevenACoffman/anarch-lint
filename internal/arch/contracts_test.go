@@ -1,7 +1,10 @@
 package arch_test
 
 import (
+	"strings"
 	"testing"
+
+	"pgregory.net/rapid"
 
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
@@ -79,5 +82,62 @@ func TestNormalizeRoute(t *testing.T) {
 		"/":                                "/",
 	} {
 		equals(t, want, arch.NormalizeRoute(in))
+	}
+}
+
+// TestNormalizeRouteIsIdempotent: a canonical route is its own canonical
+// form, so normalizing twice never changes what matches.
+func TestNormalizeRouteIsIdempotent(t *testing.T) {
+	t.Parallel()
+	segment := rapid.SampledFrom([]string{
+		"", "tasks", "{id}", "{id:[0-9]{2}}", ":id", "*rest", "file.{ext}", "v1:search", "{}",
+	})
+	rapid.Check(t, func(t *rapid.T) {
+		path := "/" + strings.Join(rapid.SliceOfN(segment, 0, 6).Draw(t, "segments"), "/")
+		once := arch.NormalizeRoute(path)
+		if twice := arch.NormalizeRoute(once); twice != once {
+			t.Fatalf(
+				"NormalizeRoute(%q) = %q, but NormalizeRoute(%q) = %q",
+				path,
+				once,
+				once,
+				twice,
+			)
+		}
+	})
+}
+
+// TestServes: a route serves an operation of the document on the same
+// canonical path, as written or under a base path, when its method is the
+// operation's or every method.
+func TestServes(t *testing.T) {
+	t.Parallel()
+	doc := arch.APIDocument{
+		BasePaths: []string{"/v1"},
+		Operations: []arch.APIOperation{
+			{Method: "GET", Path: "/tasks/{taskId}", Pos: arch.Position{Line: 4}},
+		},
+	}
+	cases := map[string]struct {
+		route arch.HTTPRoute
+		line  int // 0 when no operation is served
+	}{
+		"the path as written": {route: arch.HTTPRoute{Method: "GET", Path: "/tasks/{}"}, line: 4},
+		"under the base path": {
+			route: arch.HTTPRoute{Method: "GET", Path: "/v1/tasks/{}"},
+			line:  4,
+		},
+		"every method":         {route: arch.HTTPRoute{Method: "*", Path: "/v1/tasks/{}"}, line: 4},
+		"another method":       {route: arch.HTTPRoute{Method: "POST", Path: "/v1/tasks/{}"}},
+		"another path":         {route: arch.HTTPRoute{Method: "GET", Path: "/v2/tasks/{}"}},
+		"a literal for a part": {route: arch.HTTPRoute{Method: "GET", Path: "/tasks/42"}},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			op, ok := doc.Serves(tc.route)
+			equals(t, tc.line != 0, ok)
+			equals(t, tc.line, op.Pos.Line)
+		})
 	}
 }

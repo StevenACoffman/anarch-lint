@@ -819,6 +819,60 @@ func TestRenderGolden(t *testing.T) {
 	golden(t, "render.md", string(src))
 }
 
+// TestDraft: draft prints a valid model that claims every package of the
+// fixture, and fmt would leave it as it is.
+func TestDraft(t *testing.T) {
+	t.Parallel()
+	code, out, errOut := runCLI(t, "-C", connascenceFixture, "draft")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	m, err := arch.DecodeModel(strings.NewReader(out))
+	if err != nil {
+		t.Fatalf("draft printed no valid model: %v\n%s", err, out)
+	}
+	if len(m.Subsystems) == 0 || string(m.Format()) != out {
+		t.Fatalf("draft printed:\n%s", out)
+	}
+}
+
+// TestFmt: fmt --check fails on an unformatted model and writes nothing,
+// fmt writes it, then --check passes; a YAML model is refused.
+func TestFmt(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	model := filepath.Join(dir, "anarch.json")
+	src := `{"version": 1, "subsystems": [{"name": "a", "packages": ["m/b", "m/a", "m/b"]}]}`
+	if err := os.WriteFile(model, []byte(src), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, _, _ := runCLI(t, "-C", dir, "fmt", "--check")
+	if after, _ := os.ReadFile(model); code != 3 || string(after) != src {
+		t.Fatalf("fmt --check: exit %d, file %q", code, after)
+	}
+	if code, _, errOut := runCLI(t, "-C", dir, "fmt"); code != 0 {
+		t.Fatalf("fmt: exit %d: %s", code, errOut)
+	}
+	if code, _, errOut := runCLI(t, "-C", dir, "fmt", "--check"); code != 0 {
+		t.Fatalf("fmt --check after fmt: exit %d: %s", code, errOut)
+	}
+	after, err := os.ReadFile(model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(after), "\"m/a\",\n        \"m/b\"\n") {
+		t.Fatalf("fmt wrote:\n%s", after)
+	}
+	yaml := filepath.Join(dir, "anarch.yaml")
+	if err := os.WriteFile(yaml, []byte("version: 1 # kept\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if code, _, errOut := runCLI(t, "-C", dir, "--model", yaml, "fmt"); code == 0 ||
+		!strings.Contains(errOut, "would lose its comments") {
+		t.Fatalf("fmt on YAML: exit %d: %s", code, errOut)
+	}
+}
+
 // TestCorpusSkillet runs domain-model conformance on skillet's own model
 // with no type mappings, and expects the four drifts mmi-plan.md §10.0 found
 // by hand.

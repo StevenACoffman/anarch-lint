@@ -15,7 +15,8 @@ import (
 func subsystemCycleRule(s *subject) []Finding {
 	var fs []Finding
 	for _, grp := range s.g.Subsystems.CycleGroups() {
-		cuts, _ := minimumCut(s.g.Subsystems.subgraph(grp))
+		sub := s.g.Subsystems.subgraph(grp)
+		cuts, exact := minimumCut(sub)
 		subject := strings.Join(grp, " ↔ ")
 		f := NewFinding(
 			FindingID{Rule: RuleSubsystemCycle, Subject: subject, Object: ""},
@@ -33,13 +34,14 @@ func subsystemCycleRule(s *subject) []Finding {
 			if f.Location == nil && len(imps) > 0 {
 				f.Location = SpanAt(imps[0].Pos)
 			}
-			steps = append(
-				steps,
-				fmt.Sprintf("%s → %s (%s)", cut.From, cut.To, Plural(cut.Weight, "import")),
-			)
+			steps = append(steps, s.cutStep(cut, imps, sub))
 		}
 		f.Fix = "cut " + strings.Join(steps, "; ") + ": move each importing package to the " +
 			"subsystem it serves, or invert the import through an interface"
+		if !exact {
+			f.Fix += fmt.Sprintf("; the group has more than %d subsystems, so this cut is "+
+				"heuristic, not a minimum", exactCutLimit)
+		}
 		f.sites = s.subsystemCycleSites(grp)
 		fs = append(fs, f)
 	}
@@ -58,7 +60,8 @@ func typeCycleRule(s *subject, limit int) []Finding {
 		if len(grp) <= limit {
 			continue
 		}
-		cuts, exact := minimumCut(s.g.Types.subgraph(grp))
+		sub := s.g.Types.subgraph(grp)
+		cuts, exact := minimumCut(sub)
 		f := NewFinding(
 			FindingID{Rule: RuleTypeCycleTooLarge, Subject: grp[0], Object: strconv.Itoa(len(grp))},
 			SeverityError,
@@ -75,9 +78,10 @@ func typeCycleRule(s *subject, limit int) []Finding {
 			if f.Location == nil {
 				f.Location = SpanAt(r.Pos)
 			}
-			steps = append(steps, fmt.Sprintf("%s → %s (%s%s, %s:%d)",
+			step := fmt.Sprintf("%s → %s (%s%s, %s:%d)",
 				cut.From, cut.To, Plural(cut.Weight, "use"), kindsText(r.Kinds),
-				r.Pos.File, r.Pos.Line))
+				r.Pos.File, r.Pos.Line)
+			steps = append(steps, step+closesText(sub, cut))
 		}
 		method := "a minimum"
 		if !exact {
@@ -318,12 +322,18 @@ func kindsText(kinds []RefKind) string {
 	if len(kinds) == 0 {
 		return ""
 	}
+	return " in " + kindsList(kinds)
+}
+
+// kindsList names kinds of use: "call", "call and field", "call, field and
+// body".
+func kindsList(kinds []RefKind) string {
 	names := make([]string, len(kinds))
 	for i, k := range kinds {
 		names[i] = string(k)
 	}
 	if len(names) == 1 {
-		return " in " + names[0]
+		return names[0]
 	}
-	return " in " + strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
+	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
 }

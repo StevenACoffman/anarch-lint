@@ -60,7 +60,7 @@ type Model struct {
 	// no entry above declares, by the finding's rule, such as
 	// "layer-order-violation" or "large-func".
 	FindingRules map[RuleName]FindingRule `json:"findingRules,omitempty"`
-	Thresholds   Thresholds               `json:"thresholds"`
+	Thresholds   Thresholds               `json:"thresholds,omitzero"`
 	// ThresholdOverrides give the packages they match other limits than
 	// Thresholds: the first that matches a package wins, and a limit it
 	// leaves zero is the module's (IMPROVEMENTS.md §1.6). The MMI's measures
@@ -162,6 +162,8 @@ type ForbiddenImport struct {
 	Reason     string   `json:"reason"`
 	Transitive bool     `json:"transitive,omitempty"`
 	Injected   bool     `json:"injected,omitempty"`
+	// Tests checks the imports of the packages' test files too.
+	Tests bool `json:"tests,omitempty"`
 	// Gate overrides the error severity of the rule's findings; off checks
 	// nothing.
 	Gate             RuleGate         `json:"gate,omitempty"`
@@ -177,6 +179,9 @@ type Isolation struct {
 	From      string   `json:"from"`
 	MayImport []string `json:"mayImport"`
 	Reason    string   `json:"reason"`
+	// Tests checks the imports of the packages' test files too, so a test
+	// cannot reach into another area's internals.
+	Tests bool `json:"tests,omitempty"`
 	// Gate overrides the error severity of the rule's findings; off checks
 	// nothing.
 	Gate             RuleGate         `json:"gate,omitempty"`
@@ -348,10 +353,11 @@ func sortSets(v any, key string) any {
 
 // ordered reports a list of the model whose order means something: the
 // layers, the subsystem order and the roles, each from the top down, and the
-// threshold overrides, where the first match wins.
+// threshold overrides and a protobuf rule's import paths, where the first
+// match wins.
 func ordered(key string) bool {
 	return key == "layers" || key == "subsystemOrder" || key == "roles" ||
-		key == "thresholdOverrides"
+		key == "thresholdOverrides" || key == "importPaths"
 }
 
 func (m *Model) validate() error {

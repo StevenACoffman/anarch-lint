@@ -39,8 +39,11 @@ type Report struct {
 	// a reviewer confirmed that are over them.
 	Findings []arch.Finding `json:"findings"`
 	// Judgements ask a reviewer about each candidate a limit would gate.
-	Judgements  []arch.JudgementSlot `json:"judgements"`
-	Assumptions []arch.Assumption    `json:"assumptions"`
+	Judgements []arch.JudgementSlot `json:"judgements"`
+	// Skipped lists the candidates no slot asks about, since they are
+	// within every limit and confirming one would make no finding.
+	Skipped     []arch.SkippedSlot `json:"skipped"`
+	Assumptions []arch.Assumption  `json:"assumptions"`
 }
 
 // subject is what the detectors read: the program, the model and its
@@ -92,6 +95,7 @@ func Analyze(input *arch.Input) Report {
 		Rejected:    make([]arch.Connascence, 0),
 		Findings:    make([]arch.Finding, 0),
 		Judgements:  make([]arch.JudgementSlot, 0),
+		Skipped:     make([]arch.SkippedSlot, 0),
 		Assumptions: assumptions(),
 	}
 	all := s.instances()
@@ -175,6 +179,11 @@ func (r *Report) place(c *arch.Connascence, m *arch.Model, verdicts []arch.Verdi
 	}
 	if reason == "" {
 		r.Candidates = append(r.Candidates, capped(c))
+		r.Skipped = append(r.Skipped, arch.SkippedSlot{
+			Criterion: "connascence/" + c.Fingerprint,
+			Reason: fmt.Sprintf("within the limits at %s locality, so confirming it would make "+
+				"no finding", c.Locality),
+		})
 		return
 	}
 	slot := arch.NewSlot(&arch.SlotRequest{

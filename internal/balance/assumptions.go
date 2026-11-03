@@ -5,7 +5,19 @@ import "github.com/StevenACoffman/anarch-lint/internal/arch"
 // assumptions lists the choices behind the Balanced Coupling measures.
 func assumptions() []arch.Assumption {
 	return append(append(scaleAssumptions(), inputAssumptions()...),
-		coChangeAssumption(), coverageAssumption())
+		coChangeAssumption(), coverageAssumption(), listsAssumption())
+}
+
+// listsAssumption records the caps on what the report lists.
+func listsAssumption() arch.Assumption {
+	return arch.Assumption{
+		ID: "lists",
+		Text: "A pair lists at most 20 pieces of evidence, with evidenceCount the total, and an " +
+			"upstream-exposure finding at most 20 dependents, with the total in its message. The " +
+			"report lists at most 20 hotspots and 20 packages of coverage, ranked; capped says " +
+			"when a list was cut, and candidates are drawn from the whole list.",
+		Source: "IMPROVEMENTS.md 1.5",
+	}
 }
 
 // scaleAssumptions define the levels, the binary cuts and the numeric score.

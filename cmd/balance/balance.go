@@ -53,7 +53,8 @@ Khononov's Balanced Coupling for every ordered pair of subsystems
     since --since-rev as evidence;
   - the quadrant, archfit's balance score, and package exposure;
   - with --coverprofile, the packages many import whose tests run little
-    of them.
+    of them, and with --since-rev too, the functions the range changes that
+    call into another subsystem and that no test runs.
 
 Tight coupling on facts is a finding, an error when the model's "balance"
 section sets "gate": true. Candidates gate only once an approved verdict

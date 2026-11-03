@@ -224,10 +224,10 @@ func bypassFix(to string, iface []string, pkg string) string {
 // forbids, including imports of packages outside the analysis.
 func forbiddenRule(s *subject) ruleResult {
 	var r ruleResult
-	for _, imp := range s.p.RuleImports() {
+	for _, imp := range slices.Concat(s.p.RuleImports(), s.p.TestImports) {
 		for i := range s.m.ForbiddenImports {
 			fi := &s.m.ForbiddenImports[i]
-			if !MatchesAny(fi.From, imp.From) {
+			if (imp.Test && !fi.Tests) || !MatchesAny(fi.From, imp.From) {
 				continue
 			}
 			if !MatchesAny(fi.Imports, imp.To) {
@@ -240,13 +240,19 @@ func forbiddenRule(s *subject) ruleResult {
 			}
 			r.violations++
 			f := NewFinding(
-				FindingID{Rule: RuleForbiddenImport, Subject: imp.From, Object: imp.To},
+				FindingID{Rule: RuleForbiddenImport, Subject: imp.From, Object: imp.objectID()},
 				SeverityError,
 			)
 			f.ModelRule = instanceName("forbiddenImports", i)
 			f.Location = SpanAt(imp.Pos)
 			f.Criterion = "3.4"
-			f.Message = fmt.Sprintf("%s imports %s: %s", imp.From, imp.To, fi.Reason)
+			f.Message = fmt.Sprintf(
+				"%s%s imports %s: %s",
+				imp.From,
+				imp.inTest(),
+				imp.To,
+				fi.Reason,
+			)
 			f.Fix = fmt.Sprintf("move the use of %s into an adapter package and depend on an "+
 				"interface declared where %s needs it", imp.To, imp.From)
 			f.Provenance = imp.Provenance()
@@ -262,10 +268,10 @@ func forbiddenRule(s *subject) ruleResult {
 // MayImport after substitution.
 func isolationRule(s *subject) ruleResult {
 	var r ruleResult
-	for _, imp := range s.inScope(s.p.RuleImports()) {
+	for _, imp := range s.inScope(slices.Concat(s.p.RuleImports(), s.p.TestImports)) {
 		for j := range s.m.Isolations {
 			iso := &s.m.Isolations[j]
-			_, captures, ok := MatchCaptures(iso.From, imp.From)
+			captures, ok := iso.governs(&imp)
 			if !ok {
 				continue
 			}
@@ -279,12 +285,18 @@ func isolationRule(s *subject) ruleResult {
 				allowed[i] = Substitute(pat, captures)
 			}
 			f := NewFinding(
-				FindingID{Rule: RuleIsolation, Subject: imp.From, Object: imp.To},
+				FindingID{Rule: RuleIsolation, Subject: imp.From, Object: imp.objectID()},
 				SeverityError,
 			)
 			f.ModelRule = instanceName("isolations", j)
 			f.Location = SpanAt(imp.Pos)
-			f.Message = fmt.Sprintf("%s imports %s: %s", imp.From, imp.To, iso.Reason)
+			f.Message = fmt.Sprintf(
+				"%s%s imports %s: %s",
+				imp.From,
+				imp.inTest(),
+				imp.To,
+				iso.Reason,
+			)
 			f.Fix = fmt.Sprintf("%s may import only %s; move the shared code there, or depend on "+
 				"an interface declared in %s", imp.From, strings.Join(allowed, ", "), imp.From)
 			f.Provenance = imp.Provenance()
@@ -324,6 +336,17 @@ func (s *subject) inScope(imps []Import) []Import {
 		}
 	}
 	return out
+}
+
+// governs reports whether the isolation checks an import, with the
+// captures its From takes from the importer: an import of a test only when
+// the isolation opts in with Tests.
+func (iso *Isolation) governs(imp *Import) ([]string, bool) {
+	if imp.Test && !iso.Tests {
+		return nil, false
+	}
+	_, captures, ok := MatchCaptures(iso.From, imp.From)
+	return captures, ok
 }
 
 // MatchesAny reports whether any of the patterns matches path.

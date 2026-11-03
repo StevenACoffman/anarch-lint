@@ -111,6 +111,12 @@ type Input struct {
 	// APIs are the OpenAPI documents the model's fitness.openapi rules
 	// name, in the rules' order.
 	APIs []APIDocument
+	// GraphQL are the GraphQL schemas the model's fitness.graphql rules
+	// name, with their operation documents checked, in the rules' order.
+	GraphQL []GraphQLSchema
+	// Protos are the .proto files the model's fitness.protobuf rules name,
+	// in the rules' order.
+	Protos []ProtoFiles
 	// Changed is the change set check --new-from-rev measures, nil without
 	// one; only the rules on changes read it.
 	Changed ChangedLines
@@ -139,6 +145,10 @@ type Program struct {
 	// the build does not have, sorted like Imports. Only the import rules
 	// read them, through RuleImports: the measures measure the build.
 	InactiveImports []Import `json:"inactiveImports"`
+	// TestImports are the imports of the packages' test files, internal
+	// and external, read from their source and sorted like Imports. Only the
+	// import rules that opt in with tests read them.
+	TestImports []Import `json:"testImports"`
 	// Injections are the calls that hand a concrete in-scope type to a
 	// parameter of interface type, sorted.
 	Injections []Injection `json:"injections"`
@@ -219,6 +229,9 @@ type Type struct {
 	Implements []string `json:"implements,omitempty"`
 	// Directive is the role an "//arch:role NAME" comment gives the type.
 	Directive string `json:"directive,omitempty"`
+	// Entity is the domain-model entity an "//arch:entity NAME" comment
+	// says the type expresses.
+	Entity string `json:"entity,omitempty"`
 }
 
 // Func is a function or method declaration.
@@ -317,15 +330,35 @@ type Import struct {
 	// Inactive marks an import of a file the build constraints exclude,
 	// read from its source rather than type-checked.
 	Inactive bool `json:"inactive,omitempty"`
+	// Test marks an import of a test file, read from its source.
+	Test bool `json:"test,omitempty"`
 }
 
 // Provenance returns how the import was known: from source for an inactive
-// import, by the type checker otherwise.
+// import or a test's, by the type checker otherwise.
 func (imp *Import) Provenance() Provenance {
-	if imp.Inactive {
+	if imp.Inactive || imp.Test {
 		return ProvenanceSource
 	}
 	return ProvenanceTypes
+}
+
+// objectID is the object of an import rule's finding about the import: the
+// imported package, marked when a test imports it, so the finding about a
+// test and the one about the package itself keep apart.
+func (imp *Import) objectID() string {
+	if imp.Test {
+		return imp.To + " (test)"
+	}
+	return imp.To
+}
+
+// inTest is " in a test" for an import of a test file, and "" otherwise.
+func (imp *Import) inTest() string {
+	if imp.Test {
+		return " in a test"
+	}
+	return ""
 }
 
 // RuleImports returns the imports the import rules check: the build's, then

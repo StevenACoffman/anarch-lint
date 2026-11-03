@@ -402,6 +402,7 @@ func gateMetrics(r *Report) []Metric {
 		{Name: "types.sdi", Value: float64(r.Coupling.Types.SDI)},
 		{Name: "subsystems.inCycles", Value: float64(r.Ordering.Subsystem.InCycles)},
 		{Name: "subsystems.sdi", Value: float64(r.Coupling.Subsystems.SDI)},
+		{Name: "files.excludedShare", Value: r.Sizes.ExcludedShare()},
 	}
 }
 
