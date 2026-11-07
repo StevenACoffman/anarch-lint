@@ -100,3 +100,20 @@ func TestADR_0014_TheBalanceScoreNeverGates(t *testing.T) {
 		}
 	}
 }
+
+// docs/adr/0016: invariants are asked about in slots of their own, so a
+// domain model's invariants add to no other slot's evidence, and change no
+// pair, finding or candidate.
+func TestADR_0016_InvariantsAreNoOtherSlotsEvidence(t *testing.T) {
+	t.Parallel()
+	in := withDomains()
+	in.Domains[0].Invariants = []arch.DomainInvariant{{
+		ID: "one-admin", Statement: "At least one `Role` is admin.", Entity: "Role",
+		PreservedBy: []string{"Role.revoke"},
+	}}
+	without, with := analyze(withDomains(), clone()), analyze(in, clone())
+	equals(t, without.Pairs, with.Pairs)
+	equals(t, without.Findings, with.Findings)
+	equals(t, without.Candidates, with.Candidates)
+	equals(t, without.Judgements, with.Judgements)
+}
