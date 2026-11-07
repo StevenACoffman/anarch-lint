@@ -130,17 +130,36 @@ func entitiesOf(entities map[string]model.Entity) []arch.DomainEntity {
 	return out
 }
 
-// invariantsOf returns every invariant ID, the entities' and the model's.
-func invariantsOf(doc *model.Model) []string {
-	var ids []string
+// invariantsOf returns every invariant, the entities' and the model's, by
+// ID, each with the actions that preserve it. modelith lint rejects a
+// duplicate ID; should one get through, the first by entity name is kept.
+func invariantsOf(doc *model.Model) []arch.DomainInvariant {
+	preservedBy := map[string][]string{}
+	var out []arch.DomainInvariant
 	for _, inv := range doc.Invariants {
-		ids = append(ids, inv.ID)
+		out = append(out, arch.DomainInvariant{ID: inv.ID, Statement: inv.Statement})
 	}
-	for name := range doc.Entities {
-		for _, inv := range doc.Entities[name].Invariants {
-			ids = append(ids, inv.ID)
+	for _, name := range slices.Sorted(maps.Keys(doc.Entities)) {
+		e := doc.Entities[name]
+		for _, inv := range e.Invariants {
+			out = append(
+				out,
+				arch.DomainInvariant{ID: inv.ID, Statement: inv.Statement, Entity: name},
+			)
+		}
+		for _, a := range e.Actions {
+			for _, id := range a.Preserves {
+				preservedBy[id] = append(preservedBy[id], name+"."+a.Name)
+			}
 		}
 	}
-	slices.Sort(ids)
-	return slices.Compact(ids)
+	slices.SortStableFunc(
+		out,
+		func(a, b arch.DomainInvariant) int { return cmp.Compare(a.ID, b.ID) },
+	)
+	out = slices.CompactFunc(out, func(a, b arch.DomainInvariant) bool { return a.ID == b.ID })
+	for i := range out {
+		out[i].PreservedBy = slices.Sorted(slices.Values(preservedBy[out[i].ID]))
+	}
+	return out
 }

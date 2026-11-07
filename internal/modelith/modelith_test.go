@@ -39,6 +39,7 @@ entities:
       - open
       - name: close
         actor: Attendant
+        preserves: [one-open-visit, paid-before-exit]
     relationships:
       - entity: Ticket
         cardinality: "1:1"
@@ -89,7 +90,16 @@ func TestParse(t *testing.T) {
 				Attributes: []string{"plate"}, Actions: []string{"open", "close"},
 			},
 		},
-		Invariants: []string{"one-open-visit", "paid-before-exit"},
+		Invariants: []arch.DomainInvariant{
+			{
+				ID: "one-open-visit", Statement: "At most one open Visit per car.",
+				Entity: "Visit", PreservedBy: []string{"Visit.close"},
+			},
+			{
+				ID: "paid-before-exit", Statement: "A Visit is paid before the car leaves.",
+				PreservedBy: []string{"Visit.close"},
+			},
+		},
 	}, m)
 }
 

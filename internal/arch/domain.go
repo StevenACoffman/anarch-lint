@@ -14,12 +14,23 @@ type DomainModel struct {
 	// Path is the file, as the fitness rule names it.
 	Path string `json:"path"`
 	// Shared marks a model that exists to be imported by others.
-	Shared     bool           `json:"shared,omitempty"`
-	Imports    []DomainImport `json:"imports,omitempty"`
-	Glossary   []string       `json:"glossary,omitempty"`
-	Enums      []DomainEnum   `json:"enums,omitempty"`
-	Entities   []DomainEntity `json:"entities,omitempty"`
-	Invariants []string       `json:"invariants,omitempty"`
+	Shared     bool              `json:"shared,omitempty"`
+	Imports    []DomainImport    `json:"imports,omitempty"`
+	Glossary   []string          `json:"glossary,omitempty"`
+	Enums      []DomainEnum      `json:"enums,omitempty"`
+	Entities   []DomainEntity    `json:"entities,omitempty"`
+	Invariants []DomainInvariant `json:"invariants,omitempty"`
+}
+
+// DomainInvariant is a rule the model states in prose, under its stable ID.
+// Entity is the entity that declares it, "" for a model-level invariant
+// spanning several; PreservedBy names each action that says it preserves
+// the invariant, as "Entity.action", sorted.
+type DomainInvariant struct {
+	ID          string   `json:"id"`
+	Statement   string   `json:"statement"`
+	Entity      string   `json:"entity,omitempty"`
+	PreservedBy []string `json:"preservedBy,omitempty"`
 }
 
 // DomainTypes resolves the names of one domain rule's model to the
