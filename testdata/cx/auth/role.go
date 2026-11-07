@@ -68,5 +68,8 @@ func (s *Store) Get(k string) int {
 	return s.data[k]
 }
 
-// Version is auth's published contract: a plain string.
+// Version is auth's published contract: a plain string. Its directive
+// misspells an invariant: unknown-invariant-directive.
+//
+//arch:invariant admin-aproves
 func Version() string { return "1" }

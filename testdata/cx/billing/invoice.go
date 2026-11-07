@@ -73,7 +73,9 @@ func Due(s string) (time.Time, error) { return time.Parse("2006-01-02", s) }
 // Sum fingerprints a payload as web does.
 func Sum(b []byte) [32]byte { return sha256.Sum256(b) }
 
-// Total adds up amounts; web has a copy of it.
+// Total adds up amounts, skipping negative ones; web has a copy of it.
+//
+//arch:invariant positive-amount
 func Total(xs []int) int {
 	total := 0
 	count := 0

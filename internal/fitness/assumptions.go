@@ -1,9 +1,19 @@
 package fitness
 
-import "github.com/StevenACoffman/anarch-lint/internal/arch"
+import (
+	"slices"
 
-// assumptions lists the choices behind the fitness measures.
+	"github.com/StevenACoffman/anarch-lint/internal/arch"
+)
+
+// assumptions lists the choices behind the fitness measures: the metrics'
+// definitions, then what the rules check.
 func assumptions() []arch.Assumption {
+	return slices.Concat(metricAssumptions(), ruleAssumptions())
+}
+
+// metricAssumptions lists how the metrics are defined.
+func metricAssumptions() []arch.Assumption {
 	return []arch.Assumption{
 		{
 			ID: "nccd",
@@ -24,6 +34,12 @@ func assumptions() []arch.Assumption {
 				"isolated package has instability 1, as ArchUnit's ComponentDependencyMetrics has it.",
 			Source: "TODO.md, Ideas from ArchUnit: Metrics",
 		},
+	}
+}
+
+// ruleAssumptions lists what the rules check, and what they leave out.
+func ruleAssumptions() []arch.Assumption {
+	return []arch.Assumption{
 		{
 			ID: "verification",
 			Text: "The import rules are compared over classes of packages every rule reads alike, " +
@@ -60,6 +76,14 @@ func assumptions() []arch.Assumption {
 			Text: "A package belongs to the innermost onion ring that matches it, adapters tried in " +
 				"name order; packages in no ring are not checked.",
 			Source: "TODO.md, Ideas from ArchUnit: Layer Access",
+		},
+		{
+			ID: "invariants",
+			Text: "An invariant governs every field of its entities' types, since a model does not " +
+				"say which fields it reads, and the type's own package may write them. An exported " +
+				"field exposes it; a zero-value literal from another package, or a method returning " +
+				"a slice or map the type holds, is not seen.",
+			Source: "docs/adr/0016",
 		},
 	}
 }

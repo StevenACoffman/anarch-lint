@@ -15,10 +15,10 @@ SUMMARY (facts+candidates at each locality)
   9 identity        -         -     -     -        -          1+0     -         
 
 FINDINGS (4 errors, 0 warnings)
-  error  connascence-algorithm  example.com/cx/billing.Total  billing/invoice.go:77
+  error  connascence-algorithm  example.com/cx/billing.Total  billing/invoice.go:79
          2 functions in 2 packages have a copy of the body of example.com/cx/billing.Total
          evidence: strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3
-         evidence: site: billing/invoice.go:77 (example.com/cx/billing.Total)
+         evidence: site: billing/invoice.go:79 (example.com/cx/billing.Total)
          evidence: site: state/total.go:5 (example.com/cx/state.Total)
          fix: keep one copy and call it from the others
   error  connascence-identity  example.com/cx/auth.Sessions  billing/invoice.go:63

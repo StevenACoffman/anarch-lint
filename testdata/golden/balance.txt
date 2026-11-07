@@ -38,7 +38,7 @@ FINDINGS (4 errors, 0 warnings)
          evidence: name.cross-subsystem fact: 2 places in 2 packages refer to example.com/cx/auth.Sessions by name
          evidence: position.unkeyed-literal fact: 1 literal of example.com/cx/auth.Credentials lists its fields by position
          fix: co-locate the shared functionality, or replace the duplicated knowledge with a published event or a contract
-  error  tight-coupling-functional  billing  billing/invoice.go:77
+  error  tight-coupling-functional  billing  billing/invoice.go:79
          billing couples to state at the functional level across a distance of 7, and state's volatility is unjudged, so it counts as core: a step toward a distributed monolith
          evidence: strength functional (fact), distance 7 (locality system, owner boundary true, deploy boundary false, async false), volatility unjudged, balance 3
          evidence: algorithm.clone fact: 2 functions in 2 packages have a copy of the body of example.com/cx/billing.Total

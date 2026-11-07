@@ -127,7 +127,9 @@ Exit status:
     where ArchUnit's depends on hash iteration.
   - Conformance to modelith domain models: every entity and enum should be a
     Go type, every relationship a reference between types, and every enum's
-    values the type's constants. A rule without a reason is a warning.
+    values the type's constants; every invariant should have an enforcer,
+    and its entities' state no exported fields. A rule without a reason is
+    a warning.
   - A check of the import rules against each other, over classes of packages
     every rule reads alike: a rule another forbids everything of is a
     `redundant-rule` warning, and a layer or importer a rule allows by name,
@@ -274,6 +276,35 @@ is fetched over the network. anarch-lint decodes a model strictly, so a
 field the format lacks is an error, but it does not lint the model: check
 it with `modelith lint`, which the error for an invalid model also
 suggests.
+
+The rule also checks the model's invariants
+([ADR 0016](docs/adr/0016-invariants-are-checked-through-their-enforcers.md)).
+No rule can tell whether code keeps a sentence, so a person says once, in
+the code, where an invariant is enforced: an `//arch:invariant ID` comment
+on the function or test that keeps it, one comment per invariant. Test
+files are read from source for the comment.
+
+```go
+// Close ends the visit, refusing a second open visit for the car.
+//
+//arch:invariant one-open-visit
+func (v *Visit) Close() error {
+```
+
+The checks:
+
+- `invariant-unenforced`: no function or test of the rule's packages
+  carries a directive naming the invariant.
+- `invariant-exposed`: an entity the invariant governs, the one that
+  declares it or one its statement names in backticks, has a type with an
+  exported field. Code outside the type's package can then change the state
+  without the actions that preserve it. The evidence lists the writes from
+  other packages; the type's own package may write its fields.
+- `invariant-untested`, with `fitness --coverprofile FILE`: every enforcer
+  is a function that no test runs. A test enforcer is enough. `check` reads
+  no profile, so the gate never reports it.
+- `unknown-invariant-directive`, a warning: a directive names no invariant
+  of a covering model.
 
 A domain model is also evidence for the judgement slots: the subsystem it
 describes, and the models it imports, appear in the bounded-context and

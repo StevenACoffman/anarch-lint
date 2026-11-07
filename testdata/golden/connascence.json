@@ -372,7 +372,7 @@
         },
         {
           "file": "auth/role.go",
-          "line": 72,
+          "line": 75,
           "package": "example.com/cx/auth",
           "func": "example.com/cx/auth.Version"
         }
@@ -641,7 +641,7 @@
       "sites": [
         {
           "file": "billing/invoice.go",
-          "line": 77,
+          "line": 79,
           "package": "example.com/cx/billing",
           "func": "example.com/cx/billing.Total"
         },
@@ -1074,14 +1074,14 @@
       "object": "algorithm.clone",
       "location": {
         "file": "billing/invoice.go",
-        "start": 77,
-        "end": 77
+        "start": 79,
+        "end": 79
       },
       "message": "2 functions in 2 packages have a copy of the body of example.com/cx/billing.Total",
       "fix": "keep one copy and call it from the others",
       "evidence": [
         "strength 5 (algorithm), locality system, degree 2: above maxStrength.system 3",
-        "site: billing/invoice.go:77 (example.com/cx/billing.Total)",
+        "site: billing/invoice.go:79 (example.com/cx/billing.Total)",
         "site: state/total.go:5 (example.com/cx/state.Total)"
       ]
     },

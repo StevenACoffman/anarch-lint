@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://modelith.sh/schema/domain-model/v1.json
 #
 # The cx fixture's domain model: one case of each conformance rule that the
-# fixture's types can show.
+# fixture's types can show, and of each invariant check.
 kind: DomainModel
 version: v1
 enums:
@@ -19,6 +19,9 @@ entities:
     definition: What a user may do.
   Invoice:
     definition: A bill to a `Role`.
+    invariants: # Total enforces it, and its exported fields expose it: invariant-exposed
+      - id: positive-amount
+        statement: "An `Invoice` amount is never negative."
     relationships: # Invoice.Role refers to it: conforms
       - entity: Role
         cardinality: "n:1"
@@ -29,7 +32,13 @@ entities:
         cardinality: "n:1"
   Session: # no type: domain-entity-missing
     definition: A signed-in user's visit.
+    invariants: # nothing enforces it: invariant-unenforced
+      - id: one-session-per-user
+        statement: "A user has at most one open `Session`."
   Ledger: # mapped to a type that does not exist: domain-type-unmapped
     definition: Where invoices are recorded.
   Receipt: # billing and audit each declare one: domain-entity-ambiguous
     definition: Proof that an invoice was paid.
+invariants: # a test enforces it, and Role has no fields to expose
+  - id: admin-approves
+    statement: "Only an admin `Role` approves an `Invoice`."

@@ -39,7 +39,7 @@ func checkFanOut(l *ledger, rules []arch.FanOutRule, packages []string,
 			for _, imp := range imports[:min(len(imports), maxEdgeEvidence)] {
 				f.Evidence = append(f.Evidence, "imports "+imp.To)
 			}
-			f.Evidence = appendMore(f.Evidence, len(imports), pkg)
+			f.Evidence = appendMore(f.Evidence, len(imports), "imports", pkg)
 			f.Fix = "split the package so each part depends on less, or reach several of these " +
 				"through one package that hides them"
 			l.violation(r, &f)

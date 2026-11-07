@@ -60,6 +60,9 @@ const (
 	RuleDomainActionMissing      = "domain-action-missing"
 	RuleDomainAttributeMissing   = "domain-attribute-missing"
 	RuleDomainOwnership          = "domain-ownership-drift"
+	RuleInvariantExposed         = "invariant-exposed"
+	RuleInvariantUnenforced      = "invariant-unenforced"
+	RuleInvariantUntested        = "invariant-untested"
 	RuleRedundant                = "redundant-rule"
 	RuleUnusableAllowance        = "unusable-allowance"
 	RuleFanOut                   = "fan-out"
@@ -73,6 +76,7 @@ const (
 	RuleCaseContradicted         = "model-case-contradicted"
 	RuleBoundaryCrossed          = "boundary-crossed"
 	RuleUnknownEntity            = "unknown-entity-directive"
+	RuleUnknownInvariant         = "unknown-invariant-directive"
 	RuleMissingCoChange          = "missing-co-change"
 	ruleTightCouplingFunctional  = "tight-coupling-functional"
 	ruleTightCouplingIntrusive   = "tight-coupling-intrusive"
@@ -210,6 +214,9 @@ func fitnessRules() map[string]string {
 		RuleDomainActionMissing:    "an entity's action is no method of its type and no function taking it",
 		RuleDomainAttributeMissing: "an entity's attribute is no field of its type",
 		RuleDomainOwnership:        "an owned entity's type is not held by its owner alone",
+		RuleInvariantExposed:       "an invariant governs a type whose exported fields code outside its package can change",
+		RuleInvariantUnenforced:    "no //arch:invariant directive marks a function or test as enforcing an invariant",
+		RuleInvariantUntested:      "an invariant's enforcers are functions no test runs, by a coverage profile",
 		RuleRedundant:              "a rule forbids only what other rules already forbid",
 		RuleUnusableAllowance:      "a rule allows by name what other rules forbid entirely",
 		RuleFanOut:                 "a package imports more packages than its fanOut rule allows",
@@ -223,6 +230,7 @@ func fitnessRules() map[string]string {
 		RuleCaseContradicted:       "the rules decide a declared case's import otherwise than it expects",
 		RuleBoundaryCrossed:        "a changed line uses a package its boundaries rule keeps the file from",
 		RuleUnknownEntity:          "an //arch:entity directive names no entity of a domain model covering it",
+		RuleUnknownInvariant:       "an //arch:invariant directive names no invariant of a domain model covering it",
 		RuleMissingCoChange:        "a change lacks the change its coChange rule requires",
 	}
 }

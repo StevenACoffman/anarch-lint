@@ -121,7 +121,8 @@ type Input struct {
 	// one; only the rules on changes read it.
 	Changed ChangedLines
 	// Coverage is a test coverage profile attributed to the program's
-	// functions, nil without one; balance ranks packages by it.
+	// functions, nil without one; balance ranks packages by it, and fitness
+	// asks whether tests run each invariant's enforcers.
 	Coverage *Coverage
 }
 

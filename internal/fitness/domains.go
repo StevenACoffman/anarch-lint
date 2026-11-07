@@ -9,9 +9,9 @@ import (
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
 
-// entityCheck checks the "//arch:entity" directives against the domain
-// models of the rules that cover them.
-type entityCheck struct {
+// directiveCheck checks the "//arch:entity" and "//arch:invariant"
+// directives against the domain models of the rules that cover them.
+type directiveCheck struct {
 	p           *arch.Program
 	rules       []arch.DomainRule
 	subsystemOf map[string]string
@@ -39,11 +39,14 @@ type domainCheck struct {
 	inRule  func(pkg string) bool
 }
 
-// checkDomains runs each fitness.domains rule against its domain model.
+// checkDomains runs each fitness.domains rule against its domain model,
+// with the coverage profile, nil without one, that the invariant checks
+// read.
 //
-// Requires: in.Domains holds one model per rule, in the rules' order.
-func (s *subject) checkDomains(domains []arch.DomainModel) {
+// Requires: domains holds one model per rule, in the rules' order.
+func (s *subject) checkDomains(domains []arch.DomainModel, coverage *arch.Coverage) {
 	roles := arch.TypeRoles(s.p, s.m)
+	ran, writes := ranFuncs(coverage), outsideWrites(s.p.Facts.Uses)
 	for i := range s.m.Fitness.Domains {
 		d := &s.m.Fitness.Domains[i]
 		c := domainCheck{
@@ -65,33 +68,44 @@ func (s *subject) checkDomains(domains []arch.DomainModel) {
 				return d.Subsystem == "" || s.g.SubsystemAssignment.Of[pkg] == d.Subsystem
 			},
 		}
-		c.r.result.Matched = len(c.model.Entities) + len(c.model.Enums)
+		c.r.result.Matched = len(c.model.Entities) + len(c.model.Enums) + len(c.model.Invariants)
 		c.unmapped()
 		matched := c.entities()
 		c.relationships(matched)
 		c.ownership(matched)
 		c.attributes(matched)
 		c.actions(matched)
+		ic := invariantCheck{domainCheck: &c, ran: ran, writes: writes}
+		ic.check(matched)
 		c.enums()
 	}
-	ec := entityCheck{p: s.p, rules: s.m.Fitness.Domains, subsystemOf: s.g.SubsystemAssignment.Of}
-	s.findings = append(s.findings, ec.unknown(domains)...)
+	dc := directiveCheck{
+		p:           s.p,
+		rules:       s.m.Fitness.Domains,
+		subsystemOf: s.g.SubsystemAssignment.Of,
+	}
+	s.findings = append(s.findings, dc.unknownEntities(domains)...)
+	s.findings = append(s.findings, dc.unknownInvariants(domains)...)
 }
 
-// unknown reports each "//arch:entity" directive that names no
+// unknownEntities reports each "//arch:entity" directive that names no
 // entity of a domain model whose rule covers the type's package, so a typo
 // cannot quietly fall back to matching by name. Without a domains rule
 // there is nothing to check a directive against.
 //
 // Requires: domains holds one model per rule, in the rules' order.
-func (c *entityCheck) unknown(domains []arch.DomainModel) []arch.Finding {
+func (c *directiveCheck) unknownEntities(domains []arch.DomainModel) []arch.Finding {
 	if len(domains) == 0 {
 		return nil
 	}
 	var out []arch.Finding
 	for i := range c.p.Types {
 		t := &c.p.Types[i]
-		if t.Entity == "" || c.declares(domains, t) {
+		if t.Entity == "" || c.declares(domains, t.Package, func(m *arch.DomainModel) bool {
+			return slices.ContainsFunc(m.Entities, func(e arch.DomainEntity) bool {
+				return e.Name == t.Entity
+			})
+		}) {
 			continue
 		}
 		f := arch.NewFinding(arch.FindingID{
@@ -107,17 +121,47 @@ func (c *entityCheck) unknown(domains []arch.DomainModel) []arch.Finding {
 	return out
 }
 
-// declares reports whether a domain model whose rule covers t's
-// package declares the entity t's directive names.
-func (c *entityCheck) declares(domains []arch.DomainModel, t *arch.Type) bool {
-	for i := range c.rules {
-		d := &c.rules[i]
-		if d.Subsystem != "" && c.subsystemOf[t.Package] != d.Subsystem {
+// unknownInvariants reports each "//arch:invariant" directive that names no
+// invariant of a domain model whose rule covers the enforcer's package, so a
+// typo cannot leave an invariant unenforced while its code looks marked.
+// Without a domains rule there is nothing to check a directive against.
+//
+// Requires: domains holds one model per rule, in the rules' order.
+func (c *directiveCheck) unknownInvariants(domains []arch.DomainModel) []arch.Finding {
+	if len(domains) == 0 {
+		return nil
+	}
+	var out []arch.Finding
+	for i := range c.p.Enforcers {
+		e := &c.p.Enforcers[i]
+		if c.declares(domains, e.Package, func(m *arch.DomainModel) bool {
+			return slices.ContainsFunc(m.Invariants, func(inv arch.DomainInvariant) bool {
+				return inv.ID == e.Invariant
+			})
+		}) {
 			continue
 		}
-		if slices.ContainsFunc(domains[i].Entities, func(e arch.DomainEntity) bool {
-			return e.Name == t.Entity
-		}) {
+		f := arch.NewFinding(arch.FindingID{
+			Rule: arch.RuleUnknownInvariant, Subject: e.Func, Object: e.Invariant,
+		}, arch.SeverityWarning)
+		f.Location = arch.SpanAt(e.Pos)
+		f.Message = fmt.Sprintf("%s names invariant %q, which no domain model covering %s declares",
+			e.Func, e.Invariant, e.Package)
+		f.Fix = fmt.Sprintf("declare invariant %q in the domain model, or correct the directive",
+			e.Invariant)
+		out = append(out, f)
+	}
+	return out
+}
+
+// declares reports whether a domain model whose rule covers pkg has what
+// has looks for.
+func (c *directiveCheck) declares(
+	domains []arch.DomainModel, pkg string, has func(*arch.DomainModel) bool,
+) bool {
+	for i := range c.rules {
+		d := &c.rules[i]
+		if (d.Subsystem == "" || c.subsystemOf[pkg] == d.Subsystem) && has(&domains[i]) {
 			return true
 		}
 	}

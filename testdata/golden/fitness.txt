@@ -14,9 +14,9 @@ RULES
   patterns-in-billing   calls            fail  2        1           failed  none                                        
   web-ports             interfacesOnly   fail  1        4           failed  none                                        
   requireAssigned       requireAssigned  fail  7        0           passed  none                                        
-  cx-model              domains          fail  8        7           failed  the code speaks the fixture's domain model  
+  cx-model              domains          fail  11       10          failed  the code speaks the fixture's domain model  
 
-FINDINGS (15 errors, 11 warnings)
+FINDINGS (18 errors, 12 warnings)
   error    call-restriction  example.com/cx/web  web/admin.go:14
            example.com/cx/web calls regexp.MustCompile
            model rule: fitness.calls patterns-in-billing
@@ -88,6 +88,20 @@ FINDINGS (15 errors, 11 warnings)
            example.com/cx/web.Steal uses example.com/cx/auth.Role, a defined type, where only interfaces are allowed
            model rule: fitness.interfacesOnly web-ports
            fix: depend on an interface the package exports, or declare one where it is used
+  error    invariant-exposed  cx.modelith.yaml:admin-approves  
+           invariant admin-approves governs entity Invoice, whose type example.com/cx/billing.Invoice has exported fields that code outside example.com/cx/billing can change: the code speaks the fixture's domain model
+           model rule: fitness.domains cx-model
+           evidence: exported fields: Role, Amount
+           fix: unexport the fields, and change them only through methods that keep the invariant
+  error    invariant-exposed  cx.modelith.yaml:positive-amount  
+           invariant positive-amount governs entity Invoice, whose type example.com/cx/billing.Invoice has exported fields that code outside example.com/cx/billing can change: the code speaks the fixture's domain model
+           model rule: fitness.domains cx-model
+           evidence: exported fields: Role, Amount
+           fix: unexport the fields, and change them only through methods that keep the invariant
+  error    invariant-unenforced  cx.modelith.yaml:one-session-per-user  
+           invariant one-session-per-user has no enforcer: no function or test of cx-model says it keeps "A user has at most one open `Session`.": the code speaks the fixture's domain model
+           model rule: fitness.domains cx-model
+           fix: mark the function or test that keeps it with //arch:invariant one-session-per-user
   warning  redundant-rule  core-from-features  
            every import core-from-features forbids, strictLayers forbids too
            model rule: fitness.layerAccess core-from-features
@@ -117,6 +131,9 @@ FINDINGS (15 errors, 11 warnings)
   warning  rule-without-reason  web-ports  
            fitness rule web-ports (interfacesOnly) gives no reason
            fix: add a reason saying what the rule protects and why
+  warning  unknown-invariant-directive  example.com/cx/auth.Version  auth/role.go:75
+           example.com/cx/auth.Version names invariant "admin-aproves", which no domain model covering example.com/cx/auth declares
+           fix: declare invariant "admin-aproves" in the domain model, or correct the directive
 
 LAKOS
   level       nodes  CCD  ACD    RACD   NCCD   
@@ -140,4 +157,4 @@ CYCLES (types: 0)
 
 CYCLES (subsystems: 0)
 
-ASSUMPTIONS: 8, listed in the JSON report (--format=json)
+ASSUMPTIONS: 9, listed in the JSON report (--format=json)

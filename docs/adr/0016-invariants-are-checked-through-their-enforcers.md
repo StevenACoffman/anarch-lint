@@ -45,7 +45,7 @@ resolved to types as the domain rules resolve them. Then:
 
 - a write to a governed type's fields, or a composite literal of it, outside
   the type's own package, or an exported field of it, bypasses the
-  actions that preserve the invariant: `invariant-bypassed`;
+  actions that preserve the invariant: `invariant-exposed`;
 - an `//arch:invariant ID` directive on a function or a test declares where
   the invariant is enforced; an invariant with none is
   `invariant-unenforced`, and a directive naming no invariant of a covering

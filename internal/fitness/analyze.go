@@ -132,7 +132,7 @@ func Analyze(in *arch.Input) Report {
 	checkUnusedExports(s.ledger, s.m.Fitness.UnusedExports, s.p)
 	s.checkInterfacesOnly()
 	s.checkAssigned()
-	s.checkDomains(in.Domains)
+	s.checkDomains(in.Domains, in.Coverage)
 	checkOpenAPI(
 		s.ledger,
 		s.m.Fitness.OpenAPI,

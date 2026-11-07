@@ -119,8 +119,8 @@
       "kind": "domains",
       "reason": "the code speaks the fixture's domain model",
       "gate": "fail",
-      "matched": 8,
-      "violations": 7,
+      "matched": 11,
+      "violations": 10,
       "status": "failed"
     }
   ],
@@ -346,6 +346,41 @@
       "modelRule": "fitness.interfacesOnly web-ports"
     },
     {
+      "fingerprint": "1e11bdb97a8c0446",
+      "rule": "invariant-exposed",
+      "severity": "error",
+      "subject": "cx.modelith.yaml:admin-approves",
+      "object": "example.com/cx/billing.Invoice",
+      "message": "invariant admin-approves governs entity Invoice, whose type example.com/cx/billing.Invoice has exported fields that code outside example.com/cx/billing can change: the code speaks the fixture's domain model",
+      "fix": "unexport the fields, and change them only through methods that keep the invariant",
+      "evidence": [
+        "exported fields: Role, Amount"
+      ],
+      "modelRule": "fitness.domains cx-model"
+    },
+    {
+      "fingerprint": "b44add72e2f4d451",
+      "rule": "invariant-exposed",
+      "severity": "error",
+      "subject": "cx.modelith.yaml:positive-amount",
+      "object": "example.com/cx/billing.Invoice",
+      "message": "invariant positive-amount governs entity Invoice, whose type example.com/cx/billing.Invoice has exported fields that code outside example.com/cx/billing can change: the code speaks the fixture's domain model",
+      "fix": "unexport the fields, and change them only through methods that keep the invariant",
+      "evidence": [
+        "exported fields: Role, Amount"
+      ],
+      "modelRule": "fitness.domains cx-model"
+    },
+    {
+      "fingerprint": "ebb0d7a38b7d1a37",
+      "rule": "invariant-unenforced",
+      "severity": "error",
+      "subject": "cx.modelith.yaml:one-session-per-user",
+      "message": "invariant one-session-per-user has no enforcer: no function or test of cx-model says it keeps \"A user has at most one open `Session`.\": the code speaks the fixture's domain model",
+      "fix": "mark the function or test that keeps it with //arch:invariant one-session-per-user",
+      "modelRule": "fitness.domains cx-model"
+    },
+    {
       "fingerprint": "aac057962f737013",
       "rule": "redundant-rule",
       "severity": "warning",
@@ -421,6 +456,20 @@
       "subject": "web-ports",
       "message": "fitness rule web-ports (interfacesOnly) gives no reason",
       "fix": "add a reason saying what the rule protects and why"
+    },
+    {
+      "fingerprint": "ae085d51b7065580",
+      "rule": "unknown-invariant-directive",
+      "severity": "warning",
+      "subject": "example.com/cx/auth.Version",
+      "object": "admin-aproves",
+      "location": {
+        "file": "auth/role.go",
+        "start": 75,
+        "end": 75
+      },
+      "message": "example.com/cx/auth.Version names invariant \"admin-aproves\", which no domain model covering example.com/cx/auth declares",
+      "fix": "declare invariant \"admin-aproves\" in the domain model, or correct the directive"
     }
   ],
   "lakos": [
@@ -612,6 +661,11 @@
       "id": "onion",
       "text": "A package belongs to the innermost onion ring that matches it, adapters tried in name order; packages in no ring are not checked.",
       "source": "TODO.md, Ideas from ArchUnit: Layer Access"
+    },
+    {
+      "id": "invariants",
+      "text": "An invariant governs every field of its entities' types, since a model does not say which fields it reads, and the type's own package may write them. An exported field exposes it; a zero-value literal from another package, or a method returning a slice or map the type holds, is not seen.",
+      "source": "docs/adr/0016"
     }
   ]
 }

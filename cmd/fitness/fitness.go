@@ -17,8 +17,11 @@ import (
 // Config holds the configuration for the fitness command.
 type Config struct {
 	*root.Config
-	Flags   *ff.FlagSet
-	Command *ff.Command
+	// CoverProfile, when set, is a go test -coverprofile file that says
+	// whether tests run the functions enforcing each invariant.
+	CoverProfile string
+	Flags        *ff.FlagSet
+	Command      *ff.Command
 }
 
 // New creates and registers the fitness command with the given parent config.
@@ -26,9 +29,11 @@ func New(parent *root.Config) *Config {
 	var cfg Config
 	cfg.Config = parent
 	cfg.Flags = ff.NewFlagSet("fitness").SetParent(parent.Flags)
+	cfg.Flags.StringVar(&cfg.CoverProfile, 0, "coverprofile", "",
+		"a go test -coverprofile file: report invariants whose enforcers no test runs")
 	cfg.Command = &ff.Command{
 		Name:      "fitness",
-		Usage:     "anarch-lint [FLAGS] fitness [PACKAGES]",
+		Usage:     "anarch-lint [FLAGS] fitness [--coverprofile FILE] [PACKAGES]",
 		ShortHelp: "report ArchUnit-style fitness: rules, metrics and cycles",
 		LongHelp: `Fitness loads the packages (default ./...) and reports, deterministically, what
 ArchUnit tests in Java:
@@ -41,6 +46,10 @@ ArchUnit tests in Java:
   - Lakos's metrics with NCCD, Dowalil's visibility metrics, and ArchUnit's
     component dependency metrics;
   - the elementary cycles of the type and subsystem graphs, in a fixed order.
+
+With --coverprofile, an invariant of a domain model whose enforcers are
+functions that no test runs is reported; check reads no profile, so the gate
+never reports it.
 
 A rule's gate makes its violations errors (fail, the default) or warnings
 (warn), or turns it off. It always exits 0 once the packages load; use check
@@ -56,6 +65,11 @@ func (cfg *Config) exec(ctx context.Context, args []string) error {
 	l, err := cfg.Load(ctx, args, pipeline.AllFacts)
 	if err != nil {
 		return fmt.Errorf("fitness: %w", err)
+	}
+	if cfg.CoverProfile != "" {
+		if l.Coverage, err = pipeline.ReadCoverage(cfg.CoverProfile, &l.Program); err != nil {
+			return fmt.Errorf("fitness: %w", err)
+		}
 	}
 	r := fitness.Analyze(&l)
 	if err := cfg.Write(

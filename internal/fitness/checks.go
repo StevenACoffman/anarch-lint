@@ -63,7 +63,7 @@ func sliceCycle(rule string, cycle []string, edges map[[2]string][]arch.Import) 
 			f.Evidence = append(f.Evidence, fmt.Sprintf("%s imports %s at %s:%d",
 				imp.From, imp.To, imp.Pos.File, imp.Pos.Line))
 		}
-		f.Evidence = appendMore(f.Evidence, len(imports), from+" → "+to)
+		f.Evidence = appendMore(f.Evidence, len(imports), "imports", from+" → "+to)
 		if f.Location == nil && len(imports) > 0 {
 			f.Location = arch.SpanAt(imports[0].Pos)
 		}
@@ -339,12 +339,12 @@ func kindText(k arch.TypeKind) string {
 }
 
 // appendMore notes, after evidence capped at maxEdgeEvidence of total
-// items, how many more the cap left out, so a reader never takes a capped
-// list for the whole.
-func appendMore(evidence []string, total int, of string) []string {
+// items, how many more of what the cap left out, so a reader never takes a
+// capped list for the whole.
+func appendMore(evidence []string, total int, what, of string) []string {
 	if total <= maxEdgeEvidence {
 		return evidence
 	}
-	return append(evidence, fmt.Sprintf("and %d more imports for %s, past the cap of %d",
-		total-maxEdgeEvidence, of, maxEdgeEvidence))
+	return append(evidence, fmt.Sprintf("and %d more %s for %s, past the cap of %d",
+		total-maxEdgeEvidence, what, of, maxEdgeEvidence))
 }
