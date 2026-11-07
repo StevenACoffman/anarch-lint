@@ -10,11 +10,13 @@ import (
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
 
-// The comments that place code in the architecture: a type's pattern role,
-// and a package's subsystem and whether it is part of its interface.
+// The comments that place code in the architecture: a type's pattern role
+// and domain entity, a function's invariant, and a package's subsystem and
+// whether it is part of its interface.
 const (
 	roleDirective      = "//arch:role "
 	entityDirective    = "//arch:entity "
+	invariantDirective = "//arch:invariant "
 	subsystemDirective = "//arch:subsystem "
 	exposesDirective   = "//arch:exposes"
 )
@@ -73,6 +75,24 @@ func directiveOf(ts *ast.TypeSpec, d *ast.GenDecl, directive string) string {
 		}
 	}
 	return ""
+}
+
+// enforcersOf returns a copy of *at for each "//arch:invariant ID" comment
+// in a function's doc comment, naming that invariant, in the comments'
+// order; one function may enforce several invariants, one comment each.
+func enforcersOf(d *ast.FuncDecl, at *arch.Enforcer) []arch.Enforcer {
+	if d.Doc == nil {
+		return nil
+	}
+	var out []arch.Enforcer
+	for _, c := range d.Doc.List {
+		if name, ok := strings.CutPrefix(c.Text, invariantDirective); ok {
+			e := *at
+			e.Invariant = strings.TrimSpace(name)
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 // implementations records, for every concrete in-scope type, the in-scope

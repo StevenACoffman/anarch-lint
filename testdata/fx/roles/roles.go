@@ -21,7 +21,9 @@ type Customer struct {
 // SQLStore is a repository because it implements Repository.
 type SQLStore struct{}
 
-// Find finds nothing.
+// Find finds nothing, and says it keeps the store empty.
+//
+//arch:invariant store-is-empty
 func (*SQLStore) Find(int) string { return "" }
 
 // Handler is a handler because a directive says so.

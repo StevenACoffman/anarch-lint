@@ -103,7 +103,7 @@ func (x *extractor) addPackage(
 		}
 		methods = append(methods, x.addDecls(&fc, f)...)
 	}
-	if err := x.addSourceImports(p, readFile); err != nil {
+	if err := x.addFromSource(p, readFile); err != nil {
 		return err
 	}
 	syntax := make([]*ast.File, len(files))
@@ -234,6 +234,9 @@ func (x *extractor) addFunc(fc *fileContext, d *ast.FuncDecl) arch.Func {
 		// Several may exist; the position keeps the ID unique.
 		fn.ID += "@" + fc.path + ":" + strconv.Itoa(span.Start)
 	}
+	x.prog.Enforcers = append(x.prog.Enforcers, enforcersOf(d, &arch.Enforcer{
+		Func: fn.ID, Package: fc.pkg.PkgPath, Pos: fc.position(d.Pos()),
+	})...)
 	if x.facts != nil {
 		x.facts.funcFacts(fc, d, &fn)
 	}
@@ -334,6 +337,14 @@ func (x *extractor) program() arch.Program {
 		p.TestImports = append(p.TestImports, *imp)
 	}
 	slices.SortFunc(p.TestImports, compareImports)
+	p.Enforcers = append(make([]arch.Enforcer, 0, len(p.Enforcers)), p.Enforcers...)
+	slices.SortFunc(p.Enforcers, func(a, b arch.Enforcer) int {
+		return cmp.Or(
+			cmp.Compare(a.Invariant, b.Invariant),
+			cmp.Compare(a.Func, b.Func),
+			arch.ComparePositions(a.Pos, b.Pos),
+		)
+	})
 	return p
 }
 

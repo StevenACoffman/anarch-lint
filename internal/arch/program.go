@@ -152,6 +152,9 @@ type Program struct {
 	// and external, read from their source and sorted like Imports. Only the
 	// import rules that opt in with tests read them.
 	TestImports []Import `json:"testImports"`
+	// Enforcers are the functions and tests an "//arch:invariant ID"
+	// comment marks, sorted by invariant, function and position.
+	Enforcers []Enforcer `json:"enforcers"`
 	// Injections are the calls that hand a concrete in-scope type to a
 	// parameter of interface type, sorted.
 	Injections []Injection `json:"injections"`
@@ -235,6 +238,23 @@ type Type struct {
 	// Entity is the domain-model entity an "//arch:entity NAME" comment
 	// says the type expresses.
 	Entity string `json:"entity,omitempty"`
+}
+
+// Enforcer is a function or test that an "//arch:invariant ID" comment says
+// enforces a domain model's invariant: where a person who knows the code
+// says it keeps the invariant (docs/adr/0016).
+type Enforcer struct {
+	Invariant string `json:"invariant"`
+	// Func is the function's ID; a test's is built the same way from its
+	// package and its name.
+	Func string `json:"func"`
+	// Package is the enforcer's package; an external test package counts
+	// as the package it tests.
+	Package string   `json:"package"`
+	Pos     Position `json:"pos"`
+	// Test marks a function of a test file, read from its source, since
+	// test files are not loaded.
+	Test bool `json:"test,omitempty"`
 }
 
 // Func is a function or method declaration.

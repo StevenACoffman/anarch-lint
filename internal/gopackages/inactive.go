@@ -2,6 +2,9 @@ package gopackages
 
 import (
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"path/filepath"
 	"strings"
 
@@ -10,17 +13,17 @@ import (
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
 
-// addSourceImports records the imports the type checker does not see,
-// read from source: those of the files the build excludes, and those of
-// the test files.
-func (x *extractor) addSourceImports(
+// addFromSource records what the type checker does not see, read from
+// source: the imports of the files the build excludes, and the imports and
+// enforcers of the test files.
+func (x *extractor) addFromSource(
 	p *packages.Package,
 	readFile func(string) ([]byte, error),
 ) error {
 	if err := x.addInactiveImports(p, readFile); err != nil {
 		return err
 	}
-	return x.addTestImports(p, readFile)
+	return x.addTestSources(p, readFile)
 }
 
 // addInactiveImports records the imports of the files the build constraints
@@ -53,12 +56,13 @@ func (x *extractor) addInactiveImports(
 	return nil
 }
 
-// addTestImports records the imports of p's test files, internal and
+// addTestSources records the imports of p's test files, internal and
 // external, read from their source as the inactive imports are, keeping
 // the first position of each import: the import rules that opt in check
-// them (IMPROVEMENTS.md §9.7). An external test package, p's name with
-// "_test", counts as p.
-func (x *extractor) addTestImports(
+// them (IMPROVEMENTS.md §9.7). It records their enforcers too, since a test
+// is where an invariant is most often checked (docs/adr/0016). An external
+// test package, p's name with "_test", counts as p.
+func (x *extractor) addTestSources(
 	p *packages.Package,
 	readFile func(string) ([]byte, error),
 ) error {
@@ -74,18 +78,63 @@ func (x *extractor) addTestImports(
 		if err != nil {
 			return &arch.Error{Code: arch.EINVALID, Message: fmt.Sprintf("read %s: %v", name, err)}
 		}
-		_, imports := sourceImports(name, src)
-		file := relPath(x.dir, name)
-		for _, spec := range imports {
-			if spec.to == p.PkgPath {
-				continue // an external test importing the package it tests
-			}
-			keepFirst(x.tests, arch.Import{
-				From: p.PkgPath, To: spec.to,
-				Pos:  arch.Position{File: file, Line: spec.line},
-				Test: true,
-			})
+		imports, enforcers := testFile(relPath(x.dir, name), p.PkgPath, src)
+		for i := range imports {
+			keepFirst(x.tests, imports[i])
 		}
+		x.prog.Enforcers = append(x.prog.Enforcers, enforcers...)
 	}
 	return nil
+}
+
+// testFile returns the imports and enforcers of one test file of the
+// package pkg, given its path as reported and its source. A file that does
+// not parse gives nothing, as for the inactive imports: go test reports it.
+func testFile(file, pkg string, src []byte) ([]arch.Import, []arch.Enforcer) {
+	fset := token.NewFileSet()
+	f, _ := parser.ParseFile(fset, file, src, parser.ParseComments|parser.SkipObjectResolution)
+	if f == nil {
+		return nil, nil
+	}
+	var imports []arch.Import
+	for _, spec := range importsOf(fset, f) {
+		if spec.to == pkg {
+			continue // an external test importing the package it tests
+		}
+		imports = append(imports, arch.Import{
+			From: pkg, To: spec.to, Pos: arch.Position{File: file, Line: spec.line}, Test: true,
+		})
+	}
+	var enforcers []arch.Enforcer
+	for _, decl := range f.Decls {
+		if d, ok := decl.(*ast.FuncDecl); ok {
+			enforcers = append(enforcers, enforcersOf(d, &arch.Enforcer{
+				Func: pkg + "." + sourceFuncName(d), Package: pkg,
+				Pos: arch.Position{File: file, Line: fset.Position(d.Pos()).Line}, Test: true,
+			})...)
+		}
+	}
+	return imports, enforcers
+}
+
+// sourceFuncName names a function declared in source as a Func's ID does
+// after the package: "Name", or "Recv.Name" for a method.
+func sourceFuncName(d *ast.FuncDecl) string {
+	if d.Recv == nil || len(d.Recv.List) == 0 {
+		return d.Name.Name
+	}
+	t := d.Recv.List[0].Type
+	if star, ok := t.(*ast.StarExpr); ok {
+		t = star.X
+	}
+	switch r := t.(type) {
+	case *ast.IndexExpr: // a generic receiver, T[P]
+		t = r.X
+	case *ast.IndexListExpr:
+		t = r.X
+	}
+	if id, ok := t.(*ast.Ident); ok {
+		return id.Name + "." + d.Name.Name
+	}
+	return d.Name.Name
 }

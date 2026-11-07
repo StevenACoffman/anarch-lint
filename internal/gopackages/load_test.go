@@ -260,6 +260,29 @@ func TestLoadRoleMarkers(t *testing.T) {
 	}, got)
 }
 
+// TestLoadEnforcers: an "//arch:invariant" comment marks a function or a
+// test as enforcing an invariant, one comment each; a test is read from its
+// source, an external test's as its package's.
+func TestLoadEnforcers(t *testing.T) {
+	t.Parallel()
+	p := loadFixture(t)
+	const roles = "example.com/fx/roles"
+	equals(t, []arch.Enforcer{
+		{
+			Invariant: "finds-nothing", Func: roles + ".TestFind", Package: roles,
+			Pos: arch.Position{File: "roles/roles_test.go", Line: 14}, Test: true,
+		},
+		{
+			Invariant: "store-is-empty", Func: roles + ".SQLStore.Find", Package: roles,
+			Pos: arch.Position{File: "roles/roles.go", Line: 27},
+		},
+		{
+			Invariant: "store-is-empty", Func: roles + ".TestFind", Package: roles,
+			Pos: arch.Position{File: "roles/roles_test.go", Line: 14}, Test: true,
+		},
+	}, p.Enforcers)
+}
+
 // TestLoadTestImports: a test file's imports are read from its source, an
 // external test's as its package's, without the import of the package it
 // tests; the build's imports do not include them.
