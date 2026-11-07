@@ -37,8 +37,6 @@ type Input struct {
 	CodeownersHash string
 	// Churn is the change history of a revision range, nil without one.
 	Churn *arch.Churn
-	// Coverage is a test coverage profile, nil without one.
-	Coverage *arch.Coverage
 }
 
 // Report is the complete, deterministic result of the measure.

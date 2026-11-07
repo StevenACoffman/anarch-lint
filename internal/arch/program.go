@@ -120,6 +120,9 @@ type Input struct {
 	// Changed is the change set check --new-from-rev measures, nil without
 	// one; only the rules on changes read it.
 	Changed ChangedLines
+	// Coverage is a test coverage profile attributed to the program's
+	// functions, nil without one; balance ranks packages by it.
+	Coverage *Coverage
 }
 
 // Program is everything a loader extracts from the packages under analysis.

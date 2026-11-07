@@ -73,9 +73,13 @@ func (cfg *Config) exec(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("balance: %w", err)
 	}
+	if cfg.CoverProfile != "" {
+		if l.Coverage, err = pipeline.ReadCoverage(cfg.CoverProfile, &l.Program); err != nil {
+			return fmt.Errorf("balance: %w", err)
+		}
+	}
 	conn := connascence.Analyze(&l)
-	in, err := cfg.BalanceInput(ctx, &l, &conn,
-		pipeline.History{SinceRev: cfg.SinceRev, CoverProfile: cfg.CoverProfile})
+	in, err := cfg.BalanceInput(ctx, &l, &conn, pipeline.History{SinceRev: cfg.SinceRev})
 	if err != nil {
 		return fmt.Errorf("balance: %w", err)
 	}

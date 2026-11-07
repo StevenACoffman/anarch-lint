@@ -14,16 +14,14 @@ import (
 	"github.com/StevenACoffman/anarch-lint/internal/balance"
 	"github.com/StevenACoffman/anarch-lint/internal/codeowners"
 	"github.com/StevenACoffman/anarch-lint/internal/connascence"
-	"github.com/StevenACoffman/anarch-lint/internal/coverage"
 	"github.com/StevenACoffman/anarch-lint/internal/fitness"
 	"github.com/StevenACoffman/anarch-lint/internal/git"
 )
 
-// History names the evidence balance may read beyond the code: the commits
-// after SinceRev, and a coverage profile; empty means none.
+// History names the change history balance may read beyond the code: the
+// commits after SinceRev; empty means none.
 type History struct {
-	SinceRev     string
-	CoverProfile string
+	SinceRev string
 }
 
 // GateInput measures everything the gate compares with a baseline: the MMI
@@ -88,7 +86,7 @@ func (o *Options) JudgementSlots(
 
 // BalanceInput gathers what the Balanced Coupling measure reads beyond the
 // program: the connascence instances, the owners from CODEOWNERS, and the
-// history h names.
+// history h names. A coverage profile comes with l (ReadCoverage).
 func (o *Options) BalanceInput(
 	ctx context.Context, l *arch.Input, conn *connascence.Report, h History,
 ) (balance.Input, error) {
@@ -106,17 +104,6 @@ func (o *Options) BalanceInput(
 		if in.Churn, in.Input, err = readRange(ctx, o.Dir, l, h.SinceRev); err != nil {
 			return balance.Input{}, &arch.Error{Op: op, Err: err}
 		}
-	}
-	if h.CoverProfile != "" {
-		src, err := ReadFile(h.CoverProfile)
-		if err != nil {
-			return balance.Input{}, &arch.Error{Op: op, Err: err}
-		}
-		cov, err := coverage.Attribute(src, &l.Program)
-		if err != nil {
-			return balance.Input{}, &arch.Error{Op: op, Err: err}
-		}
-		in.Coverage = &cov
 	}
 	return in, nil
 }

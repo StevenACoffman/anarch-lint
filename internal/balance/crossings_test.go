@@ -63,13 +63,13 @@ func TestUntestedCrossings(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			r := balance.Analyze(&balance.Input{
-				Input: &arch.Input{Program: program, Model: model, Changed: tc.changed},
+			r := balance.Analyze(&balance.Input{Input: &arch.Input{
+				Program: program, Model: model, Changed: tc.changed,
 				Coverage: &arch.Coverage{Funcs: []arch.FuncCoverage{
 					{Func: "m/web.Handle", Statements: 4, Covered: tc.covered},
 					{Func: "m/web.Local", Statements: 2},
 				}},
-			})
+			}})
 			var subjects []string
 			for _, c := range r.Candidates {
 				if c.Rule == arch.RuleUntestedCrossing {

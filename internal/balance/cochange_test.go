@@ -102,7 +102,8 @@ func TestCoverage(t *testing.T) {
 		{Func: "m/auth.Check", Statements: 10, Covered: 2},
 		{Func: "m/billing.Bill", Statements: 4, Covered: 4},
 	}}
-	r := balance.Analyze(&balance.Input{Input: in, Coverage: cov})
+	in.Coverage = cov
+	r := balance.Analyze(&balance.Input{Input: in})
 	equals(t, "h", r.Inputs.Coverage)
 	equals(t, []balance.PackageCoverage{
 		{Package: "m/auth", Ca: 3, Statements: 10, Covered: 2, Share: 0.2},

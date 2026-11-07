@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
+	"github.com/StevenACoffman/anarch-lint/internal/coverage"
 	"github.com/StevenACoffman/anarch-lint/internal/gopackages"
 )
 
@@ -216,6 +217,22 @@ func ReadFile(path string) ([]byte, error) {
 		return nil, &arch.Error{Code: arch.EINVALID, Message: fmt.Sprintf("read %s: %v", path, err)}
 	}
 	return src, nil
+}
+
+// ReadCoverage reads the go test -coverprofile file at profile, attributed
+// to p's functions, for arch.Input's Coverage. A missing file is
+// ENOTFOUND, a malformed one EINVALID.
+func ReadCoverage(profile string, p *arch.Program) (*arch.Coverage, error) {
+	const op = "pipeline.ReadCoverage"
+	src, err := ReadFile(profile)
+	if err != nil {
+		return nil, &arch.Error{Op: op, Err: err}
+	}
+	cov, err := coverage.Attribute(src, p)
+	if err != nil {
+		return nil, &arch.Error{Op: op, Err: err}
+	}
+	return &cov, nil
 }
 
 // ToolVersion is the module version this binary was built from, or "devel".
