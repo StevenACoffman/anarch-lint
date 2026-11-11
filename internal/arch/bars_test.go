@@ -16,6 +16,9 @@ func TestLoosened(t *testing.T) {
 				Version:    1,
 				Thresholds: arch.Thresholds{LargeFuncLines: 40},
 				Gates:      arch.Gates{MinCoverage: 90},
+				Balance: arch.BalanceSettings{
+					History: arch.HistoryWindow{Commits: 100, MaxHotspot: 50},
+				},
 				ForbiddenImports: []arch.ForbiddenImport{
 					{From: []string{"x"}, Imports: []string{"y"}, Reason: "r"},
 				},
@@ -37,12 +40,26 @@ func TestLoosened(t *testing.T) {
 	}{
 		"nothing": {change: func(*arch.Bars) {}},
 		"tightened": {change: func(b *arch.Bars) {
+			b.Model.Balance.History = arch.HistoryWindow{Commits: 200, MaxHotspot: 40}
 			b.Model.Thresholds.LargeFuncLines = 30
 			b.Model.Gates.MinCoverage = 95
 			b.Baseline.Findings = nil
 			b.Baseline.Metrics[0].Value = 1
 			b.Waivers = nil
 		}},
+		"the history window narrowed": {
+			change: func(b *arch.Bars) {
+				b.Model.Balance.History = arch.HistoryWindow{Commits: 10, MaxHotspot: 80}
+			},
+			want: []string{
+				"balance.history.commits lowered from 100 to 10",
+				"balance.history.maxHotspot raised or removed from 50",
+			},
+		},
+		"the history window removed": {
+			change: func(b *arch.Bars) { b.Model.Balance.History = arch.HistoryWindow{} },
+			want:   []string{"balance.history removed"},
+		},
 		"a threshold raised": {
 			change: func(b *arch.Bars) { b.Model.Thresholds.LargeFuncLines = 80 },
 			want:   []string{"thresholds.largeFuncLines raised from 40 to 80"},

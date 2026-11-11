@@ -916,8 +916,6 @@ func TestCorpusSkillet(t *testing.T) {
 	}
 }
 
-// A coChange rule gates check --new-from-rev: a change to the schema without
-// its generated code fails, and one with it passes.
 // gitModule makes an empty directory for a module, and returns it with a
 // function that runs git there and one that writes a file.
 func gitModule(t *testing.T) (dir string, gitIn func(...string), write func(name, content string)) {
@@ -950,6 +948,8 @@ func gitModule(t *testing.T) (dir string, gitIn func(...string), write func(name
 	return dir, gitIn, write
 }
 
+// A coChange rule gates check --new-from-rev: a change to the schema without
+// its generated code fails, and one with it passes.
 func TestCheckCoChange(t *testing.T) {
 	t.Parallel()
 	dir, gitIn, write := gitModule(t)
@@ -975,6 +975,30 @@ func TestCheckCoChange(t *testing.T) {
 	write("gen/schema.txt", "v2\n")
 	if code, out, _ := runCLI(t, "-C", dir, "check", "--new-from-rev", "HEAD"); code != 0 {
 		t.Fatalf("a schema change with its code: exit %d, want 0\n%s", code, out)
+	}
+}
+
+// TestCheckHistoryWindow: with a history window in the model, check reads
+// the last commits and fails when a package's hotspot score rises above the
+// limit, though the code's design did not change (docs/adr/0017).
+func TestCheckHistoryWindow(t *testing.T) {
+	t.Parallel()
+	dir, gitIn, write := gitModule(t)
+	write("go.mod", "module example.com/hw\n\ngo 1.24\n")
+	write("a/a.go", "package a\n\n// A is a.\nfunc A() {}\n")
+	write("anarch.json", `{"version": 1, "balance": {"gate": true,
+		"history": {"commits": 5, "maxHotspot": 1}}}`)
+	gitIn("init", "-q")
+	gitIn("add", ".")
+	gitIn("commit", "-q", "-m", "init")
+	if code, _, errOut := runCLI(t, "-C", dir, "baseline"); code != 0 {
+		t.Fatalf("baseline: exit %d: %s", code, errOut)
+	}
+	write("a/a.go", "package a\n\n// A is a.\nfunc A() { _ = 1 }\n")
+	gitIn("commit", "-q", "-am", "change a")
+	code, out, _ := runCLI(t, "-C", dir, "check")
+	if code != 3 || !strings.Contains(out, "hotspot") {
+		t.Fatalf("a second commit to a: exit %d, want 3 with hotspot\n%s", code, out)
 	}
 }
 

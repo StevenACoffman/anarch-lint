@@ -6,6 +6,9 @@
         "gate": {
           "type": "boolean"
         },
+        "history": {
+          "$ref": "#/$defs/HistoryWindow"
+        },
         "messaging": {
           "items": {
             "type": "string"
@@ -733,6 +736,21 @@
       },
       "required": [
         "schema"
+      ],
+      "type": "object"
+    },
+    "HistoryWindow": {
+      "additionalProperties": false,
+      "properties": {
+        "commits": {
+          "type": "integer"
+        },
+        "maxHotspot": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "commits"
       ],
       "type": "object"
     },

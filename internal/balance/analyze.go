@@ -332,12 +332,17 @@ func listed[T any](r *Report, name string, items []T) []T {
 }
 
 // historyAndCoverage adds what the revision range and the coverage profile
-// show, when the input has them: co-change, hotspots and coverage, and the
-// candidates drawn from them.
+// show, when the input has them: co-change, hotspots and coverage, the
+// candidates drawn from them, and the hotspots above the model's limit.
 func (s *subject) historyAndCoverage(r *Report) {
-	h := &history{churn: s.in.Churn, p: s.p, g: &s.g, variant: s.m.Limits().ComplexityVariant}
+	h := &history{
+		churn: s.in.Churn, p: s.p, g: &s.g, variant: s.m.Limits().ComplexityVariant,
+		maxHotspot: s.m.Balance.History.MaxHotspot,
+	}
 	r.CoChange = h.coChange()
-	r.Hotspots = listed(r, "hotspots", h.hotspots())
+	hotspots := h.hotspots()
+	r.Findings = append(r.Findings, h.hotspotFindings(hotspots, s.severity())...)
+	r.Hotspots = listed(r, "hotspots", hotspots)
 	r.Candidates = append(r.Candidates, h.hiddenCouplings(r.CoChange)...)
 	coverage := coverageOf(s.in.Coverage, s.p, r.Packages)
 	r.Candidates = append(r.Candidates, untestedDependencies(coverage)...)

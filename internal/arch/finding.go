@@ -84,6 +84,10 @@ func NewFinding(id FindingID, sev Severity) Finding {
 	}
 }
 
+// RestOn adds places the finding rests on besides its location: a change
+// to any of them scopes it under a scoped check (docs/adr/0011).
+func (f *Finding) RestOn(spans ...Span) { f.sites = append(f.sites, spans...) }
+
 // SpanAt returns the one-line span of a position.
 func SpanAt(p Position) *Span {
 	return &Span{File: p.File, Start: p.Line, End: p.Line}

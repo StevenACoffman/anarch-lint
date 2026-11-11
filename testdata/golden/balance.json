@@ -750,8 +750,8 @@
     },
     {
       "id": "co-change",
-      "text": "Two subsystems co-change when at least 2 commits of the range changed both; their score is shared ÷ √(commits of each). A commit changing more than 40 files is a sweep and counts toward neither pair. A pair scoring 0.5 or more with no import either way is a hidden-coupling candidate. A hotspot is commits × summed cyclomatic complexity.",
-      "source": "IMPROVEMENTS.md 4.1 (gortex cochange.Mine; Tornhill's hotspots)"
+      "text": "Two subsystems co-change when at least 2 commits of the range changed both; their score is shared ÷ √(commits of each). A commit changing more than 40 files is a sweep and counts toward neither pair. A pair scoring 0.5 or more with no import either way is a hidden-coupling candidate. A hotspot is commits × summed cyclomatic complexity; one above the model's history maxHotspot is a finding. The model's history window is the last commits of HEAD's first-parent line, merges' other parents included.",
+      "source": "IMPROVEMENTS.md 4.1 (gortex cochange.Mine; Tornhill's hotspots); docs/adr/0017"
     },
     {
       "id": "coverage",

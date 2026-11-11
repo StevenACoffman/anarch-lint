@@ -56,11 +56,15 @@ Khononov's Balanced Coupling for every ordered pair of subsystems
     of them, and with --since-rev too, the functions the range changes that
     call into another subsystem and that no test runs.
 
+Without --since-rev, the model's "balance": {"history": {"commits": N}}
+reads the last N commits of HEAD's first-parent line instead, as check
+does; a package whose hotspot score, commits times complexity, is above its
+"maxHotspot" is a hotspot finding (docs/adr/0017).
+
 Tight coupling on facts is a finding, an error when the model's "balance"
 section sets "gate": true. Candidates gate only once an approved verdict
 confirms them. CODEOWNERS (--codeowners) paths are matched relative to
---dir. It always
-exits 0 once the packages load; use check to gate.`,
+--dir. It always exits 0 once the packages load; use check to gate.`,
 		Flags: cfg.Flags,
 		Exec:  cfg.exec,
 	}

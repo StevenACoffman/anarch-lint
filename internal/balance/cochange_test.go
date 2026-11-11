@@ -140,3 +140,63 @@ func TestHotspotsAreCapped(t *testing.T) {
 	equals(t, "m/p24", r.Hotspots[0].Package)
 	equals(t, []string{"hotspots: 20 of 25"}, r.Capped)
 }
+
+// A hotspot scoring above the model's limit is a finding at its most complex
+// function, an error when balance gates and a warning otherwise; a limit of
+// 0, the default, reports none.
+func TestHotspotFindings(t *testing.T) {
+	t.Parallel()
+	cases := map[string]struct {
+		window   arch.HistoryWindow
+		gate     bool
+		expected []string
+	}{
+		"no limit": {window: arch.HistoryWindow{Commits: 10}},
+		"above the limit, gated": {
+			window: arch.HistoryWindow{Commits: 10, MaxHotspot: 10}, gate: true,
+			expected: []string{"hotspot m/billing error billing/b.go:4"},
+		},
+		"above the limit, ungated": {
+			window:   arch.HistoryWindow{Commits: 10, MaxHotspot: 10},
+			expected: []string{"hotspot m/billing warning billing/b.go:4"},
+		},
+		"under the limit": {window: arch.HistoryWindow{Commits: 10, MaxHotspot: 15}},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			in := fixture()
+			in.Model.Balance.Gate = tc.gate
+			in.Model.Balance.History = tc.window
+			in.Program.Funcs = []arch.Func{
+				{
+					ID: "m/billing.Bill", Package: "m/billing", Name: "Bill",
+					Span:       arch.Span{File: "billing/b.go", Start: 4, End: 9},
+					Complexity: arch.Complexity{Modified: 2},
+				},
+				{
+					ID: "m/billing.Total", Package: "m/billing", Name: "Total",
+					Span:       arch.Span{File: "billing/b.go", Start: 11, End: 12},
+					Complexity: arch.Complexity{Modified: 1},
+				},
+			}
+			r := balance.Analyze(&balance.Input{Input: in, Churn: &arch.Churn{
+				Since: "a", Head: "b",
+				Commits: map[string][]string{"billing/b.go": {"c1", "c2", "c3", "c4", "c5"}},
+				Authors: map[string]string{"c1": "ann@x", "c2": "bob@x"},
+			}})
+			var got []string
+			for i := range r.Findings {
+				if f := &r.Findings[i]; f.Rule == arch.RuleHotspot {
+					got = append(got, fmt.Sprintf("%s %s %s %s:%d", f.Rule, f.Subject, f.Severity,
+						f.Location.File, f.Location.Start))
+					equals(t, []string{
+						"m/billing.Bill has complexity 2", "m/billing.Total has complexity 1",
+						"2 authors changed it",
+					}, f.Evidence)
+				}
+			}
+			equals(t, tc.expected, got)
+		})
+	}
+}
