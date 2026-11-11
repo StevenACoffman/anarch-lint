@@ -29,6 +29,7 @@ import (
 	"github.com/StevenACoffman/anarch-lint/cmd/fitness"
 	"github.com/StevenACoffman/anarch-lint/cmd/format"
 	"github.com/StevenACoffman/anarch-lint/cmd/judge"
+	"github.com/StevenACoffman/anarch-lint/cmd/proposals"
 	"github.com/StevenACoffman/anarch-lint/cmd/render"
 	"github.com/StevenACoffman/anarch-lint/cmd/root"
 	"github.com/StevenACoffman/anarch-lint/cmd/schema"
@@ -67,6 +68,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	render.New(r)
 	format.New(r)
 	draft.New(r)
+	proposals.New(r)
 	validate.New(r)
 	if err := r.Command.Parse(args, ff.WithEnvVarPrefix("ANARCH_LINT")); err != nil {
 		// --help asked for help, and any other parse failure (an unknown flag,

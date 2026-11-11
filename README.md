@@ -42,6 +42,8 @@ anarch-lint baseline --shrink        # remove what was fixed; accept nothing new
 anarch-lint render                   # write anarch.md, the model as Markdown
 anarch-lint render --check           # exit 3 if anarch.md is stale
 anarch-lint schema                   # print the JSON Schema of anarch.json
+anarch-lint proposals report FILE    # what each rule another tool proposes would do
+anarch-lint proposals accept FILE ID # add proposed rules to the model
 just corpus                          # the acceptance tests on cloned codebases
 ```
 
@@ -380,6 +382,45 @@ is escaped so it cannot inject HTML
 The [`plugin/`](plugin) directory is a Claude Code plugin with two skills:
 `anarch-model-author` builds a model by conversation, a pass at a time, and
 `anarch-model-context` loads the rendered architecture before a coding task.
+
+## Proposed Rules
+
+Another tool can propose fitness rules for a person to review: codetospec,
+for one, proposes who may write each enumerated field of the state a
+service stores, from the writers the code has today. It writes a proposals
+file, whose JSON Schema `anarch-lint schema --proposals` prints:
+
+```json
+{
+  "schema": "anarch-lint.proposals.v1",
+  "source": "codetospec",
+  "proposals": [
+    {"id": "1f3a…", "fitness": {"fields": [{"name": "models.Run.Status writers",
+      "fields": ["example.com/app/models.Run.Status"], "writes": true, "only": true,
+      "optional": true, "from": ["example.com/app/emails"]}]},
+     "evidence": [{"kind": "write", "path": "emails/send.go", "lines": "10-20"}]}
+  ]
+}
+```
+
+Each proposal holds exactly one named rule of the kinds a rule set may hold,
+which stand on their own patterns, never the model's layers. Nothing applies
+a proposal by itself:
+
+- `proposals report FILE` loads the packages and says, for each proposal,
+  whether the model already declares a rule of its name, or else whether the
+  rule would pass or fail on today's code, with its violations. It writes
+  nothing.
+- `proposals accept FILE ID...` adds the named rules to the JSON model
+  (starting one if there is none), in canonical form, and refuses a name the
+  model declares. When the model had no fitness rule, it says that every
+  fitness finding now gates.
+
+A proposal records what the code does today, not what it should do. To
+reject one, accept it and set its `gate` to `off`: the decision stays in the
+model, and the proposing tool skips every rule the model declares. Accepting
+changes the model's hash, so record the baseline again in a change of its
+own.
 
 ## Waivers
 

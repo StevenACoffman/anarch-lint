@@ -16,6 +16,9 @@ import (
 // ID names the schema; a model may refer to it in its $schema key.
 const ID = "https://github.com/StevenACoffman/anarch-lint/schema/anarch.v1.json"
 
+// proposalsID names the schema of a proposals file (anarch-lint.proposals.v1).
+const proposalsID = "https://github.com/StevenACoffman/anarch-lint/schema/proposals.v1.json"
+
 // generator accumulates the definitions of the struct types it meets.
 type generator struct {
 	defs map[string]any
@@ -24,13 +27,26 @@ type generator struct {
 // Generate returns the JSON Schema (draft 2020-12) of an anarch.json model,
 // as a value that encodes to the same bytes on every run.
 func Generate() map[string]any {
+	return generate(reflect.TypeFor[arch.Model](), ID, "anarch-lint model")
+}
+
+// GenerateProposals returns the JSON Schema (draft 2020-12) of a proposals
+// file, which another tool writes for anarch-lint to read: its rules are
+// described by the same definitions as the model's.
+func GenerateProposals() map[string]any {
+	return generate(reflect.TypeFor[arch.Proposals](), proposalsID, "anarch-lint proposals")
+}
+
+// generate returns the schema of root, named id and titled title, with the
+// definitions of every struct type it reaches.
+func generate(root reflect.Type, id, title string) map[string]any {
 	g := generator{defs: map[string]any{}}
-	root := g.object(reflect.TypeFor[arch.Model]())
-	root["$schema"] = "https://json-schema.org/draft/2020-12/schema"
-	root["$id"] = ID
-	root["title"] = "anarch-lint model"
-	root["$defs"] = g.defs
-	return root
+	s := g.object(root)
+	s["$schema"] = "https://json-schema.org/draft/2020-12/schema"
+	s["$id"] = id
+	s["title"] = title
+	s["$defs"] = g.defs
+	return s
 }
 
 // closedValues returns the values each closed string type accepts.
