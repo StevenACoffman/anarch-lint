@@ -185,13 +185,8 @@ func (o *Options) BaselineAt(
 	ctx context.Context, rev string, patterns []string,
 ) (arch.Baseline, error) {
 	const op = "pipeline.Options.BaselineAt"
-	dir, remove, err := git.Worktree(ctx, o.Dir, rev)
+	base, remove, err := checkout(ctx, o, rev)
 	if err != nil {
-		return arch.Baseline{}, &arch.Error{Op: op, Err: err}
-	}
-	base, err := o.at(dir)
-	if err != nil {
-		_ = remove()
 		return arch.Baseline{}, &arch.Error{Op: op, Err: err}
 	}
 	in, err := base.GateInput(ctx, patterns, nil)
@@ -204,10 +199,27 @@ func (o *Options) BaselineAt(
 	return arch.NewBaseline(&in), nil
 }
 
-// at returns the options with Dir moved to dir, and every input file that
+// checkout checks out rev apart from o's work tree, and returns the options
+// that read the code there, with the other inputs read as optionsAt does,
+// and the function that removes the checkout.
+func checkout(ctx context.Context, o *Options, rev string) (Options, func() error, error) {
+	const op = "pipeline.checkout"
+	dir, remove, err := git.Worktree(ctx, o.Dir, rev)
+	if err != nil {
+		return Options{}, nil, &arch.Error{Op: op, Err: err}
+	}
+	base, err := optionsAt(o, dir)
+	if err != nil {
+		_ = remove()
+		return Options{}, nil, &arch.Error{Op: op, Err: err}
+	}
+	return base, remove, nil
+}
+
+// optionsAt returns o with Dir moved to dir, and every input file that
 // lies outside the code (the model, the judgements and CODEOWNERS) still
 // read from where it is now. A missing default model stays missing.
-func (o *Options) at(dir string) (Options, error) {
+func optionsAt(o *Options, dir string) (Options, error) {
 	base := *o
 	base.Dir = dir
 	if _, err := os.Stat(o.ModelFile()); err == nil && base.ModelPath == "" {

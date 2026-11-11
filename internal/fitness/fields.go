@@ -21,10 +21,11 @@ func checkFields(l *ledger, rules []arch.FieldRule, uses []arch.Use, packages []
 func checkFieldRule(l *ledger, fr *arch.FieldRule, i int, uses []arch.Use, packages []string) {
 	r := l.addRule("fields", fr.RuleOptions, arch.DefaultRuleName(fr.Name, "fields", i))
 	kind := arch.RuleForbiddenFieldAccess
+	r.readsCode = everyPackage
 	if fr.Only {
 		kind = arch.RuleFieldRestriction
 	} else {
-		r.result.Matched = countMatching(packages, fr.From)
+		r.result.Matched, r.readsCode = countMatching(packages, fr.From), matching(fr.From)
 	}
 	for j := range uses {
 		u := &uses[j]

@@ -17,7 +17,7 @@ func checkFanOut(l *ledger, rules []arch.FanOutRule, packages []string,
 	for i := range rules {
 		fo := &rules[i]
 		r := l.addRule("fanOut", fo.RuleOptions, arch.DefaultRuleName(fo.Name, "fanOut", i))
-		r.result.Matched = countMatching(packages, fo.Packages)
+		r.result.Matched, r.readsCode = countMatching(packages, fo.Packages), matching(fo.Packages)
 		for _, pkg := range packages {
 			if !arch.MatchesAny(fo.Packages, pkg) {
 				continue

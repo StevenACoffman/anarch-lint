@@ -5,7 +5,7 @@ import "github.com/StevenACoffman/anarch-lint/internal/arch"
 // assumptions lists the choices behind the Balanced Coupling measures.
 func assumptions() []arch.Assumption {
 	return append(append(scaleAssumptions(), inputAssumptions()...),
-		coChangeAssumption(), coverageAssumption(), listsAssumption())
+		coChangeAssumption(), patternsAssumption(), coverageAssumption(), listsAssumption())
 }
 
 // listsAssumption records the caps on what the report lists.

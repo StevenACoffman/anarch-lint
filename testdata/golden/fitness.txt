@@ -2,21 +2,21 @@ anarch-lint fitness (anarch-lint.fitness.v1)
 patterns ./... · model 305dda9530c9 · GOVERSION
 
 RULES
-  rule                  kind             gate  matched  violations  status  reason                                      
-  strictLayers          strictLayers     fail  7        0           passed  none                                        
-  core-from-features    layerAccess      fail  2        0           passed  binaries reach the core through a feature   
-  onion[0]              onion            fail  6        0           passed  none                                        
-  auth-for-billing      dependents       warn  2        2           failed  only billing should know roles              
-  nothing-yet           dependents       fail  0        0           empty   none                                        
-  maybe-later           dependents       fail  0        0           passed  none                                        
-  areas                 slices           fail  5        0           passed  none                                        
-  no-clock-in-features  calls            fail  2        2           failed  inject a clock                              
-  patterns-in-billing   calls            fail  2        1           failed  none                                        
-  web-ports             interfacesOnly   fail  1        4           failed  none                                        
-  requireAssigned       requireAssigned  fail  7        0           passed  none                                        
-  cx-model              domains          fail  12       12          failed  the code speaks the fixture's domain model  
+  rule                  kind             gate  matched  violations  status            reason                                      
+  strictLayers          strictLayers     fail  7        0           passed            none                                        
+  core-from-features    layerAccess      fail  2        0           passed            binaries reach the core through a feature   
+  onion[0]              onion            fail  6        0           passed            none                                        
+  auth-for-billing      dependents       warn  2        2           failed, 1 unseen  only billing should know roles              
+  nothing-yet           dependents       fail  0        0           empty             none                                        
+  maybe-later           dependents       fail  0        0           passed, 1 unseen  none                                        
+  areas                 slices           fail  5        0           passed            none                                        
+  no-clock-in-features  calls            fail  2        2           failed, 2 unseen  inject a clock                              
+  patterns-in-billing   calls            fail  2        1           failed, 2 unseen  none                                        
+  web-ports             interfacesOnly   fail  1        4           failed, 3 unseen  none                                        
+  requireAssigned       requireAssigned  fail  7        0           passed            none                                        
+  cx-model              domains          fail  12       12          failed            the code speaks the fixture's domain model  
 
-FINDINGS (20 errors, 12 warnings)
+FINDINGS (20 errors, 13 warnings)
   error    call-restriction  example.com/cx/web  web/admin.go:14
            example.com/cx/web calls regexp.MustCompile
            model rule: fitness.calls patterns-in-billing
@@ -52,6 +52,11 @@ FINDINGS (20 errors, 12 warnings)
            domain model cx.modelith.yaml declares enum Currency, and no type expresses it: the code speaks the fixture's domain model
            model rule: fitness.domains cx-model
            fix: name a type after the enum, or map it in the rule's types
+  warning  domain-guards-unclaimed  cx.modelith.yaml  state/email.go:17
+           no invariant of cx.modelith.yaml claims 1 of the 2 error guards in the packages of cx-model: their functions handle no type an invariant governs, and enforce none
+           model rule: fitness.domains cx-model
+           evidence: example.com/cx/state.Email.SetSubject guards at state/email.go:17
+           fix: for each guard that keeps a domain rule, declare the invariant and mark the guard's function with //arch:invariant ID; one that checks the implementation may stay
   error    domain-relationship-missing  cx.modelith.yaml:Credentials  
            the model relates Credentials to Role, but example.com/cx/auth.Credentials and example.com/cx/auth.Role never refer to each other: the code speaks the fixture's domain model
            model rule: fitness.domains cx-model
@@ -167,4 +172,4 @@ CYCLES (types: 0)
 
 CYCLES (subsystems: 0)
 
-ASSUMPTIONS: 11, listed in the JSON report (--format=json)
+ASSUMPTIONS: 13, listed in the JSON report (--format=json)

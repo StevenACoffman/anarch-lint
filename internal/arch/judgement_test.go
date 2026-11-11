@@ -206,7 +206,7 @@ func TestDecodeVerificationEvents(t *testing.T) {
 		},
 		"an unknown role": {
 			`{"criterion": "3.3", "events": [{"role": "oracle"}]}`,
-			`judgements: criterion 3.3: role "oracle" is not judge or human`,
+			`judgements: criterion 3.3: role "oracle" is not judge, adversary or human`,
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -260,4 +260,36 @@ func TestEverySlotSaysWhyItIsUndecided(t *testing.T) {
 	if precise.EvidenceHash == slotOf("connascence/x", nil, nil).EvidenceHash {
 		t.Error("the reason a slot is undecided is not hashed")
 	}
+}
+
+// A judge's coverage and an adversary's event survive the judgements file,
+// so a later run can show the coverage to an adversary and skip a draft it
+// already challenged.
+func TestJudgementsKeepCoverage(t *testing.T) {
+	t.Parallel()
+	confidence := 0.7
+	in := []arch.Verdict{{
+		Criterion: "3.3", Score: 6, Rationale: "r", EvidenceHash: "h",
+		Events: []arch.VerificationEvent{
+			{
+				Role: arch.RoleJudge, Config: "c1", Examined: []string{"the layout"},
+				Unexamined: []string{"b/b.go: not shown"},
+			},
+			{
+				Role:       arch.RoleAdversary,
+				Config:     "c2",
+				Confidence: &confidence,
+				Cites:      []string{"E2"},
+			},
+		},
+	}}
+	var buf strings.Builder
+	if err := arch.EncodeJudgements(&buf, "", in); err != nil {
+		t.Fatal(err)
+	}
+	out, err := arch.DecodeJudgements(strings.NewReader(buf.String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	equals(t, in, out)
 }

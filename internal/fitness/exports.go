@@ -24,6 +24,8 @@ func checkUnusedExports(l *ledger, rules []arch.UnusedExports, p *arch.Program) 
 		ue := &rules[i]
 		r := l.addRule("unusedExports", ue.RuleOptions,
 			arch.DefaultRuleName(ue.Name, "unusedExports", i))
+		// A use that makes an export used can come from any package.
+		r.readsCode = everyPackage
 		for _, e := range exports {
 			if !arch.MatchesAny(ue.Packages, e.pkg) {
 				continue

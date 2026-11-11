@@ -34,7 +34,11 @@ func WriteReport(w io.Writer, r *arch.Report) error {
 	writeMMI(tw, &r.MMI)
 	writeConformance(tw, &r.Conformance)
 	writeOrdering(tw, &r.Ordering)
-	writeCoupling(tw, &r.Coupling)
+	writeCoupling(tw, "COUPLING (von Zitzewitz)", &r.Coupling)
+	if r.CouplingWithDispatch != nil {
+		writeCoupling(tw, "COUPLING WITH DISPATCH (an upper bound for the monotone measures)",
+			r.CouplingWithDispatch)
+	}
 	writePackages(tw, r.Packages)
 	writeRank(tw, r.ComponentRank)
 	writeCommunities(tw, &r.Communities)
@@ -160,8 +164,8 @@ func writeOrdering(w io.Writer, o *arch.Ordering) {
 	}
 }
 
-func writeCoupling(w io.Writer, c *arch.CouplingLevels) {
-	_, _ = fmt.Fprintln(w, "\nCOUPLING (von Zitzewitz)\ttypes\tpackages\tsubsystems")
+func writeCoupling(w io.Writer, title string, c *arch.CouplingLevels) {
+	_, _ = fmt.Fprintf(w, "\n%s\ttypes\tpackages\tsubsystems\n", title)
 	levels := []*arch.Coupling{&c.Types, &c.Packages, &c.Subsystems}
 	row := func(name string, cell func(*arch.Coupling) string) {
 		cells := make([]string, len(levels))

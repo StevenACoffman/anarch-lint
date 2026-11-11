@@ -280,3 +280,17 @@ func coChangeAssumption() arch.Assumption {
 		Source: "IMPROVEMENTS.md 4.1 (gortex cochange.Mine; Tornhill's hotspots); docs/adr/0017",
 	}
 }
+
+// patternsAssumption records the hotspot patterns' thresholds.
+func patternsAssumption() arch.Assumption {
+	return arch.Assumption{
+		ID: "hotspot-patterns",
+		Text: fmt.Sprintf("Mo et al.'s file-level patterns, read over packages and their "+
+			"in-scope imports: a package with at least %d importers that changed with at least "+
+			"%g of them, each in %d commits or more, sweeps left out, is an unstable-interface "+
+			"candidate; one with as many importers, at least %d imports, and such a co-change "+
+			"with an importer and an import is a crossing candidate.",
+			minDependents, unstableShare, minShared, minDependencies),
+		Source: "IMPROVEMENTS.md 10.6 (Mo, Cai, Kazman, Xiao, WICSA 2015; TSE 2021)",
+	}
+}

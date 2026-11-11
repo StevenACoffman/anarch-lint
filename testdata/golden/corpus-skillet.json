@@ -221,6 +221,31 @@
       "modelRule": "fitness.domains skillet-model"
     },
     {
+      "fingerprint": "6b4b7d68f8e7e65e",
+      "rule": "domain-guards-unclaimed",
+      "severity": "warning",
+      "subject": "skillet.modelith.yaml",
+      "object": "skillet-model",
+      "location": {
+        "file": "atomicfile/atomicfile.go",
+        "start": 23,
+        "end": 23
+      },
+      "message": "no invariant of skillet.modelith.yaml claims 8 of the 15 error guards in the packages of skillet-model: their functions handle no type an invariant governs, and enforce none",
+      "fix": "for each guard that keeps a domain rule, declare the invariant and mark the guard's function with //arch:invariant ID; one that checks the implementation may stay",
+      "evidence": [
+        "github.com/StevenACoffman/skillet/atomicfile.WriteFile guards at atomicfile/atomicfile.go:23",
+        "github.com/StevenACoffman/skillet/proof.Create guards at proof/proof.go:48",
+        "github.com/StevenACoffman/skillet/proof.Verify guards at proof/proof.go:105",
+        "github.com/StevenACoffman/skillet/ruleset/distill.FillTemplate guards at ruleset/distill/distill.go:36",
+        "github.com/StevenACoffman/skillet/ruleset/distill.FillTemplate guards at ruleset/distill/distill.go:39",
+        "github.com/StevenACoffman/skillet/ruleset.parseWarrant guards at ruleset/marker.go:190",
+        "github.com/StevenACoffman/skillet/ruleset/synthesize.FillTemplate guards at ruleset/synthesize/synthesize.go:41",
+        "github.com/StevenACoffman/skillet/ruleset/synthesize.FillTemplate guards at ruleset/synthesize/synthesize.go:44"
+      ],
+      "modelRule": "fitness.domains skillet-model"
+    },
+    {
       "fingerprint": "cfcab59d2d4b56ff",
       "rule": "domain-relationship-missing",
       "severity": "error",
@@ -471,7 +496,6 @@
       "message": "invariant manifest-verified-iff-all-gates-pass has no enforcer: no function or test of skillet-model says it keeps \"A `Manifest` is marked verified only when every recorded `Skill` passes its gates.\": skillet's code should speak its own domain model (mmi-plan.md §10.0)",
       "fix": "mark the function or test that keeps it with //arch:invariant manifest-verified-iff-all-gates-pass, which may be one of the guards listed",
       "evidence": [
-        "github.com/StevenACoffman/skillet/manifest.Manifest.Marshal guards at manifest/manifest.go:261",
         "github.com/StevenACoffman/skillet/manifest.Parse guards at manifest/manifest.go:192"
       ],
       "modelRule": "fitness.domains skillet-model"
@@ -511,7 +535,6 @@
       "message": "invariant rule-belongs-to-one-ruleset has no enforcer: no function or test of skillet-model says it keeps \"Every `Rule` belongs to exactly one `Ruleset`.\": skillet's code should speak its own domain model (mmi-plan.md §10.0)",
       "fix": "mark the function or test that keeps it with //arch:invariant rule-belongs-to-one-ruleset, which may be one of the guards listed",
       "evidence": [
-        "github.com/StevenACoffman/skillet/ruleset.Parse guards at ruleset/ruleset.go:369",
         "github.com/StevenACoffman/skillet/ruleset.parseHeader guards at ruleset/ruleset.go:427",
         "github.com/StevenACoffman/skillet/ruleset.parseHeader guards at ruleset/ruleset.go:431",
         "github.com/StevenACoffman/skillet/ruleset.parseHeader guards at ruleset/ruleset.go:434"
@@ -538,10 +561,7 @@
       "severity": "error",
       "subject": "skillet.modelith.yaml:ruleset-derives-from-one-source",
       "message": "invariant ruleset-derives-from-one-source has no enforcer: no function or test of skillet-model says it keeps \"A `Ruleset` derives from exactly one `Source`.\": skillet's code should speak its own domain model (mmi-plan.md §10.0)",
-      "fix": "mark the function or test that keeps it with //arch:invariant ruleset-derives-from-one-source, which may be one of the guards listed",
-      "evidence": [
-        "github.com/StevenACoffman/skillet/ruleset.Parse guards at ruleset/ruleset.go:369"
-      ],
+      "fix": "mark the function or test that keeps it with //arch:invariant ruleset-derives-from-one-source",
       "modelRule": "fitness.domains skillet-model"
     },
     {
@@ -568,10 +588,7 @@
       "severity": "error",
       "subject": "skillet.modelith.yaml:source-is-authoritative",
       "message": "invariant source-is-authoritative has no enforcer: no function or test of skillet-model says it keeps \"A `Ruleset` derived from a `Source` never asserts beyond what the `Source` supports.\": skillet's code should speak its own domain model (mmi-plan.md §10.0)",
-      "fix": "mark the function or test that keeps it with //arch:invariant source-is-authoritative, which may be one of the guards listed",
-      "evidence": [
-        "github.com/StevenACoffman/skillet/ruleset.Parse guards at ruleset/ruleset.go:369"
-      ],
+      "fix": "mark the function or test that keeps it with //arch:invariant source-is-authoritative",
       "modelRule": "fitness.domains skillet-model"
     }
   ],
@@ -1046,6 +1063,14 @@
     "classes": 2,
     "cells": 0
   },
+  "unseen": [],
+  "guardCoverage": [
+    {
+      "rule": "skillet-model",
+      "guards": 15,
+      "claimed": 7
+    }
+  ],
   "assumptions": [
     {
       "id": "nccd",
@@ -1088,6 +1113,11 @@
       "source": "TODO.md, Ideas from ArchUnit: Layer Access"
     },
     {
+      "id": "unseen",
+      "text": "A rule's unseen counts what its check cannot see through in the packages whose code it reads, by construct: a //go:linkname or a plugin import hides a dependency from every rule that reads code; reflection by name hides a call, a field access or a use; an unsafe conversion a field access or a use; cgo a call. A rule naming who alone may call, or what any package may import, reads every package.",
+      "source": "IMPROVEMENTS.md 10.3"
+    },
+    {
       "id": "test-calls",
       "text": "A calls rule with tests reads the test files' calls from source, not types: only pkg.Name(…) through an import's name counts, an import whose name the file declares anywhere is skipped, a method call or a dot import is not seen, and a conversion such as time.Duration(n) reads as a call.",
       "source": "IMPROVEMENTS.md 9.7"
@@ -1099,8 +1129,13 @@
     },
     {
       "id": "error-guards",
-      "text": "An error guard is an if at the top of a body, with no init statement, that returns a non-nil error or panics; one in a switch or a loop is not seen. Guards are evidence on invariant-unenforced, never an enforcer.",
+      "text": "An error guard is an if at the top of a body, with no init statement, that returns a non-nil error or panics; one in a switch or a loop is not seen, nor one that tests an error against nil, which passes a failure on. Guards are evidence on invariant-unenforced, never an enforcer.",
       "source": "IMPROVEMENTS.md 9.5; docs/adr/0016"
+    },
+    {
+      "id": "unclaimed-guards",
+      "text": "An invariant claims an error guard whose function handles a type one of its entities matched, or is marked as an enforcer of the model. Guard coverage counts only for a model that declares an invariant, and the unclaimed count is ratcheted; a guard that checks the implementation stays unclaimed.",
+      "source": "IMPROVEMENTS.md 10.4"
     }
   ]
 }

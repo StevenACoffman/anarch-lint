@@ -52,3 +52,12 @@ func Nested(amounts []int) error {
 }
 
 func check(string) error { return nil }
+
+// Settle passes a failure on: an error tested against nil is no guard.
+func Settle(s string) error {
+	err := check(s)
+	if err != nil {
+		return err
+	}
+	return nil
+}

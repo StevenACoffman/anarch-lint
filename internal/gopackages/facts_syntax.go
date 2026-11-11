@@ -210,12 +210,13 @@ func nilNilReturns(info *types.Info, body *ast.BlockStmt) []token.Pos {
 // statement whose body ends in a return whose last result is an error and
 // not nil, or in a call of the builtin panic. A guard nested deeper, or a
 // switch, is not one: validation comes first in a body, and the shape is
-// kept narrow so what it finds is worth a person's look.
+// kept narrow so what it finds is worth a person's look. So is an if that
+// tests an error against nil: it passes a failure on, and keeps no rule.
 func errorGuards(info *types.Info, body *ast.BlockStmt) []token.Pos {
 	var out []token.Pos
 	for _, stmt := range body.List {
 		ifs, ok := stmt.(*ast.IfStmt)
-		if !ok || ifs.Init != nil || len(ifs.Body.List) == 0 {
+		if !ok || ifs.Init != nil || len(ifs.Body.List) == 0 || testsError(info, ifs.Cond) {
 			continue
 		}
 		if refuses(info, ifs.Body.List[len(ifs.Body.List)-1]) {
@@ -223,6 +224,22 @@ func errorGuards(info *types.Info, body *ast.BlockStmt) []token.Pos {
 		}
 	}
 	return out
+}
+
+// testsError reports a condition that compares an error with nil, either
+// way round.
+func testsError(info *types.Info, cond ast.Expr) bool {
+	bin, ok := ast.Unparen(cond).(*ast.BinaryExpr)
+	if !ok || (bin.Op != token.NEQ && bin.Op != token.EQL) {
+		return false
+	}
+	isError := func(e ast.Expr) bool {
+		tv := info.Types[e]
+		return !tv.IsNil() && tv.Type != nil &&
+			types.Identical(tv.Type, types.Universe.Lookup("error").Type())
+	}
+	isNil := func(e ast.Expr) bool { return info.Types[e].IsNil() }
+	return (isError(bin.X) && isNil(bin.Y)) || (isNil(bin.X) && isError(bin.Y))
 }
 
 // refuses reports a statement that ends a guard by refusing: a return whose

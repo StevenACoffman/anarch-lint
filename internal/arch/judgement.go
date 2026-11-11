@@ -76,7 +76,12 @@ type JudgementSlot struct {
 	Context []string `json:"context,omitempty"`
 	// Undecided says why the deterministic measure could not settle the
 	// slot, so a judge knows what is left to decide (mmi-plan.md §9.3 H).
-	Undecided    string     `json:"undecided"`
+	Undecided string `json:"undecided"`
+	// Group names the slots one reviewer's answer would settle together,
+	// such as the candidates of one detector across the same packages; it
+	// orders the queue and is no part of the question, so a judge never
+	// sees it and it is outside the evidence hash.
+	Group        string     `json:"group,omitempty"`
 	EvidenceHash string     `json:"evidenceHash"`
 	Status       SlotStatus `json:"status"`
 	// StaleBecause says why a stale slot's verdict no longer applies.
@@ -100,6 +105,8 @@ type SlotRequest struct {
 	Evidence  []string
 	Context   []string
 	Undecided string
+	// Group is the slot's group in the queue (JudgementSlot.Group).
+	Group string
 }
 
 // JudgeView is all a judge may see of a slot: the question, the answers and
@@ -146,6 +153,7 @@ func NewSlot(req *SlotRequest, verdicts []Verdict) JudgementSlot {
 		Evidence:  req.Evidence,
 		Context:   req.Context,
 		Undecided: cmp.Or(req.Undecided, q.undecided),
+		Group:     req.Group,
 		Status:    SlotPending,
 	}
 	slot.EvidenceHash = slot.hash()

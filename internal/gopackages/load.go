@@ -45,6 +45,10 @@ type Config struct {
 	// Dispatches asks for the run-time wiring of a VTA call graph
 	// ([arch.Program.Dispatches]), which costs a whole-program SSA build.
 	Dispatches bool
+	// DynamicCalls asks for the callees the same graph resolves the dynamic
+	// calls to ([arch.Facts.DynamicCalls]), and the calls it resolves to
+	// nothing; it needs Facts.
+	DynamicCalls bool
 }
 
 // Load loads the packages cfg names and returns their facts, sorted as
@@ -111,10 +115,30 @@ func complete(prog *arch.Program, dir string, cfg *Config, pkgs []*packages.Pack
 			return err
 		}
 	}
-	if cfg.Dispatches {
-		prog.Dispatches = dispatchesOf(pkgs, dir, inScope)
-	}
+	wiring(prog, dir, cfg, pkgs, inScope)
 	return nil
+}
+
+// wiring records what a VTA call graph gives, when cfg asks: the run-time
+// wiring between the packages under analysis, and the callees of every
+// dynamic call. The graph is built once for both.
+func wiring(
+	prog *arch.Program, dir string, cfg *Config, pkgs []*packages.Package, inScope map[string]bool,
+) {
+	dynamic := cfg.Facts && cfg.DynamicCalls
+	if !cfg.Dispatches && !dynamic {
+		return
+	}
+	cg := callGraphOf(pkgs)
+	if cg == nil {
+		return
+	}
+	if cfg.Dispatches {
+		prog.Dispatches = dispatchesOf(cg, dir, inScope)
+	}
+	if dynamic {
+		prog.Facts.DynamicCalls, prog.Facts.UnresolvedCalls = dynamicCallsOf(cg, dir, inScope)
+	}
 }
 
 // loadErrors returns every error of the loaded packages and their

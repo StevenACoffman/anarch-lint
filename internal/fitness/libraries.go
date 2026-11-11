@@ -15,6 +15,7 @@ func libraryConstraint(l *ledger, lr *arch.LibraryRule, i int, p *arch.Program,
 	inScope map[string]string,
 ) constraint {
 	r := l.addRule("libraries", lr.RuleOptions, arch.DefaultRuleName(lr.Name, "libraries", i))
+	r.readsCode = matching(lr.From)
 	for _, pkg := range p.Packages {
 		if arch.MatchesAny(lr.From, pkg.Path) {
 			r.result.Matched++

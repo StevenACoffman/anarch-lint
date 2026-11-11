@@ -80,10 +80,11 @@ func (s *subject) checkCalls() {
 		c := &s.m.Fitness.Calls[i]
 		r := s.addRule("calls", c.RuleOptions, arch.DefaultRuleName(c.Name, "calls", i))
 		kind := arch.RuleForbiddenCall
+		r.readsCode = everyPackage
 		if c.Only {
 			kind = arch.RuleCallRestriction
 		} else {
-			r.result.Matched = s.matchingPackages(c.From)
+			r.result.Matched, r.readsCode = s.matchingPackages(c.From), matching(c.From)
 		}
 		calls := s.p.Facts.Calls
 		if c.Tests {
@@ -95,6 +96,33 @@ func (s *subject) checkCalls() {
 		}
 		for _, call := range violations {
 			s.violation(r, callFinding(kind, r.result.Name, call))
+		}
+		if c.Dispatch {
+			r.blind = append(slices.Clip(r.blind), unseenUnresolved)
+			possibleCalls(s.ledger, r, c, s.p.Facts.DynamicCalls)
+		}
+	}
+}
+
+// possibleCalls warns of the dynamic calls, among those given, that a rule
+// opting into dispatch forbids by the callees they may reach. A possible call never fails the
+// rule: the graph over-approximates, so only a person can say whether the
+// path runs (docs/adr/0019).
+func possibleCalls(l *ledger, r *rule, c *arch.CallRule, dynamic []arch.Call) {
+	kind := arch.RulePossibleForbiddenCall
+	if c.Only {
+		kind = arch.RulePossibleCallRestriction
+	}
+	_, possible := restrictedCalls(c, dynamic)
+	for _, call := range possible {
+		f := callFinding(kind, r.result.Name, call)
+		f.Severity, f.ModelRule, f.QualityAttribute = arch.SeverityWarning, r.modelRule(), r.quality
+		f.Provenance = arch.ProvenanceDispatch
+		f.Message = fmt.Sprintf("%s may call %s, through an interface or a function value",
+			cmp.Or(call.Site.Func, call.Site.Package), call.Callee)
+		f.Fix = "confirm whether the call can reach it at run time; if it can, " + f.Fix
+		if !r.off {
+			l.findings = append(l.findings, *f)
 		}
 	}
 }
@@ -135,10 +163,17 @@ func callFinding(kind, rule string, call *arch.Call) *arch.Finding {
 }
 
 // matchesCallee reports a full name that one of the patterns names exactly,
-// or whose package a "pkg.*" pattern names.
+// whose receiver a "(*pkg.T).*" pattern names, or whose package a "pkg.*"
+// pattern names.
 func matchesCallee(patterns []string, callee string) bool {
 	for _, p := range patterns {
 		if p == callee {
+			return true
+		}
+		// "(*os.File).*" names every method of a type, as the callee
+		// spells its receiver.
+		if strings.HasPrefix(p, "(") && strings.HasSuffix(p, ").*") &&
+			strings.HasPrefix(callee, strings.TrimSuffix(p, "*")) {
 			return true
 		}
 		if pkg, ok := strings.CutSuffix(p, ".*"); ok && arch.FuncPackage(callee) == pkg {
@@ -149,19 +184,19 @@ func matchesCallee(patterns []string, callee string) bool {
 }
 
 // checkInterfacesOnly reports uses of a type that is not an interface, from
-// a package that may use only the interfaces of the type's package.
-func (s *subject) checkInterfacesOnly() {
-	for i := range s.m.Fitness.InterfacesOnly {
-		io := &s.m.Fitness.InterfacesOnly[i]
-		r := s.addRule(
-			"interfacesOnly",
-			io.RuleOptions,
-			arch.DefaultRuleName(io.Name, "interfacesOnly", i),
-		)
-		r.result.Matched = s.matchingPackages(io.From)
-		for j := range s.p.Facts.Uses {
-			u := &s.p.Facts.Uses[j]
-			t, ok := s.types[u.Object]
+// a package that may use only the interfaces of the type's package. types
+// holds the program's types by ID.
+func checkInterfacesOnly(l *ledger, rules []arch.InterfacesOnly, uses []arch.Use,
+	types map[string]*arch.Type, packages []string,
+) {
+	for i := range rules {
+		io := &rules[i]
+		r := l.addRule("interfacesOnly", io.RuleOptions,
+			arch.DefaultRuleName(io.Name, "interfacesOnly", i))
+		r.result.Matched, r.readsCode = countMatching(packages, io.From), matching(io.From)
+		for j := range uses {
+			u := &uses[j]
+			t, ok := types[u.Object]
 			if u.Kind != arch.ObjectType || !ok || t.Kind == arch.KindInterface ||
 				!arch.MatchesAny(io.From, u.Site.Package) || !arch.MatchesAny(io.To, u.Package) ||
 				arch.MatchesAny(io.To, u.Site.Package) {
@@ -177,7 +212,7 @@ func (s *subject) checkInterfacesOnly() {
 			f.Message = fmt.Sprintf("%s uses %s, %s, where only interfaces are allowed",
 				user, u.Object, kindText(t.Kind))
 			f.Fix = "depend on an interface the package exports, or declare one where it is used"
-			s.violation(r, &f)
+			l.violation(r, &f)
 		}
 	}
 }

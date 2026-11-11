@@ -16,6 +16,11 @@ const (
 	// RoleHuman is a person who judged the slot or accepted a judge's
 	// verdict.
 	RoleHuman EventRole = "human"
+	// RoleAdversary is an automated reviewer asked to find what the judges
+	// missed, shown what they examined but never what they answered
+	// (mmi-plan.md §9.3 G). Its event can unsettle a judges' draft, never
+	// apply an answer.
+	RoleAdversary EventRole = "adversary"
 )
 
 // The first judgements format's provenances, read only when decoding.
@@ -61,6 +66,11 @@ type VerificationEvent struct {
 	// (IMPROVEMENTS.md §7.5).
 	Confidence *float64 `json:"confidence,omitempty"`
 	Cites      []string `json:"cites,omitempty"`
+	// Examined and Unexamined are a judge's coverage: what it checked, and
+	// each aspect it could not check with why, as "aspect: reason". They are
+	// all an adversary sees of the judges.
+	Examined   []string `json:"examined,omitempty"`
+	Unexamined []string `json:"unexamined,omitempty"`
 }
 
 // judgementsFile is the on-disk form of a set of verdicts. Signer names who
@@ -92,6 +102,8 @@ type eventRecord struct {
 	Config     string    `json:"config,omitempty"`
 	Confidence *float64  `json:"confidence,omitempty"`
 	Cites      []string  `json:"cites,omitempty"`
+	Examined   []string  `json:"examined,omitempty"`
+	Unexamined []string  `json:"unexamined,omitempty"`
 }
 
 // DecodeJudgements reads a judgements file: {"version": 1, "signer": "…",
@@ -162,9 +174,11 @@ func EncodeJudgements(w io.Writer, signer string, verdicts []Verdict) error {
 			Criterion: v.Criterion, Score: v.Score, Answer: v.Answer, Rationale: v.Rationale,
 			EvidenceHash: v.EvidenceHash, Edition: v.Edition,
 		}
-		for _, e := range v.Events {
+		for j := range v.Events {
+			e := &v.Events[j]
 			rec.Events = append(rec.Events, eventRecord{
 				Role: e.Role, Config: e.Config, Confidence: e.Confidence, Cites: e.Cites,
+				Examined: e.Examined, Unexamined: e.Unexamined,
 			})
 		}
 		f.Verdicts = append(f.Verdicts, rec)
@@ -213,11 +227,12 @@ func (rec *verdictRecord) legacyEvents(signer string) ([]VerificationEvent, stri
 func (rec *verdictRecord) signedEvents(signer string) ([]VerificationEvent, string) {
 	out := make([]VerificationEvent, 0, len(rec.Events))
 	for _, e := range rec.Events {
-		if e.Role != RoleJudge && e.Role != RoleHuman {
-			return nil, fmt.Sprintf("role %q is not judge or human", e.Role)
+		if e.Role != RoleJudge && e.Role != RoleHuman && e.Role != RoleAdversary {
+			return nil, fmt.Sprintf("role %q is not judge, adversary or human", e.Role)
 		}
 		out = append(out, VerificationEvent{
 			Role: e.Role, Actor: signer, Config: e.Config, Confidence: e.Confidence, Cites: e.Cites,
+			Examined: e.Examined, Unexamined: e.Unexamined,
 		})
 	}
 	return out, ""

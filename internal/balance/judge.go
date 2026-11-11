@@ -82,6 +82,9 @@ func (j *judge) gateable(r *Report, p *Pair, c *Candidate) {
 			fmt.Sprintf("%s depends on %s at the %s level", p.From, p.To, p.Level),
 		}, p.Evidence...),
 		Context: append([]string{cand.Rule + ": " + cand.Message}, pairEvidence(p)...),
+		// One answer about how the pair couples tends to settle each of its
+		// candidates.
+		Group: "balance " + p.From + " -> " + p.To,
 	}) {
 	case "confirmed":
 		r.Candidates = append(r.Candidates, cand)

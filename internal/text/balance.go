@@ -36,6 +36,7 @@ func WriteBalance(w io.Writer, r *balance.Report) error {
 		_, _ = fmt.Fprintf(tw, "\nCAPPED: %s\n", strings.Join(r.Capped, ", "))
 	}
 	writeSlots(tw, r.Judgements)
+	writeQueue(tw, &r.Queue)
 	writeSkipped(tw, r.Skipped)
 	_, _ = fmt.Fprintf(tw, "\nASSUMPTIONS: %d, listed in the JSON report (--format=json)\n",
 		len(r.Assumptions))
@@ -107,7 +108,8 @@ func writeSuppressed(w io.Writer, ss []balance.Suppression) {
 	for i := range ss {
 		s := &ss[i]
 		by := make([]string, len(s.Events))
-		for j, e := range s.Events {
+		for j := range s.Events {
+			e := &s.Events[j]
 			by[j] = string(e.Role)
 			if e.Actor != "" {
 				by[j] += " " + e.Actor

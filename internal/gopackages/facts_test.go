@@ -311,6 +311,36 @@ func TestLoadFactsErrorGuards(t *testing.T) {
 	}, got)
 }
 
+// The dynamic calls resolve through the call graph to the callees that
+// may run: a writer's Write to (*os.File).Write, which the caller passes in,
+// and an interface's method to its one implementation. A call through a
+// function value nothing supplies resolves to nothing.
+func TestLoadDynamicCalls(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("loads and type-checks a module; skipped with -short")
+	}
+	p, err := gopackages.Load(context.Background(), gopackages.Config{
+		Dir: "../../testdata/gx", Patterns: []string{"./dynamic"}, Facts: true, DynamicCalls: true,
+	})
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	var got []string
+	for _, c := range p.Facts.DynamicCalls {
+		got = append(got, c.Site.Func+" "+c.Callee+" "+where(c.Site))
+	}
+	equals(t, []string{
+		"example.com/gx/dynamic.Report (*os.File).Write dynamic/dynamic.go:20",
+		"example.com/gx/dynamic.Main (example.com/gx/dynamic.sink).Put dynamic/dynamic.go:27",
+	}, got)
+	var unresolved []string
+	for _, s := range p.Facts.UnresolvedCalls {
+		unresolved = append(unresolved, s.Func+" "+where(s))
+	}
+	equals(t, []string{"example.com/gx/dynamic.Each dynamic/dynamic.go:31"}, unresolved)
+}
+
 // A test file's calls of package-level functions are read from its source,
 // one per caller and callee with a count; a name the file declares, such as
 // a local os, hides the import of that name everywhere in the file.

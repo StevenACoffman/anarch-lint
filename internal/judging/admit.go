@@ -114,10 +114,13 @@ func Admit(in *AdmitInput) Result {
 	accepted := r.parse(in)
 	refused := r.canaries(in, accepted)
 	slots := map[string][]answer{}
+	var challenges []answer
 	for i := range accepted {
 		switch a := &accepted[i]; {
 		case a.item.Kind == KindGold:
 			r.Gold = append(r.Gold, goldOutcome(a, in.Gold))
+		case a.item.Kind == KindAdversary:
+			challenges = append(challenges, *a)
 		case a.item.Kind == KindSlot && !refused[[2]string{a.item.Family, a.item.Config}]:
 			slots[a.item.View.ID] = append(slots[a.item.View.ID], *a)
 		}
@@ -130,7 +133,9 @@ func Admit(in *AdmitInput) Result {
 			tallied[id] = v
 		}
 	}
-	r.Verdicts = merge(in.Verdicts, tallied)
+	var notes []string
+	r.Verdicts, notes = challenge(merge(in.Verdicts, tallied), challenges, in.Manifest.Configs)
+	r.Notes = append(r.Notes, notes...)
 	return r
 }
 
@@ -319,6 +324,7 @@ func verdictOf(t *Tally, answers []answer, configs []Config) arch.Verdict {
 		v.Events = append(v.Events, arch.VerificationEvent{
 			Role: arch.RoleJudge, Config: hashes[a.item.Config],
 			Confidence: a.reply.Confidence, Cites: a.reply.Cites,
+			Examined: a.reply.Examined, Unexamined: a.reply.gaps(),
 		})
 	}
 	return v

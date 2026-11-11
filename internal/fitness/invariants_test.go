@@ -309,10 +309,22 @@ func TestInvariantUnenforcedGuards(t *testing.T) {
 		guard("m/park.Pay", "", 20),
 	}
 	r := fitness.Analyze(&arch.Input{Program: p, Model: m, Domains: []arch.DomainModel{model}})
-	equals(t, []string{"invariant-unenforced docs/park.modelith.yaml:one-open-visit "}, rules(&r))
+	equals(t, []string{
+		"domain-guards-unclaimed docs/park.modelith.yaml park",
+		"invariant-unenforced docs/park.modelith.yaml:one-open-visit ",
+	}, rules(&r))
 	equals(t, []string{
 		"m/park.Close guards at park/visit.go:14",
 		"m/park.NewVisit guards at park/visit.go:3",
 		"m/park.Visit.Open guards at park/visit.go:9",
-	}, r.Findings[0].Evidence)
+	}, r.Findings[1].Evidence)
+	// The guard of Pay, which handles no governed type, is the one no
+	// invariant claims; a directive on its function claims it.
+	equals(t, []string{"m/park.Pay guards at park/visit.go:20"}, r.Findings[0].Evidence)
+	equals(t, []fitness.GuardCoverage{{Rule: "park", Guards: 4, Claimed: 3}}, r.GuardCoverage)
+	p.Enforcers = []arch.Enforcer{
+		{Invariant: "one-open-visit", Func: "m/park.Pay", Package: "m/park"},
+	}
+	r = fitness.Analyze(&arch.Input{Program: p, Model: m, Domains: []arch.DomainModel{model}})
+	equals(t, []fitness.GuardCoverage{{Rule: "park", Guards: 4, Claimed: 4}}, r.GuardCoverage)
 }

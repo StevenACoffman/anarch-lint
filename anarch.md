@@ -1,6 +1,6 @@
 # Architecture
 
-<!-- Rendered by anarch-lint render from the model 91ea6cce49d4. Edit the model, not this file. -->
+<!-- Rendered by anarch-lint render from the model d160a73cb7a1. Edit the model, not this file. -->
 
 ## Subsystems
 
@@ -55,14 +55,14 @@ flowchart TD
   s0 -->|3| s5
   s0 -->|1| s8
   s0 -->|1| s4
-  s0 -->|12| s13
+  s0 -->|13| s13
   s0 -->|1| s6
   s0 -->|3| s9
   s0 -->|1| s12
   s0 -->|1| s2
   s0 -->|1| s7
-  s0 -->|12| s1
-  s0 -->|2| s3
+  s0 -->|13| s1
+  s0 -->|3| s3
   s11 -->|1| s13
   s5 -->|3| s13
   s8 -->|1| s13
@@ -123,6 +123,7 @@ flowchart TD
 | adapters-stay-apart                 | cases         | fail | adapters do not import each other; only cmd wires them (summary_rules §1)                                                                                                                      |
 | measures-stay-apart                 | cases         | fail | each measure reads only the core's vocabulary                                                                                                                                                  |
 | commands-use-the-core               | cases         | fail | the shell may use the core, or nothing works                                                                                                                                                   |
+| commands-dispatch-to-the-pipeline   | expects       | fail | a command parses flags and dispatches; the pipeline owns the work (go-advice summary_rules principle 8)                                                                                        |
 
 ## Finding Rules
 
@@ -134,10 +135,10 @@ flowchart TD
 
 ## Quality Attributes
 
-| Attribute       | Rules                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| security        | `fitness.libraries core-approved-libraries`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| maintainability | `layers`, `subsystemOrder`, `interfaces`, `forbiddenImports[0]`, `forbiddenImports[1]`, `forbiddenImports[2]`, `forbiddenImports[3]`, `forbiddenImports[4]`, `isolations[0]`, `isolations[1]`, `isolations[2]`, `isolations[3]`, `isolations[4]`, `isolations[5]`, `isolations[6]`, `isolations[7]`, `isolations[8]`, `isolations[9]`, `isolations[10]`, `isolations[11]`, `fitness.layerAccess pure-domain`, `fitness.layerAccess adapters-to-domain`, `fitness.dependents x-tools-only-in-loader`, `fitness.calls no-clock-or-os-in-core`, `fitness.calls tests-wait-and-configure-explicitly`, `fitness.unusedExports no-unused-api`, `fitness.domains core-speaks-its-model`, `fitness.cases core-stays-out-of-the-shell`, `fitness.cases adapters-stay-apart`, `fitness.cases measures-stay-apart`, `fitness.cases commands-use-the-core` |
+| Attribute       | Rules                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| security        | `fitness.libraries core-approved-libraries`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| maintainability | `layers`, `subsystemOrder`, `interfaces`, `forbiddenImports[0]`, `forbiddenImports[1]`, `forbiddenImports[2]`, `forbiddenImports[3]`, `forbiddenImports[4]`, `isolations[0]`, `isolations[1]`, `isolations[2]`, `isolations[3]`, `isolations[4]`, `isolations[5]`, `isolations[6]`, `isolations[7]`, `isolations[8]`, `isolations[9]`, `isolations[10]`, `isolations[11]`, `fitness.layerAccess pure-domain`, `fitness.layerAccess adapters-to-domain`, `fitness.dependents x-tools-only-in-loader`, `fitness.calls no-clock-or-os-in-core`, `fitness.calls tests-wait-and-configure-explicitly`, `fitness.unusedExports no-unused-api`, `fitness.domains core-speaks-its-model`, `fitness.cases core-stays-out-of-the-shell`, `fitness.cases adapters-stay-apart`, `fitness.cases measures-stay-apart`, `fitness.cases commands-use-the-core`, `fitness.expects commands-dispatch-to-the-pipeline` |
 
 ## Domain Models
 
@@ -147,4 +148,4 @@ Describes subsystem domain.
 
 Entities: Baseline, DomainModel, Finding, Input, JudgementSlot, Model, Program, Report, Verdict, VerificationEvent.
 
-Enums: Basis (fact, candidate), EventRole (judge, human), RuleGate (fail, warn, off), Severity (error, warning).
+Enums: Basis (fact, candidate), EventRole (judge, human, adversary), RuleGate (fail, warn, off), Severity (error, warning).
