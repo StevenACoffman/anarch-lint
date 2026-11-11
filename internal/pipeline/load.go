@@ -147,6 +147,9 @@ func (o *Options) readModel() (arch.Model, error) {
 	if err != nil {
 		return arch.Model{}, &arch.Error{Op: op + " " + path, Err: err}
 	}
+	if m, err = includeRuleSets(&m, path, ReadFile); err != nil {
+		return arch.Model{}, &arch.Error{Op: op + " " + path, Err: err}
+	}
 	return m, nil
 }
 
@@ -154,21 +157,32 @@ func (o *Options) readModel() (arch.Model, error) {
 // file is named *.yaml or *.yml, which is read as the JSON it stands for, so
 // both spellings of a model mean, validate and hash alike.
 func DecodeModelFile(path string, src []byte) (arch.Model, error) {
-	if ext := filepath.Ext(path); ext == ".yaml" || ext == ".yml" {
-		js, err := yaml.YAMLToJSON(src)
-		if err != nil {
-			return arch.Model{}, &arch.Error{
-				Op:  "pipeline.DecodeModelFile",
-				Err: arch.InvalidModel(arch.ProblemMalformed, "not YAML: %v", err),
-			}
-		}
-		src = js
-	}
-	m, err := arch.DecodeModel(bytes.NewReader(src))
+	const op = "pipeline.DecodeModelFile"
+	js, err := modelJSON(path, src)
 	if err != nil {
-		return arch.Model{}, &arch.Error{Op: "pipeline.DecodeModelFile", Err: err}
+		return arch.Model{}, &arch.Error{Op: op, Err: err}
+	}
+	m, err := arch.DecodeModel(bytes.NewReader(js))
+	if err != nil {
+		return arch.Model{}, &arch.Error{Op: op, Err: err}
 	}
 	return m, nil
+}
+
+// modelJSON returns a model or rule set file's contents as JSON: as they
+// are, or converted when the file is named *.yaml or *.yml.
+func modelJSON(path string, src []byte) ([]byte, error) {
+	if ext := filepath.Ext(path); ext != ".yaml" && ext != ".yml" {
+		return src, nil
+	}
+	js, err := yaml.YAMLToJSON(src)
+	if err != nil {
+		return nil, &arch.Error{
+			Op:  "pipeline.modelJSON",
+			Err: arch.InvalidModel(arch.ProblemMalformed, "not YAML: %v", err),
+		}
+	}
+	return js, nil
 }
 
 // ModelFile is the model file ModelPath names; or the first of anarch.json,

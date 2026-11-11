@@ -12,6 +12,7 @@ const (
 	ProblemValue      ProblemCode = "unknown-value"       // a value outside a closed set
 	ProblemIncomplete ProblemCode = "incomplete-rule"     // a rule without a selector it needs
 	ProblemPattern    ProblemCode = "bad-pattern"         // a pattern or glob that cannot work
+	ProblemProvenance ProblemCode = "bad-provenance"      // a vendored rule set edited, or its header broken
 )
 
 // ProblemCode names what is wrong with a model, stably, so that an editor or

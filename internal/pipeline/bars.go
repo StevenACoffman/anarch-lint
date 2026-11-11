@@ -63,13 +63,33 @@ func (r *barReader) model(ctx context.Context, path string, prev, next *arch.Bar
 	if prev.Model, err = DecodeModelFile(path, old); err != nil {
 		return "", &arch.Error{Op: op, Err: err}
 	}
+	// The rules a rule set holds are bars too, so a set read at the revision
+	// shows a rule removed from it.
+	if prev.Model, err = includeRuleSets(&prev.Model, path, r.atRevision(ctx)); err != nil {
+		return "the rule sets at " + r.rev + " could not be read: " + arch.ErrorMessage(err), nil
+	}
 	if cur == nil {
 		return "", nil
 	}
 	if next.Model, err = DecodeModelFile(path, cur); err != nil {
 		return "", &arch.Error{Op: op, Err: err}
 	}
+	if next.Model, err = includeRuleSets(&next.Model, path, ReadFile); err != nil {
+		return "", &arch.Error{Op: op, Err: err}
+	}
 	return "", nil
+}
+
+// atRevision returns a reader of files as the revision has them, by their
+// path in the work tree.
+func (r *barReader) atRevision(ctx context.Context) func(string) ([]byte, error) {
+	return func(path string) ([]byte, error) {
+		rel, inside := relativeTo(r.dir, path)
+		if !inside {
+			return nil, &arch.Error{Code: arch.EINVALID, Message: path + " lies outside --dir"}
+		}
+		return git.Show(ctx, r.dir, git.FileAt{Rev: r.rev, Path: rel})
+	}
 }
 
 // baseline reads the baseline at the revision and in the work tree, when

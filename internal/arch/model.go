@@ -56,6 +56,10 @@ type Model struct {
 	Roles            []Role            `json:"roles,omitempty"`
 	ForbiddenImports []ForbiddenImport `json:"forbiddenImports,omitempty"`
 	Isolations       []Isolation       `json:"isolations,omitempty"`
+	// RuleSets names files of rules to include, relative to the model file,
+	// which repositories may share as vendored copies (docs/adr/0018); their
+	// rules follow the model's own, the files in sorted order (RuleSet).
+	RuleSets []string `json:"ruleSets,omitempty"`
 	// FindingRules gives a gate, a reason and a quality attribute to rules
 	// no entry above declares, by the finding's rule, such as
 	// "layer-order-violation" or "large-func".

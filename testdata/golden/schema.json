@@ -1537,6 +1537,12 @@
       },
       "type": "array"
     },
+    "ruleSets": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "subsystemOrder": {
       "items": {
         "type": "string"

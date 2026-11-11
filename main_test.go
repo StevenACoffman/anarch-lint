@@ -1002,6 +1002,35 @@ func TestCheckHistoryWindow(t *testing.T) {
 	}
 }
 
+// TestCheckLockedRuleSets: a rule removed from an included rule set loosens
+// the bars like one removed from the model, so a change that does it and
+// changes code fails (docs/adr/0018).
+func TestCheckLockedRuleSets(t *testing.T) {
+	t.Parallel()
+	dir, gitIn, write := gitModule(t)
+	write("go.mod", "module example.com/rs\n\ngo 1.24\n")
+	write("a/a.go", "package a\n\n// A is a.\nfunc A() {}\n")
+	write("anarch.json", `{"version": 1, "ruleSets": ["rules.json"]}`)
+	write("rules.json", `{"fitness": {"calls": [{"name": "clock", "reason": "inject a clock",
+		"from": ["example.com/rs/..."], "callees": ["time.Now"]}]}}`)
+	if code, _, errOut := runCLI(t, "-C", dir, "baseline"); code != 0 {
+		t.Fatalf("baseline: exit %d: %s", code, errOut)
+	}
+	gitIn("init", "-q")
+	gitIn("add", ".")
+	gitIn("commit", "-q", "-m", "init")
+
+	write("rules.json", `{}`)
+	write("a/a.go", "package a\n\n// A is a.\nfunc A() { _ = 1 }\n")
+	if code, _, errOut := runCLI(t, "-C", dir, "baseline"); code != 0 {
+		t.Fatalf("baseline: exit %d: %s", code, errOut)
+	}
+	code, out, _ := runCLI(t, "-C", dir, "check", "--new-from-rev", "HEAD")
+	if code != 3 || !strings.Contains(out, "fitness.calls clock removed") {
+		t.Fatalf("a shared rule removed with code: exit %d, want 3 naming it\n%s", code, out)
+	}
+}
+
 // TestCheckLockedBars: a change that raises a threshold, re-records the
 // baseline and changes code fails, naming the loosened bar; the same
 // loosening without code passes (IMPROVEMENTS.md §6.1).
