@@ -39,9 +39,9 @@ type Gap struct {
 // an answer outside the item's, or a score outside 0–10 or on a family slot;
 // no confidence, or one outside [0, 1]; no citation for a substantive
 // answer, or a citation the prompt did not show; a rationale that is empty,
-// repeats the question or is boilerplate; an unexamined aspect with no
-// reason. A rejected reply counts as no answer, never as a default one
-// (mmi-plan.md §9.3 C).
+// repeats the question, is boilerplate, or quotes what neither the question
+// nor a cited exhibit says; an unexamined aspect with no reason. A rejected
+// reply counts as no answer, never as a default one (mmi-plan.md §9.3 C).
 func Parse(raw string, it *Item) (Reply, []string) {
 	blocks := fence.FindAllStringSubmatch(raw, -1)
 	if len(blocks) != 1 {
@@ -56,7 +56,7 @@ func Parse(raw string, it *Item) (Reply, []string) {
 		return Reply{}, []string{"the block is not a reply: " + err.Error()}
 	}
 	defects := slices.Concat(r.answerDefects(&it.View), r.citeDefects(&it.View),
-		r.rationaleDefects(&it.View))
+		r.rationaleDefects(&it.View), r.groundingDefects(&it.View))
 	if r.Confidence == nil || *r.Confidence < 0 || *r.Confidence > 1 {
 		defects = append(defects, "confidence must be a number in [0, 1]")
 	}
@@ -135,6 +135,34 @@ func (r *Reply) rationaleDefects(v *arch.JudgeView) []string {
 		}
 	}
 	return nil
+}
+
+// groundingDefects refuses a rationale that quotes, in backticks, a name,
+// path or value that neither the question nor any exhibit the reply cites
+// contains: the judge relied on something it was not shown, or misread what
+// it was (IMPROVEMENTS.md §7.3). The prompt asks for every such name in
+// backticks; one written without them goes unchecked.
+func (r *Reply) groundingDefects(v *arch.JudgeView) []string {
+	shown := []string{v.Question}
+	for _, x := range v.Exhibits {
+		if slices.Contains(r.Cites, x.ID) {
+			shown = append(shown, x.Text)
+		}
+	}
+	var out []string
+	for i, part := range strings.Split(r.Rationale, "`") {
+		if i%2 == 0 || part == "" { // between backticks at odd indexes only
+			continue
+		}
+		if !slices.ContainsFunc(
+			shown,
+			func(text string) bool { return strings.Contains(text, part) },
+		) {
+			out = append(out, fmt.Sprintf("the rationale quotes %q, which no cited exhibit shows",
+				part))
+		}
+	}
+	return out
 }
 
 // boilerplate lists phrases that stand in for a reason.

@@ -20,7 +20,7 @@ import (
 
 // PromptVersion is turned by hand when the prompt template changes, so a
 // cached reply to the old template is not reused.
-const PromptVersion = 1
+const PromptVersion = 2
 
 // manifestVersion is the only manifest format this build reads.
 const manifestVersion = 1

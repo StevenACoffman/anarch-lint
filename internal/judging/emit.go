@@ -174,6 +174,7 @@ func replyFormat(score bool) string {
 		"\n" + ` "rationale": "<why, in your own words>", "examined": ["<what you checked>"],` +
 		"\n" + ` "unexamined": [{"aspect": "<what you could not check>", "reason": "<why>"}]}` +
 		"\n```\n\nCite the exhibits your answer rests on; a substantive answer needs at least " +
-		"one. Answer " + arch.AnswerInsufficient + " when the evidence cannot settle it" +
-		abstain + ".\n"
+		"one. In the rationale, put each name, path or value you rely on in backticks, " +
+		"spelled as the question or a cited exhibit spells it. Answer " +
+		arch.AnswerInsufficient + " when the evidence cannot settle it" + abstain + ".\n"
 }

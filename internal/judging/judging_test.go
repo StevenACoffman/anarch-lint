@@ -161,6 +161,18 @@ func TestParse(t *testing.T) {
 			item: &it, raw: reply("confirmed", "Based on the evidence provided, yes."),
 			defect: `the rationale is boilerplate ("based on the evidence provided")`,
 		},
+		"a quoted name a cited exhibit shows": {
+			item: &it,
+			raw:  reply("confirmed", "both write the `layout`, a `connascence` of algorithm"),
+		},
+		"a quoted name only an uncited exhibit shows": {
+			item: &it, raw: reply("confirmed", "`a/a.go` writes it"),
+			defect: `the rationale quotes "a/a.go", which no cited exhibit shows`,
+		},
+		"a quoted name nothing shows": {
+			item: &it, raw: reply("confirmed", "`ParseSKU` writes it"),
+			defect: `the rationale quotes "ParseSKU", which no cited exhibit shows`,
+		},
 		"an unexamined aspect without a reason": {
 			item:   &it,
 			defect: `unexamined aspect "tests" gives no reason`,
