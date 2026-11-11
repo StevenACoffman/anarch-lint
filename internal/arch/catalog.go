@@ -40,6 +40,8 @@ const (
 	RuleDependents               = "dependent-restriction"
 	RuleForbiddenCall            = "forbidden-call"
 	RuleCallRestriction          = "call-restriction"
+	RulePossibleForbiddenCall    = "possible-forbidden-call"
+	RulePossibleCallRestriction  = "possible-call-restriction"
 	RuleForbiddenFieldAccess     = "forbidden-field-access"
 	RuleFieldRestriction         = "field-restriction"
 	RuleUnusedExport             = "unused-export"
@@ -63,9 +65,11 @@ const (
 	RuleInvariantExposed         = "invariant-exposed"
 	RuleInvariantUnenforced      = "invariant-unenforced"
 	RuleInvariantUntested        = "invariant-untested"
+	RuleGuardsUnclaimed          = "domain-guards-unclaimed"
 	RuleRedundant                = "redundant-rule"
 	RuleUnusableAllowance        = "unusable-allowance"
 	RuleFanOut                   = "fan-out"
+	RuleExpectedDependency       = "expected-dependency-missing"
 	RuleOperationUnserved        = "openapi-operation-unserved"
 	RuleRouteUndocumented        = "openapi-route-undocumented"
 	RuleFieldUnresolved          = "graphql-field-unresolved"
@@ -90,6 +94,8 @@ const (
 	RuleAccidentalVolatility     = "accidental-volatility"
 	RuleFrozenCore               = "frozen-core"
 	RuleHiddenCoupling           = "hidden-coupling"
+	RuleUnstableInterface        = "unstable-interface"
+	RuleCrossing                 = "crossing"
 	RuleHotspot                  = "hotspot"
 	ruleTightCouplingPrefix      = "tight-coupling-"
 	connascenceRulePrefix        = "connascence-"
@@ -188,51 +194,55 @@ func analyzeRules() map[string]string {
 // fitnessRules summarises the rules of the fitness report.
 func fitnessRules() map[string]string {
 	return map[string]string{
-		RuleLayerAccess:            "an import a layerAccess rule does not allow",
-		RuleStrictLayers:           "a layer imports one other than the layer directly below",
-		RuleOnion:                  "a ring imports one outside it, or an adapter another adapter",
-		RuleSliceDependency:        "a slice imports another slice its rule keeps apart",
-		RuleSliceCycle:             "slices import each other in a cycle",
-		RuleDependents:             "a package imports one a dependents rule reserves for others",
-		RuleForbiddenCall:          "a function calls what a calls rule forbids",
-		RuleCallRestriction:        "a function outside the allowed packages calls a restricted callee",
-		RuleForbiddenFieldAccess:   "a function reads or writes a field a fields rule forbids",
-		RuleFieldRestriction:       "a function outside the allowed packages accesses a restricted field",
-		RuleInterfacesOnly:         "a concrete type is used where only interfaces are allowed",
-		RuleEmptySelector:          "a rule's package selector matches nothing",
-		RuleWithoutReason:          "a rule gives no reason",
-		RuleOutsideArchitecture:    "a package belongs to no subsystem, though the model requires it",
-		RuleUnapprovedLibrary:      "a package imports a library its rule does not approve",
-		RuleUnusedApproval:         "a libraries rule approves a library nothing imports",
-		RuleDomainEntityMissing:    "a domain model's entity has no type in the code",
-		RuleDomainEntityAmbiguous:  "a domain model's entity matches several types",
-		RuleDomainRelationship:     "two related entities' types never refer to each other",
-		RuleDomainEnumMissing:      "a domain model's enum has no type in the code",
-		RuleDomainEnumDrift:        "an enum's values differ from its constants",
-		RuleDomainTypeUnmapped:     "a domains rule maps a name to a type the program lacks",
-		RuleDomainContractEntity:   "an entity's type plays the contract role",
-		RuleDomainEnumOrder:        "an enum's integer constants run in another order than its values",
-		RuleDomainActionMissing:    "an entity's action is no method of its type and no function taking it",
-		RuleDomainAttributeMissing: "an entity's attribute is no field of its type",
-		RuleDomainOwnership:        "an owned entity's type is not held by its owner alone",
-		RuleInvariantExposed:       "an invariant governs a type whose exported fields code outside its package can change",
-		RuleInvariantUnenforced:    "no //arch:invariant directive marks a function or test as enforcing an invariant",
-		RuleInvariantUntested:      "an invariant's enforcers are functions no test runs, by a coverage profile",
-		RuleRedundant:              "a rule forbids only what other rules already forbid",
-		RuleUnusableAllowance:      "a rule allows by name what other rules forbid entirely",
-		RuleFanOut:                 "a package imports more packages than its fanOut rule allows",
-		RuleOperationUnserved:      "an OpenAPI document declares an operation no serving package registers",
-		RuleRouteUndocumented:      "a serving package registers a route its OpenAPI document does not declare",
-		RuleFieldUnresolved:        "a GraphQL root field has no resolver method in a serving package",
-		RuleOperationInvalid:       "a GraphQL operation document is invalid against its schema",
-		RuleServiceUnregistered:    "a .proto file declares a gRPC service no serving package registers",
-		RuleServiceUndeclared:      "a serving package registers a gRPC service its .proto files do not declare",
-		RuleConstraintInvalid:      "a message's buf.validate constraints do not compile",
-		RuleCaseContradicted:       "the rules decide a declared case's import otherwise than it expects",
-		RuleBoundaryCrossed:        "a changed line uses a package its boundaries rule keeps the file from",
-		RuleUnknownEntity:          "an //arch:entity directive names no entity of a domain model covering it",
-		RuleUnknownInvariant:       "an //arch:invariant directive names no invariant of a domain model covering it",
-		RuleMissingCoChange:        "a change lacks the change its coChange rule requires",
+		RuleLayerAccess:             "an import a layerAccess rule does not allow",
+		RuleStrictLayers:            "a layer imports one other than the layer directly below",
+		RuleOnion:                   "a ring imports one outside it, or an adapter another adapter",
+		RuleSliceDependency:         "a slice imports another slice its rule keeps apart",
+		RuleSliceCycle:              "slices import each other in a cycle",
+		RuleDependents:              "a package imports one a dependents rule reserves for others",
+		RuleForbiddenCall:           "a function calls what a calls rule forbids",
+		RuleCallRestriction:         "a function outside the allowed packages calls a restricted callee",
+		RulePossibleForbiddenCall:   "a dynamic call may reach what a calls rule forbids, by the VTA call graph",
+		RulePossibleCallRestriction: "a dynamic call outside the allowed packages may reach a restricted callee",
+		RuleForbiddenFieldAccess:    "a function reads or writes a field a fields rule forbids",
+		RuleFieldRestriction:        "a function outside the allowed packages accesses a restricted field",
+		RuleInterfacesOnly:          "a concrete type is used where only interfaces are allowed",
+		RuleEmptySelector:           "a rule's package selector matches nothing",
+		RuleWithoutReason:           "a rule gives no reason",
+		RuleOutsideArchitecture:     "a package belongs to no subsystem, though the model requires it",
+		RuleUnapprovedLibrary:       "a package imports a library its rule does not approve",
+		RuleUnusedApproval:          "a libraries rule approves a library nothing imports",
+		RuleDomainEntityMissing:     "a domain model's entity has no type in the code",
+		RuleDomainEntityAmbiguous:   "a domain model's entity matches several types",
+		RuleDomainRelationship:      "two related entities' types never refer to each other",
+		RuleDomainEnumMissing:       "a domain model's enum has no type in the code",
+		RuleDomainEnumDrift:         "an enum's values differ from its constants",
+		RuleDomainTypeUnmapped:      "a domains rule maps a name to a type the program lacks",
+		RuleDomainContractEntity:    "an entity's type plays the contract role",
+		RuleDomainEnumOrder:         "an enum's integer constants run in another order than its values",
+		RuleDomainActionMissing:     "an entity's action is no method of its type and no function taking it",
+		RuleDomainAttributeMissing:  "an entity's attribute is no field of its type",
+		RuleDomainOwnership:         "an owned entity's type is not held by its owner alone",
+		RuleInvariantExposed:        "an invariant governs a type whose exported fields code outside its package can change",
+		RuleInvariantUnenforced:     "no //arch:invariant directive marks a function or test as enforcing an invariant",
+		RuleInvariantUntested:       "an invariant's enforcers are functions no test runs, by a coverage profile",
+		RuleGuardsUnclaimed:         "error guards in a domain rule's packages that no invariant of its model claims",
+		RuleRedundant:               "a rule forbids only what other rules already forbid",
+		RuleUnusableAllowance:       "a rule allows by name what other rules forbid entirely",
+		RuleFanOut:                  "a package imports more packages than its fanOut rule allows",
+		RuleExpectedDependency:      "no package an expects rule names imports what the rule expects it to",
+		RuleOperationUnserved:       "an OpenAPI document declares an operation no serving package registers",
+		RuleRouteUndocumented:       "a serving package registers a route its OpenAPI document does not declare",
+		RuleFieldUnresolved:         "a GraphQL root field has no resolver method in a serving package",
+		RuleOperationInvalid:        "a GraphQL operation document is invalid against its schema",
+		RuleServiceUnregistered:     "a .proto file declares a gRPC service no serving package registers",
+		RuleServiceUndeclared:       "a serving package registers a gRPC service its .proto files do not declare",
+		RuleConstraintInvalid:       "a message's buf.validate constraints do not compile",
+		RuleCaseContradicted:        "the rules decide a declared case's import otherwise than it expects",
+		RuleBoundaryCrossed:         "a changed line uses a package its boundaries rule keeps the file from",
+		RuleUnknownEntity:           "an //arch:entity directive names no entity of a domain model covering it",
+		RuleUnknownInvariant:        "an //arch:invariant directive names no invariant of a domain model covering it",
+		RuleMissingCoChange:         "a change lacks the change its coChange rule requires",
 	}
 }
 
@@ -251,6 +261,8 @@ func balanceRules() map[string]string {
 		RuleAccidentalVolatility:    "a subsystem judged generic or supporting changes often",
 		RuleFrozenCore:              "a subsystem judged core never changed",
 		RuleHiddenCoupling:          "two subsystems change together without importing each other",
+		RuleUnstableInterface:       "a package many import changes in the same commits as its importers",
+		RuleCrossing:                "a package with many importers and imports changes with both",
 		RuleHotspot:                 "a package changes often and is complex, above the model's limit",
 	}
 }

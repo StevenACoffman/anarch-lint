@@ -543,6 +543,7 @@
         "strength functional (candidate), distance 7 (locality system, owner boundary true, deploy boundary false, async false), volatility unjudged, balance 2"
       ],
       "undecided": "the coupling rests on candidate evidence, which a detector found but cannot confirm",
+      "group": "balance audit -> web",
       "evidenceHash": "87844956e97a52c499d5129fa5bf66616aa8fda8916ca2e0ebfd5c0675fcc798",
       "status": "pending"
     },
@@ -566,6 +567,7 @@
         "strength functional (candidate), distance 9 (locality system, owner boundary true, deploy boundary true, async false), volatility unjudged, balance 1"
       ],
       "undecided": "the coupling rests on candidate evidence, which a detector found but cannot confirm",
+      "group": "balance billing -> web",
       "evidenceHash": "bb85b6f4b74d3619ffdda0c6cdec1fd1cf54dba87d3e3bb85264068c94888d78",
       "status": "pending"
     },
@@ -704,6 +706,60 @@
       "reason": "it shares no model with another subsystem, so whether it is a bounded context decides nothing"
     }
   ],
+  "queue": {
+    "answers": 8,
+    "slots": 8,
+    "groups": [
+      {
+        "group": "balance audit -> web",
+        "criteria": [
+          "balance/9a9f6efb399ec7ca"
+        ]
+      },
+      {
+        "group": "balance billing -> web",
+        "criteria": [
+          "balance/b8a015bc0a8d61d4"
+        ]
+      },
+      {
+        "group": "contract-type/example.com/cx/auth.Credentials",
+        "criteria": [
+          "contract-type/example.com/cx/auth.Credentials"
+        ]
+      },
+      {
+        "group": "contract-type/example.com/cx/auth.Role",
+        "criteria": [
+          "contract-type/example.com/cx/auth.Role"
+        ]
+      },
+      {
+        "group": "contract-type/example.com/cx/auth.Secret",
+        "criteria": [
+          "contract-type/example.com/cx/auth.Secret"
+        ]
+      },
+      {
+        "group": "subdomain/auth",
+        "criteria": [
+          "subdomain/auth"
+        ]
+      },
+      {
+        "group": "subdomain/state",
+        "criteria": [
+          "subdomain/state"
+        ]
+      },
+      {
+        "group": "subdomain/web",
+        "criteria": [
+          "subdomain/web"
+        ]
+      }
+    ]
+  },
   "assumptions": [
     {
       "id": "integration-levels",
@@ -754,6 +810,11 @@
       "id": "co-change",
       "text": "Two subsystems co-change when at least 2 commits of the range changed both; their score is shared ÷ √(commits of each). A commit changing more than 40 files is a sweep and counts toward neither pair. A pair scoring 0.5 or more with no import either way is a hidden-coupling candidate. A hotspot is commits × summed cyclomatic complexity; one above the model's history maxHotspot is a finding. The model's history window is the last commits of HEAD's first-parent line, merges' other parents included.",
       "source": "IMPROVEMENTS.md 4.1 (gortex cochange.Mine; Tornhill's hotspots); docs/adr/0017"
+    },
+    {
+      "id": "hotspot-patterns",
+      "text": "Mo et al.'s file-level patterns, read over packages and their in-scope imports: a package with at least 3 importers that changed with at least 0.5 of them, each in 2 commits or more, sweeps left out, is an unstable-interface candidate; one with as many importers, at least 3 imports, and such a co-change with an importer and an import is a crossing candidate.",
+      "source": "IMPROVEMENTS.md 10.6 (Mo, Cai, Kazman, Xiao, WICSA 2015; TSE 2021)"
     },
     {
       "id": "coverage",

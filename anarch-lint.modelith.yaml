@@ -20,6 +20,7 @@ enums:
     values:
       - name: judge
       - name: human
+      - name: adversary
   RuleGate:
     values:
       - name: fail

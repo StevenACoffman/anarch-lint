@@ -77,6 +77,9 @@ func (s *subject) checkDomains(domains []arch.DomainModel, coverage *arch.Covera
 		c.actions(matched)
 		ic := invariantCheck{domainCheck: &c, ran: ran, writes: writes}
 		ic.check(matched)
+		if len(c.model.Invariants) > 0 {
+			s.guards = append(s.guards, ic.guardCoverage(matched))
+		}
 		c.enums()
 	}
 	dc := directiveCheck{

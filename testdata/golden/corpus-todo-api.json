@@ -102,6 +102,41 @@
       "cuts": []
     }
   },
+  "couplingWithDispatch": {
+    "types": {
+      "nodes": 50,
+      "ccd": 266,
+      "acd": 5.32,
+      "propagationCost": 0.1064,
+      "relativeCyclicity": 0,
+      "maxCycleGroup": 0,
+      "sdi": 0,
+      "cutMethod": "exact",
+      "cuts": []
+    },
+    "packages": {
+      "nodes": 23,
+      "ccd": 87,
+      "acd": 3.782609,
+      "propagationCost": 0.164461,
+      "relativeCyclicity": 0,
+      "maxCycleGroup": 0,
+      "sdi": 0,
+      "cutMethod": "exact",
+      "cuts": []
+    },
+    "subsystems": {
+      "nodes": 23,
+      "ccd": 87,
+      "acd": 3.782609,
+      "propagationCost": 0.164461,
+      "relativeCyclicity": 0,
+      "maxCycleGroup": 0,
+      "sdi": 0,
+      "cutMethod": "exact",
+      "cuts": []
+    }
+  },
   "cohesion": [
     {
       "type": "github.com/MarioCarrion/todo-api/cmd/elasticsearch-indexer-kafka.Server",
@@ -1005,6 +1040,11 @@
       "id": "sdi-cut",
       "text": "SDI cuts are exact for cycle groups of up to 12 elements and use the Eades–Lin–Smyth ordering above that; Coupling.CutMethod says which.",
       "source": "mmi.md §7.5"
+    },
+    {
+      "id": "coupling-interval",
+      "text": "couplingWithDispatch adds each dispatch as an edge over the same nodes: a reference from a method's receiver type to the concrete type, and an import between their packages; a function's dispatch adds no type edge. CCD, ACD, propagation cost, relative cyclicity and the largest cycle group lie between the static value and this one; SDI only when both cuts are exact; not the MMI, Martin's metrics, LCOM4 or the communities, which are not monotone in edges.",
+      "source": "IMPROVEMENTS.md 10.2"
     }
   ]
 }

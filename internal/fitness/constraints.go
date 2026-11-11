@@ -353,6 +353,8 @@ func (s *subject) dependents(d *arch.Dependents, i int) constraint {
 		}
 	}
 	r.result.Matched = len(targets) + s.matchingPackages(d.Packages)
+	// Any package outside the rule's may be the importer it forbids.
+	r.readsCode = everyPackage
 	return constraint{
 		rule: r, kind: arch.RuleDependents, anyTarget: true,
 		reads:      func(pkg string) string { return matchBits(pkg, d.Packages, d.OnlyFrom) },

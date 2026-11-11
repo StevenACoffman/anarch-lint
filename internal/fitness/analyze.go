@@ -55,8 +55,13 @@ type Report struct {
 	Cycles []CycleSet `json:"cycles"`
 	// Verification says whether the import rules were checked against each
 	// other for redundancy and unusable allowances.
-	Verification Verification      `json:"verification"`
-	Assumptions  []arch.Assumption `json:"assumptions"`
+	Verification Verification `json:"verification"`
+	// Unseen lists the constructs of the build that no check sees through.
+	Unseen []Unseen `json:"unseen"`
+	// GuardCoverage says, for each domain rule whose model declares
+	// invariants, how many of its packages' error guards they claim.
+	GuardCoverage []GuardCoverage   `json:"guardCoverage"`
+	Assumptions   []arch.Assumption `json:"assumptions"`
 }
 
 // RuleResult is one fitness rule's outcome: how many packages or calls its
@@ -73,6 +78,10 @@ type RuleResult struct {
 	// Truncated marks a rule that stopped at a cap, the first maxCycles
 	// cycles in sorted order: its violations are a lower bound.
 	Truncated bool `json:"truncated,omitempty"`
+	// Unseen counts, by construct, what the rule's check cannot see through
+	// in the packages it reads, so a pass reads "passed, with N unseen"
+	// (IMPROVEMENTS.md §10.3); the report's unseen lists where each is.
+	Unseen map[string]int `json:"unseen,omitempty"`
 }
 
 // CycleSet is the elementary cycles of one graph, at most maxCycles of them.
@@ -91,6 +100,8 @@ type subject struct {
 	*ledger
 	// slices holds the rule record of each slices rule, by position.
 	slices map[int]*rule
+	// guards holds the guard coverage of each domain rule with invariants.
+	guards []GuardCoverage
 }
 
 // ledger keeps the rules in declaration order and the findings of their
@@ -98,6 +109,8 @@ type subject struct {
 type ledger struct {
 	rules    []*rule
 	findings []arch.Finding
+	// unseen is what no check sees through, which each rule's result counts.
+	unseen []Unseen
 }
 
 // rule is one fitness rule while it is checked.
@@ -111,6 +124,11 @@ type rule struct {
 	// quiet is the status of a rule without violations that need not match
 	// anything, such as a rule on changes; "" for every other rule.
 	quiet RuleStatus
+	// readsCode reports a package whose code the check reads, nil for a
+	// rule that reads none; blind lists the constructs the check cannot see
+	// through there, by its kind (blindSpots).
+	readsCode func(pkg string) bool
+	blind     []string
 }
 
 // Analyze measures in's program under its model's fitness rules. It is a
@@ -120,34 +138,7 @@ type rule struct {
 // Requires: in.Program is sorted, as [arch.Program] documents, and carries
 // its [arch.Facts] when the model declares calls or interfacesOnly rules.
 func Analyze(in *arch.Input) Report {
-	s := newSubject(in)
-	constraints := s.importConstraints()
-	s.checkImports(constraints)
-	verification, overlaps := verify(constraints, s.m.ForbiddenImports, s.packagePaths(),
-		outsideTargets(s.p, &s.g))
-	s.findings = append(s.findings, overlaps...)
-	s.checkSlices()
-	s.checkCalls()
-	checkFields(s.ledger, s.m.Fitness.Fields, s.p.Facts.Uses, s.packagePaths())
-	checkUnusedExports(s.ledger, s.m.Fitness.UnusedExports, s.p)
-	s.checkInterfacesOnly()
-	s.checkAssigned()
-	s.checkDomains(in.Domains, in.Coverage)
-	checkOpenAPI(
-		s.ledger,
-		s.m.Fitness.OpenAPI,
-		in.APIs,
-		&s.p.Facts,
-		s.packagePaths(),
-	)
-	checkGraphQL(s.ledger, s.m.Fitness.GraphQL, in.GraphQL, s.p.Funcs, s.packagePaths())
-	checkProtobuf(s.ledger, s.m.Fitness.Protobuf, in.Protos, &s.p.Facts, s.packagePaths())
-	checkCases(s.ledger, in, s.packagePaths())
-	checkCoChange(s.ledger, s.m.Fitness.CoChange, in.Changed)
-	checkBoundaries(s.ledger, s.m.Fitness.Boundaries, in.Changed, &s.p.Facts, s.p.Imports)
-	checkFanOut(s.ledger, s.m.Fitness.FanOut, s.packagePaths(), importsInScope(s.p, &s.g))
-	(&existing{p: s.p, m: s.m, types: s.types, packages: s.packagePaths(), ledger: s.ledger}).check()
-	s.unexplained(s.m)
+	s, verification := checked(in)
 	rules := s.results() // closes every rule, adding the empty-rule findings
 
 	inputs := in.Inputs
@@ -169,14 +160,59 @@ func Analyze(in *arch.Input) Report {
 			cyclesOf("types", s.g.Types),
 			cyclesOf("subsystems", s.g.Subsystems),
 		},
-		Verification: verification,
-		Assumptions:  assumptions(),
+		Verification:  verification,
+		Unseen:        s.unseen,
+		GuardCoverage: append(make([]GuardCoverage, 0, len(s.guards)), s.guards...),
+		Assumptions:   assumptions(),
 	}
 }
 
+// checked runs every check of in's model over its program. It returns what
+// the checks share, holding their rules not yet closed and their findings,
+// and the verification of the import rules against each other.
+func checked(in *arch.Input) (*subject, Verification) {
+	s := newSubject(in)
+	constraints := s.importConstraints()
+	s.checkImports(constraints)
+	verification, overlaps := verify(constraints, s.m.ForbiddenImports, s.packagePaths(),
+		outsideTargets(s.p, &s.g))
+	s.findings = append(s.findings, overlaps...)
+	s.checkSlices()
+	s.checkCalls()
+	checkFields(s.ledger, s.m.Fitness.Fields, s.p.Facts.Uses, s.packagePaths())
+	checkUnusedExports(s.ledger, s.m.Fitness.UnusedExports, s.p)
+	checkInterfacesOnly(
+		s.ledger,
+		s.m.Fitness.InterfacesOnly,
+		s.p.Facts.Uses,
+		s.types,
+		s.packagePaths(),
+	)
+	s.checkAssigned()
+	s.checkDomains(in.Domains, in.Coverage)
+	checkOpenAPI(
+		s.ledger,
+		s.m.Fitness.OpenAPI,
+		in.APIs,
+		&s.p.Facts,
+		s.packagePaths(),
+	)
+	checkGraphQL(s.ledger, s.m.Fitness.GraphQL, in.GraphQL, s.p.Funcs, s.packagePaths())
+	checkProtobuf(s.ledger, s.m.Fitness.Protobuf, in.Protos, &s.p.Facts, s.packagePaths())
+	checkCases(s.ledger, in, s.packagePaths())
+	checkCoChange(s.ledger, s.m.Fitness.CoChange, in.Changed)
+	checkBoundaries(s.ledger, s.m.Fitness.Boundaries, in.Changed, &s.p.Facts, s.p.Imports)
+	checkFanOut(s.ledger, s.m.Fitness.FanOut, s.packagePaths(), importsInScope(s.p, &s.g))
+	checkExpects(s.ledger, s.m.Fitness.Expects, s.p.Imports, s.packagePaths())
+	(&existing{p: s.p, m: s.m, types: s.types, packages: s.packagePaths(), ledger: s.ledger}).check()
+	s.unexplained(s.m)
+	return s, verification
+}
+
 // AddTo adds the report's findings to the gate, and ratchets NCCD at the
-// package and subsystem levels and the number of elementary cycles at the
-// type and subsystem levels: lower is better for each.
+// package and subsystem levels, the number of elementary cycles at the
+// type and subsystem levels, and, when a domain model declares invariants,
+// the error guards they leave unclaimed: lower is better for each.
 func (r *Report) AddTo(in *arch.GateInput) {
 	var metrics []arch.Metric
 	for _, l := range r.Lakos {
@@ -190,6 +226,14 @@ func (r *Report) AddTo(in *arch.GateInput) {
 			arch.Metric{Name: "fitness.cycles." + c.Level, Value: float64(len(c.Cycles))},
 		)
 	}
+	if len(r.GuardCoverage) > 0 {
+		unclaimed := 0
+		for _, g := range r.GuardCoverage {
+			unclaimed += g.Guards - g.Claimed
+		}
+		metrics = append(metrics,
+			arch.Metric{Name: "fitness.domains.unclaimedGuards", Value: float64(unclaimed)})
+	}
 	in.Add(r.Findings, metrics)
 }
 
@@ -202,7 +246,7 @@ func newSubject(in *arch.Input) *subject {
 		g:      arch.BuildGraphs(p, m),
 		types:  map[string]*arch.Type{},
 		slices: map[int]*rule{},
-		ledger: &ledger{},
+		ledger: &ledger{unseen: unseenOf(p)},
 	}
 	for i := range p.Types {
 		s.types[p.Types[i].ID] = &p.Types[i]
@@ -219,6 +263,7 @@ func (s *ledger) addRule(kind string, opts arch.RuleOptions, name string) *rule 
 	}}
 	severity, on := opts.Gate.Severity()
 	r.severity, r.off, r.quality = severity, !on, opts.QualityAttribute
+	r.blind = blindSpots()[kind]
 	s.rules = append(s.rules, r)
 	return r
 }
@@ -245,27 +290,37 @@ func (r *rule) modelRule() string {
 }
 
 // results closes every rule: an empty rule that is not optional is a
-// finding of its own, and each rule gets its status.
+// finding of its own, and each rule gets its status and, when it checked
+// something, what it could not see.
 func (s *ledger) results() []RuleResult {
 	out := make([]RuleResult, 0, len(s.rules))
 	for _, r := range s.rules {
-		switch {
-		case r.off:
-			r.result.Status = StatusOff
-		case r.quiet != "" && r.result.Violations == 0:
-			r.result.Status = r.quiet
-		case r.result.Matched == 0 && !r.result.Optional:
-			r.result.Status = StatusEmpty
-			s.emptyRule(r)
-		case r.result.Violations > 0:
-			r.result.Status = StatusFailed
-		default:
-			r.result.Status = StatusPassed
+		r.result.Status = s.status(r)
+		if r.result.Status != StatusOff && r.result.Status != StatusEmpty {
+			r.result.Unseen = r.unseenBy(s.unseen)
 		}
 		out = append(out, r.result)
 	}
 	arch.SortFindings(s.findings)
 	return out
+}
+
+// status is a rule's outcome; an empty rule that is not optional is also
+// reported.
+func (s *ledger) status(r *rule) RuleStatus {
+	switch {
+	case r.off:
+		return StatusOff
+	case r.quiet != "" && r.result.Violations == 0:
+		return r.quiet
+	case r.result.Matched == 0 && !r.result.Optional:
+		s.emptyRule(r)
+		return StatusEmpty
+	case r.result.Violations > 0:
+		return StatusFailed
+	default:
+		return StatusPassed
+	}
 }
 
 // emptyRule reports a rule whose subject selectors match nothing, which

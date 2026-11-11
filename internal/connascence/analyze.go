@@ -40,6 +40,8 @@ type Report struct {
 	Findings []arch.Finding `json:"findings"`
 	// Judgements ask a reviewer about each candidate a limit would gate.
 	Judgements []arch.JudgementSlot `json:"judgements"`
+	// Queue groups the open slots one answer would settle, largest first.
+	Queue arch.Queue `json:"queue"`
 	// Skipped lists the candidates no slot asks about, since they are
 	// within every limit and confirming one would make no finding.
 	Skipped     []arch.SkippedSlot `json:"skipped"`
@@ -106,6 +108,7 @@ func Analyze(input *arch.Input) Report {
 	slices.SortFunc(r.Rejected, func(a, b arch.Connascence) int { return rankInstances(&a, &b) })
 	arch.SortFindings(r.Findings)
 	r.Summary = summarize(all)
+	r.Queue = arch.QueueOf(r.Judgements)
 	return r
 }
 
@@ -192,6 +195,7 @@ func (r *Report) place(c *arch.Connascence, m *arch.Model, verdicts []arch.Verdi
 		Context:   []string{"over the limits: " + reason},
 		Undecided: fmt.Sprintf("a detector found the shape of connascence, with %s confidence "+
 			"that it is not chance, but not that the places must change together", c.Confidence),
+		Group: candidateGroup(c),
 	}, verdicts)
 	r.Judgements = append(r.Judgements, slot)
 	switch slot.Answer() {
@@ -203,6 +207,18 @@ func (r *Report) place(c *arch.Connascence, m *arch.Model, verdicts []arch.Verdi
 	default:
 		r.Candidates = append(r.Candidates, capped(c))
 	}
+}
+
+// candidateGroup is the queue group of a candidate: its detector, and the
+// packages of its sites. One answer about whether the detector's shape is
+// chance there tends to answer the rest.
+func candidateGroup(c *arch.Connascence) string {
+	pkgs := make([]string, 0, len(c.Sites))
+	for _, s := range c.Sites {
+		pkgs = append(pkgs, s.Package)
+	}
+	slices.Sort(pkgs)
+	return c.Detector + " in " + strings.Join(slices.Compact(pkgs), ", ")
 }
 
 // overLimits says how an instance exceeds the model's limits at its

@@ -374,3 +374,104 @@ func TestCanaries(t *testing.T) {
 		}
 	}
 }
+
+// An adversary is asked about a slot whose judges' draft awaits a human,
+// shown what the judges examined and never what they answered. One that
+// disagrees unsettles the draft into insufficient-evidence; one that agrees
+// adds its event; once it has challenged a draft it is not asked again.
+func TestAdversary(t *testing.T) {
+	t.Parallel()
+	judges := judging.Emit(&judging.EmitInput{
+		Slots: []arch.JudgementSlot{slot("x")}, Configs: configs(), Budget: judging.DefaultBudget(),
+	})
+	replies := map[string]string{}
+	for _, it := range judges.Items {
+		replies[it.Key] = "```json\n{\"answer\": \"confirmed\", \"confidence\": 0.9, " +
+			"\"cites\": [\"E1\"], \"rationale\": \"JUDGES-SECRET " + it.Key + "\", " +
+			"\"examined\": [\"the layout\"], \"unexamined\": [{\"aspect\": \"b/b.go\", " +
+			"\"reason\": \"not shown\"}]}\n```\n"
+	}
+	drafts := judging.Admit(&judging.AdmitInput{Manifest: judges, Replies: replies}).Verdicts
+	s := arch.NewSlot(&arch.SlotRequest{
+		Criterion: "connascence/x", Evidence: slot("x").Evidence, Context: []string{"MARKER"},
+	}, drafts)
+	equals(t, arch.SlotUnapproved, s.Status)
+
+	withAdversary := append(configs(), judging.Config{Name: "adv", Model: "m3", Adversary: true})
+	m := judging.Emit(&judging.EmitInput{
+		Slots: []arch.JudgementSlot{s}, Configs: withAdversary, Budget: judging.DefaultBudget(),
+	})
+	equals(t, 2, len(m.Items))
+	prompt := judging.Render(&m.Items[0])
+	equals(t, judging.KindAdversary, m.Items[0].Kind)
+	equals(t, true, strings.Contains(prompt, "They examined: the layout"))
+	equals(t, true, strings.Contains(prompt, "They could not examine: b/b.go: not shown"))
+	equals(t, false, strings.Contains(prompt, "JUDGES-SECRET"))
+
+	for answer, expected := range map[string]string{
+		"rejected": arch.AnswerInsufficient, "confirmed": "confirmed",
+	} {
+		challenges := map[string]string{}
+		for _, it := range m.Items {
+			challenges[it.Key] = reply(answer, "adversary reason "+it.Key)
+		}
+		r := judging.Admit(&judging.AdmitInput{Manifest: m, Replies: challenges, Verdicts: drafts})
+		equals(t, expected, r.Verdicts[0].Answer)
+		equals(t, arch.RoleAdversary, r.Verdicts[0].Events[len(r.Verdicts[0].Events)-1].Role)
+		again := arch.NewSlot(&arch.SlotRequest{
+			Criterion: "connascence/x", Evidence: slot("x").Evidence, Context: []string{"MARKER"},
+		}, r.Verdicts)
+		if again.Status == arch.SlotUnapproved {
+			m2 := judging.Emit(&judging.EmitInput{
+				Slots: []arch.JudgementSlot{again}, Configs: withAdversary,
+				Budget: judging.DefaultBudget(),
+			})
+			equals(t, 0, len(m2.Items))
+		}
+	}
+}
+
+// TestADR_0020_AnAdversaryCanOnlyUnsettle pins docs/adr/0020: an adversary
+// is asked nothing about a slot without a judges' draft, so its answer can
+// never be the first; and its disagreement with a verdict a human attests
+// changes nothing but a note.
+func TestADR_0020_AnAdversaryCanOnlyUnsettle(t *testing.T) {
+	t.Parallel()
+	adversary := append(configs(), judging.Config{Name: "adv", Model: "m3", Adversary: true})
+	m := judging.Emit(&judging.EmitInput{
+		Slots: []arch.JudgementSlot{slot("x")}, Configs: adversary, Budget: judging.DefaultBudget(),
+	})
+	for _, it := range m.Items {
+		equals(t, judging.KindSlot, it.Kind)
+	}
+
+	s := slot("x")
+	human := arch.Verdict{
+		Criterion: s.Criterion, Answer: "rejected", EvidenceHash: s.EvidenceHash,
+		Rationale: "a person looked", Events: []arch.VerificationEvent{
+			{Role: arch.RoleJudge, Config: "c1"}, {Role: arch.RoleHuman},
+		},
+	}
+	unapproved := arch.NewSlot(&arch.SlotRequest{
+		Criterion: s.Criterion, Evidence: s.Evidence, Context: []string{"MARKER"},
+	}, []arch.Verdict{{
+		Criterion: s.Criterion, Answer: "rejected", EvidenceHash: s.EvidenceHash,
+		Rationale: "judges", Events: []arch.VerificationEvent{{Role: arch.RoleJudge}},
+	}})
+	m = judging.Emit(&judging.EmitInput{
+		Slots: []arch.JudgementSlot{
+			unapproved,
+		},
+		Configs: adversary,
+		Budget:  judging.DefaultBudget(),
+	})
+	replies := map[string]string{}
+	for _, it := range m.Items {
+		replies[it.Key] = reply("confirmed", "adversary "+it.Key)
+	}
+	r := judging.Admit(&judging.AdmitInput{
+		Manifest: m, Replies: replies, Verdicts: []arch.Verdict{human},
+	})
+	equals(t, []arch.Verdict{human}, r.Verdicts)
+	equals(t, 2, len(r.Notes))
+}

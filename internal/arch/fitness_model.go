@@ -57,6 +57,9 @@ type Fitness struct {
 	// like CoChange, they check only a change set.
 	Boundaries []BoundaryRule `json:"boundaries,omitempty"`
 	FanOut     []FanOutRule   `json:"fanOut,omitempty"`
+	// Expects declares dependencies the design intends, which the code
+	// should have.
+	Expects []ExpectRule `json:"expects,omitempty"`
 	// Domains compare modelith domain models with the code that should
 	// express them (mmi-plan.md §10).
 	Domains []DomainRule `json:"domains,omitempty"`
@@ -247,6 +250,12 @@ type CallRule struct {
 	Callees []string `json:"callees"`
 	Only    bool     `json:"only,omitempty"`
 	Tests   bool     `json:"tests,omitempty"`
+	// Dispatch also checks the calls through an interface or a function
+	// value, by the callees a VTA call graph says they may reach: each is a
+	// warning, never an error, since the graph over-approximates, and a
+	// dynamic call it resolves to nothing is counted as unseen
+	// (docs/adr/0019).
+	Dispatch bool `json:"dispatch,omitempty"`
 }
 
 // FieldRule restricts reading and writing struct fields (ArchUnit's
@@ -312,6 +321,18 @@ type FanOutRule struct {
 	RuleOptions
 	Packages []string `json:"packages"`
 	Max      int      `json:"max"`
+}
+
+// ExpectRule declares a dependency the design intends: some package
+// matching From imports one matching To, as "the shell uses the core". A
+// program without such an import has an absence, which a reflexion model
+// reports beside its divergences (Murphy, Notkin and Sullivan, FSE 1995;
+// IMPROVEMENTS.md §10.7). The import rules say what may not depend on what;
+// this says what should.
+type ExpectRule struct {
+	RuleOptions
+	From []string `json:"from"`
+	To   []string `json:"to"`
 }
 
 // declaredNames are the model's layers and subsystems, in order: all of the
@@ -398,6 +419,7 @@ func (f *Fitness) Rules() []DeclaredRule {
 		optionsOf(f.CoChange, func(r CoChangeRule) RuleOptions { return r.RuleOptions }),
 	)
 	add("fanOut", optionsOf(f.FanOut, func(r FanOutRule) RuleOptions { return r.RuleOptions }))
+	add("expects", optionsOf(f.Expects, func(r ExpectRule) RuleOptions { return r.RuleOptions }))
 	return out
 }
 
@@ -486,6 +508,7 @@ func (f *Fitness) validateSelectors(names declaredNames, invalid invalidFunc) er
 		problemsOf(f.CoChange),
 		problemsOf(f.Boundaries),
 		problemsOf(f.FanOut),
+		problemsOf(f.Expects),
 		problemsOf(f.Domains),
 		problemsOf(f.OpenAPI),
 		problemsOf(f.GraphQL),
@@ -629,6 +652,14 @@ func (b *BoundaryRule) problem() ruleProblem {
 func (r *FanOutRule) problem() ruleProblem {
 	if len(r.Packages) == 0 || r.Max < 0 {
 		return incomplete("fitness fanOut rule %q needs packages and a max of 0 or more", r.Name)
+	}
+	return ruleProblem{}
+}
+
+// problem says what makes the rule unusable, if anything.
+func (r *ExpectRule) problem() ruleProblem {
+	if len(r.From) == 0 || len(r.To) == 0 {
+		return incomplete("fitness expects rule %q needs from and to", r.Name)
 	}
 	return ruleProblem{}
 }

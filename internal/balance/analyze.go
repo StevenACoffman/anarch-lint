@@ -83,8 +83,10 @@ type Report struct {
 	Judgements []arch.JudgementSlot `json:"judgements"`
 	// Skipped lists the slots not opened because no answer would change
 	// anything, each with the reason.
-	Skipped     []arch.SkippedSlot `json:"skipped"`
-	Assumptions []arch.Assumption  `json:"assumptions"`
+	Skipped []arch.SkippedSlot `json:"skipped"`
+	// Queue groups the open slots one answer would settle, largest first.
+	Queue       arch.Queue        `json:"queue"`
+	Assumptions []arch.Assumption `json:"assumptions"`
 }
 
 // Suppression is a finding, or a candidate, that a verdict lifted: the rule
@@ -195,6 +197,7 @@ func Analyze(in *Input) Report {
 	s.historyAndCoverage(&r)
 	(&judge{p: s.p, slots: s.slots, domains: s.domains, severity: s.severity()}).apply(&r)
 	r.Judgements = s.slots.all()
+	r.Queue = arch.QueueOf(r.Judgements)
 	arch.SortFindings(r.Findings)
 	sortCandidates(r.Candidates)
 	sortCandidates(r.Rejected)
@@ -344,6 +347,7 @@ func (s *subject) historyAndCoverage(r *Report) {
 	r.Findings = append(r.Findings, h.hotspotFindings(hotspots, s.severity())...)
 	r.Hotspots = listed(r, "hotspots", hotspots)
 	r.Candidates = append(r.Candidates, h.hiddenCouplings(r.CoChange)...)
+	r.Candidates = append(r.Candidates, h.hotspotPatterns()...)
 	coverage := coverageOf(s.in.Coverage, s.p, r.Packages)
 	r.Candidates = append(r.Candidates, untestedDependencies(coverage)...)
 	crossings := crossingCheck{in: s.in, p: s.p, c: s.c, subsystemOf: s.subsystemOf}

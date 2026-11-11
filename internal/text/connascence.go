@@ -26,6 +26,7 @@ func WriteConnascence(w io.Writer, r *connascence.Report) error {
 	writeFindings(tw, r.Findings)
 	writeCandidates(tw, r.Candidates, len(r.Rejected))
 	writeSlots(tw, r.Judgements)
+	writeQueue(tw, &r.Queue)
 	_, _ = fmt.Fprintf(tw, "\nSKIPPED SLOTS: %d candidates within every limit, where an answer "+
 		"would change nothing; listed in the JSON report\n", len(r.Skipped))
 	_, _ = fmt.Fprintf(tw, "\nASSUMPTIONS: %d, listed in the JSON report (--format=json)\n",
@@ -94,6 +95,25 @@ func writeCandidates(w io.Writer, cs []arch.Connascence, rejected int) {
 			c.Confidence,
 		)
 		_, _ = fmt.Fprintf(w, "  \tfix: %s\n", c.Fix)
+	}
+}
+
+// writeQueue writes how many answers would settle the open slots, and each
+// group that one answer would settle more than one of.
+func writeQueue(w io.Writer, q *arch.Queue) {
+	if q.Slots == 0 {
+		return
+	}
+	_, _ = fmt.Fprintf(
+		w,
+		"\nQUEUE: %d answers would settle the %d open slots\n",
+		q.Answers,
+		q.Slots,
+	)
+	for _, g := range q.Groups {
+		if len(g.Criteria) > 1 {
+			_, _ = fmt.Fprintf(w, "  %d\t%s\n", len(g.Criteria), g.Group)
+		}
 	}
 }
 

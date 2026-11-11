@@ -54,7 +54,10 @@
       "gate": "warn",
       "matched": 2,
       "violations": 2,
-      "status": "failed"
+      "status": "failed",
+      "unseen": {
+        "linkname": 1
+      }
     },
     {
       "name": "nothing-yet",
@@ -71,7 +74,10 @@
       "optional": true,
       "matched": 0,
       "violations": 0,
-      "status": "passed"
+      "status": "passed",
+      "unseen": {
+        "linkname": 1
+      }
     },
     {
       "name": "areas",
@@ -88,7 +94,11 @@
       "gate": "fail",
       "matched": 2,
       "violations": 2,
-      "status": "failed"
+      "status": "failed",
+      "unseen": {
+        "linkname": 1,
+        "reflection-by-name": 1
+      }
     },
     {
       "name": "patterns-in-billing",
@@ -96,7 +106,11 @@
       "gate": "fail",
       "matched": 2,
       "violations": 1,
-      "status": "failed"
+      "status": "failed",
+      "unseen": {
+        "linkname": 1,
+        "reflection-by-name": 1
+      }
     },
     {
       "name": "web-ports",
@@ -104,7 +118,11 @@
       "gate": "fail",
       "matched": 1,
       "violations": 4,
-      "status": "failed"
+      "status": "failed",
+      "unseen": {
+        "reflection-by-name": 1,
+        "unsafe-conversion": 2
+      }
     },
     {
       "name": "requireAssigned",
@@ -224,6 +242,24 @@
       "subject": "cx.modelith.yaml:Currency",
       "message": "domain model cx.modelith.yaml declares enum Currency, and no type expresses it: the code speaks the fixture's domain model",
       "fix": "name a type after the enum, or map it in the rule's types",
+      "modelRule": "fitness.domains cx-model"
+    },
+    {
+      "fingerprint": "0825e9c573864991",
+      "rule": "domain-guards-unclaimed",
+      "severity": "warning",
+      "subject": "cx.modelith.yaml",
+      "object": "cx-model",
+      "location": {
+        "file": "state/email.go",
+        "start": 17,
+        "end": 17
+      },
+      "message": "no invariant of cx.modelith.yaml claims 1 of the 2 error guards in the packages of cx-model: their functions handle no type an invariant governs, and enforce none",
+      "fix": "for each guard that keeps a domain rule, declare the invariant and mark the guard's function with //arch:invariant ID; one that checks the implementation may stay",
+      "evidence": [
+        "example.com/cx/state.Email.SetSubject guards at state/email.go:17"
+      ],
       "modelRule": "fitness.domains cx-model"
     },
     {
@@ -646,6 +682,39 @@
     "classes": 8,
     "cells": 43
   },
+  "unseen": [
+    {
+      "construct": "unsafe-conversion",
+      "package": "example.com/cx/web",
+      "file": "web/admin.go",
+      "line": 28
+    },
+    {
+      "construct": "unsafe-conversion",
+      "package": "example.com/cx/web",
+      "file": "web/admin.go",
+      "line": 28
+    },
+    {
+      "construct": "reflection-by-name",
+      "package": "example.com/cx/web",
+      "file": "web/admin.go",
+      "line": 29
+    },
+    {
+      "construct": "linkname",
+      "package": "example.com/cx/web",
+      "file": "web/admin.go",
+      "line": 35
+    }
+  ],
+  "guardCoverage": [
+    {
+      "rule": "cx-model",
+      "guards": 2,
+      "claimed": 1
+    }
+  ],
   "assumptions": [
     {
       "id": "nccd",
@@ -688,6 +757,11 @@
       "source": "TODO.md, Ideas from ArchUnit: Layer Access"
     },
     {
+      "id": "unseen",
+      "text": "A rule's unseen counts what its check cannot see through in the packages whose code it reads, by construct: a //go:linkname or a plugin import hides a dependency from every rule that reads code; reflection by name hides a call, a field access or a use; an unsafe conversion a field access or a use; cgo a call. A rule naming who alone may call, or what any package may import, reads every package.",
+      "source": "IMPROVEMENTS.md 10.3"
+    },
+    {
       "id": "test-calls",
       "text": "A calls rule with tests reads the test files' calls from source, not types: only pkg.Name(…) through an import's name counts, an import whose name the file declares anywhere is skipped, a method call or a dot import is not seen, and a conversion such as time.Duration(n) reads as a call.",
       "source": "IMPROVEMENTS.md 9.7"
@@ -699,8 +773,13 @@
     },
     {
       "id": "error-guards",
-      "text": "An error guard is an if at the top of a body, with no init statement, that returns a non-nil error or panics; one in a switch or a loop is not seen. Guards are evidence on invariant-unenforced, never an enforcer.",
+      "text": "An error guard is an if at the top of a body, with no init statement, that returns a non-nil error or panics; one in a switch or a loop is not seen, nor one that tests an error against nil, which passes a failure on. Guards are evidence on invariant-unenforced, never an enforcer.",
       "source": "IMPROVEMENTS.md 9.5; docs/adr/0016"
+    },
+    {
+      "id": "unclaimed-guards",
+      "text": "An invariant claims an error guard whose function handles a type one of its entities matched, or is marked as an enforcer of the model. Guard coverage counts only for a model that declares an invariant, and the unclaimed count is ratcheted; a guard that checks the implementation stays unclaimed.",
+      "source": "IMPROVEMENTS.md 10.4"
     }
   ]
 }

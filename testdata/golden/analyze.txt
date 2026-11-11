@@ -137,4 +137,4 @@ JUDGEMENTS (for a human expert or an adversarial LLM; never gate)
                   evidence: forbidden-import rules: 0 declared
                   evidence hash: 7a4dc8376697760778795906160012a919378ee5ff12aa1a15c3fb9b851101a7
 
-ASSUMPTIONS: 17, listed in the JSON report (--format=json)
+ASSUMPTIONS: 18, listed in the JSON report (--format=json)

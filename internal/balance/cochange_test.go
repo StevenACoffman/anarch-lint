@@ -200,3 +200,44 @@ func TestHotspotFindings(t *testing.T) {
 		})
 	}
 }
+
+// A package three others import, that changed with two of them in two
+// commits each, is an Unstable Interface; one that also imports three and
+// changed with one of those is a Crossing too. A package importing it that
+// changed alone is neither.
+func TestHotspotPatterns(t *testing.T) {
+	t.Parallel()
+	pkg := func(name string) arch.Package {
+		return arch.Package{Path: "m/" + name, Files: []string{name + "/f.go"}}
+	}
+	names := []string{"a", "b", "c", "core", "x", "y", "z"}
+	in := arch.Input{Model: arch.Model{Version: 1}}
+	for _, n := range names {
+		in.Program.Packages = append(in.Program.Packages, pkg(n))
+	}
+	for _, from := range []string{"a", "b", "c"} {
+		in.Program.Imports = append(
+			in.Program.Imports,
+			arch.Import{From: "m/" + from, To: "m/core"},
+		)
+	}
+	for _, to := range []string{"x", "y", "z"} {
+		in.Program.Imports = append(in.Program.Imports, arch.Import{From: "m/core", To: "m/" + to})
+	}
+	r := balance.Analyze(&balance.Input{Input: &in, Churn: &arch.Churn{
+		Since: "s", Head: "h", Commits: map[string][]string{
+			"core/f.go": {"c1", "c2", "c3", "c4"},
+			"a/f.go":    {"c1", "c2"},
+			"b/f.go":    {"c3", "c4"},
+			"c/f.go":    {"c5"},
+			"x/f.go":    {"c1", "c3"},
+		},
+	}})
+	var got []string
+	for _, c := range r.Candidates {
+		if c.Rule == arch.RuleUnstableInterface || c.Rule == arch.RuleCrossing {
+			got = append(got, c.Rule+" "+c.Subject)
+		}
+	}
+	equals(t, []string{"crossing m/core", "unstable-interface m/core"}, got)
+}

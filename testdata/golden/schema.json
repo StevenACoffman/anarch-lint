@@ -86,6 +86,9 @@
           },
           "type": "array"
         },
+        "dispatch": {
+          "type": "boolean"
+        },
         "from": {
           "items": {
             "type": "string"
@@ -350,6 +353,62 @@
       ],
       "type": "object"
     },
+    "ExpectRule": {
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "gate": {
+          "enum": [
+            "fail",
+            "warn",
+            "off"
+          ],
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "qualityAttribute": {
+          "enum": [
+            "functional_suitability",
+            "performance_efficiency",
+            "compatibility",
+            "usability",
+            "reliability",
+            "availability",
+            "security",
+            "maintainability",
+            "portability",
+            "scalability",
+            "compliance",
+            "safety"
+          ],
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "to": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ],
+      "type": "object"
+    },
     "FanOutRule": {
       "additionalProperties": false,
       "properties": {
@@ -534,6 +593,12 @@
         "domains": {
           "items": {
             "$ref": "#/$defs/DomainRule"
+          },
+          "type": "array"
+        },
+        "expects": {
+          "items": {
+            "$ref": "#/$defs/ExpectRule"
           },
           "type": "array"
         },

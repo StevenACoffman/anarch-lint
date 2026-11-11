@@ -114,3 +114,39 @@ func TestWindowInRepository(t *testing.T) {
 	_, err = git.Window(ctx, clone, 2)
 	equals(t, arch.ENOTFOUND, arch.ErrorCode(err))
 }
+
+// ParseFixes reads the first n commits, oldest first, and keeps the files of
+// those whose subject reads as a fix.
+func TestParseFixes(t *testing.T) {
+	t.Parallel()
+	log := "\x00aaa\x00add billing\n\na.go\n" +
+		"\x00bbb\x00billing: fix the total\n\na.go\nb.go\n" +
+		"\x00ccc\x00Fixes #4\n\nb.go\n"
+	h, err := git.ParseFixes(strings.NewReader(log), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	equals(t, arch.FixHistory{
+		Until: "bbb", Commits: 2, FixCommits: 1,
+		Fixes: map[string][]string{"a.go": {"bbb"}, "b.go": {"bbb"}},
+	}, h)
+}
+
+func TestFixesInRepository(t *testing.T) {
+	t.Parallel()
+	dir, gitIn, write := repository(t)
+	for _, step := range [][2]string{
+		{"a.go", "add a"}, {"a.go", "a: fix a"}, {"b.go", "add b"}, {"b.go", "b: fix b"},
+	} {
+		write(step[0], "package a\n// "+step[1]+"\n")
+		gitIn("add", step[0])
+		gitIn("commit", "-q", "-m", step[1])
+	}
+	h, err := git.Fixes(context.Background(), dir, git.After{Rev: "HEAD~3", Commits: 2})
+	if err != nil {
+		t.Fatalf("fixes: %v", err)
+	}
+	equals(t, 2, h.Commits)
+	equals(t, 1, h.FixCommits)
+	equals(t, []string{"a.go"}, slices.Sorted(maps.Keys(h.Fixes)))
+}

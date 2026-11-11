@@ -1002,6 +1002,29 @@ func TestCheckHistoryWindow(t *testing.T) {
 	}
 }
 
+// TestValidateMetrics: validate measures the code at a revision in a
+// worktree it removes, and reads the commits after it for fixes; one
+// package and one fix are too few to test, and say so.
+func TestValidateMetrics(t *testing.T) {
+	t.Parallel()
+	dir, gitIn, write := gitModule(t)
+	write("go.mod", "module example.com/vm\n\ngo 1.24\n")
+	write("a/a.go", "package a\n\n// A is a.\nfunc A() {}\n")
+	gitIn("init", "-q")
+	gitIn("add", ".")
+	gitIn("commit", "-q", "-m", "init")
+	write("a/a.go", "package a\n\n// A is a.\nfunc A() { _ = 1 }\n")
+	gitIn("commit", "-q", "-am", "a: fix A")
+	code, out, errOut := runCLI(t, "-C", dir, "validate", "--rev", "HEAD~1", "--commits", "5")
+	if code != 0 || !strings.Contains(out, "1 commits after it") ||
+		!strings.Contains(out, "1 fixes") || !strings.Contains(out, "insufficient-data") {
+		t.Fatalf("validate: exit %d\n%s%s", code, out, errOut)
+	}
+	if left, _ := os.ReadDir(filepath.Join(dir, ".git", "worktrees")); len(left) != 0 {
+		t.Errorf("validate left %d worktrees behind", len(left))
+	}
+}
+
 // TestCheckLockedRuleSets: a rule removed from an included rule set loosens
 // the bars like one removed from the model, so a change that does it and
 // changes code fails (docs/adr/0018).

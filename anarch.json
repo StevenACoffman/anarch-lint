@@ -124,6 +124,7 @@
        "from": ["github.com/StevenACoffman/anarch-lint/internal/arch", "github.com/StevenACoffman/anarch-lint/internal/connascence", "github.com/StevenACoffman/anarch-lint/internal/balance", "github.com/StevenACoffman/anarch-lint/internal/fitness", "github.com/StevenACoffman/anarch-lint/internal/judging"],
        "callees": ["time.Now", "time.Since", "os.*", "(*os.File).*", "math/rand.*",
          "math/rand/v2.ExpFloat64", "math/rand/v2.Float32", "math/rand/v2.Float64", "math/rand/v2.Int", "math/rand/v2.Int32", "math/rand/v2.Int32N", "math/rand/v2.Int64", "math/rand/v2.Int64N", "math/rand/v2.IntN", "math/rand/v2.N", "math/rand/v2.NormFloat64", "math/rand/v2.Perm", "math/rand/v2.Shuffle", "math/rand/v2.Uint", "math/rand/v2.Uint32", "math/rand/v2.Uint32N", "math/rand/v2.Uint64", "math/rand/v2.Uint64N", "math/rand/v2.UintN"],
+       "dispatch": true,
        "reason": "the functional core reads no clock, does no I/O and draws nothing from the global random source; a source seeded with constants, as Louvain's, is deterministic", "qualityAttribute": "maintainability"},
       {"name": "tests-wait-and-configure-explicitly",
        "from": ["github.com/StevenACoffman/anarch-lint/..."],
@@ -145,6 +146,10 @@
     "unusedExports": [
       {"name": "no-unused-api", "packages": ["github.com/StevenACoffman/anarch-lint/internal/..."],
        "reason": "an identifier exported for no other package widens the API and the visibility metrics for nothing; unexport it (IMPROVEMENTS.md §9.2)", "qualityAttribute": "maintainability"}
+    ],
+    "expects": [
+      {"name": "commands-dispatch-to-the-pipeline", "from": ["github.com/StevenACoffman/anarch-lint/cmd/..."], "to": ["github.com/StevenACoffman/anarch-lint/internal/pipeline"],
+       "reason": "a command parses flags and dispatches; the pipeline owns the work (go-advice summary_rules principle 8)", "qualityAttribute": "maintainability"}
     ],
     "domains": [
       {"name": "core-speaks-its-model", "path": "anarch-lint.modelith.yaml", "subsystem": "domain",

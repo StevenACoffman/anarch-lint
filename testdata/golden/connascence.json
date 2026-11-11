@@ -1177,6 +1177,7 @@
         "over the limits: above maxStrength.system 3"
       ],
       "undecided": "a detector found the shape of connascence, with high confidence that it is not chance, but not that the places must change together",
+      "group": "algorithm.same-layout in example.com/cx/billing, example.com/cx/web",
       "evidenceHash": "ca5c25c9a739984b999bf4a933463291e2241505a6e844c5aa4ac93397696042",
       "status": "pending"
     },
@@ -1199,6 +1200,7 @@
         "over the limits: above maxStrength.system 3"
       ],
       "undecided": "a detector found the shape of connascence, with high confidence that it is not chance, but not that the places must change together",
+      "group": "algorithm.same-pattern in example.com/cx/billing, example.com/cx/web",
       "evidenceHash": "3d7b5a70972c1923d3a77d761b4eb71d20c044f880087dd4f68a8ef0c938a379",
       "status": "pending"
     },
@@ -1221,6 +1223,7 @@
         "over the limits: above maxStrength.system 3"
       ],
       "undecided": "a detector found the shape of connascence, with low confidence that it is not chance, but not that the places must change together",
+      "group": "algorithm.same-algorithm in example.com/cx/billing, example.com/cx/web",
       "evidenceHash": "df957d76b9801d5aa560cb3e32dd66bf4ef20d35bfa47c1d074f812e94a9ce29",
       "status": "pending"
     },
@@ -1243,6 +1246,7 @@
         "over the limits: above maxStrength.system 3"
       ],
       "undecided": "a detector found the shape of connascence, with low confidence that it is not chance, but not that the places must change together",
+      "group": "algorithm.clone in example.com/cx/audit, example.com/cx/web",
       "evidenceHash": "488c5b8da76710594dc1ecd4703b5ca44969fb7bae0dab9838e8f5993579f071",
       "status": "pending"
     },
@@ -1265,10 +1269,47 @@
         "over the limits: above maxStrength.system 3"
       ],
       "undecided": "a detector found the shape of connascence, with high confidence that it is not chance, but not that the places must change together",
+      "group": "value.equal-constants in example.com/cx/auth, example.com/cx/billing",
       "evidenceHash": "6db1fb538159d9c167bf1348f2250a25ca4b7983c479c98b47cc16d9f7e2f9fa",
       "status": "pending"
     }
   ],
+  "queue": {
+    "answers": 5,
+    "slots": 5,
+    "groups": [
+      {
+        "group": "algorithm.clone in example.com/cx/audit, example.com/cx/web",
+        "criteria": [
+          "connascence/77ed473549a4415c"
+        ]
+      },
+      {
+        "group": "algorithm.same-algorithm in example.com/cx/billing, example.com/cx/web",
+        "criteria": [
+          "connascence/39785623994321c5"
+        ]
+      },
+      {
+        "group": "algorithm.same-layout in example.com/cx/billing, example.com/cx/web",
+        "criteria": [
+          "connascence/e164877bf8defd80"
+        ]
+      },
+      {
+        "group": "algorithm.same-pattern in example.com/cx/billing, example.com/cx/web",
+        "criteria": [
+          "connascence/bf0cd162e8c9fb86"
+        ]
+      },
+      {
+        "group": "value.equal-constants in example.com/cx/auth, example.com/cx/billing",
+        "criteria": [
+          "connascence/b1236343126f63c5"
+        ]
+      }
+    ]
+  },
   "skipped": [
     {
       "criterion": "connascence/2bcf62021dc1d4dd",

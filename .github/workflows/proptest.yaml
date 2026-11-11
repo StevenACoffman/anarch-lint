@@ -29,7 +29,7 @@ jobs:
         persist-credentials: "false"
     - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
-        go-version: "1.27"
+        go-version: "1.27.4"
     - name: Check the properties
       # -short skips the end-to-end analyzer test, which has no properties and loads the SDK.
       # Only a test binary that imports rapid defines -rapid.checks; any other exits with

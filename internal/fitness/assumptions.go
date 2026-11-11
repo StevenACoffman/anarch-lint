@@ -79,6 +79,15 @@ func ruleAssumptions() []arch.Assumption {
 			Source: "TODO.md, Ideas from ArchUnit: Layer Access",
 		},
 		{
+			ID: "unseen",
+			Text: "A rule's unseen counts what its check cannot see through in the packages whose " +
+				"code it reads, by construct: a //go:linkname or a plugin import hides a dependency " +
+				"from every rule that reads code; reflection by name hides a call, a field access or a " +
+				"use; an unsafe conversion a field access or a use; cgo a call. A rule naming who " +
+				"alone may call, or what any package may import, reads every package.",
+			Source: "IMPROVEMENTS.md 10.3",
+		},
+		{
 			ID: "test-calls",
 			Text: "A calls rule with tests reads the test files' calls from source, not types: " +
 				"only pkg.Name(…) through an import's name counts, an import whose name the " +
@@ -103,9 +112,18 @@ func domainAssumptions() []arch.Assumption {
 		{
 			ID: "error-guards",
 			Text: "An error guard is an if at the top of a body, with no init statement, that " +
-				"returns a non-nil error or panics; one in a switch or a loop is not seen. " +
-				"Guards are evidence on invariant-unenforced, never an enforcer.",
+				"returns a non-nil error or panics; one in a switch or a loop is not seen, nor one " +
+				"that tests an error against nil, which passes a failure on. Guards are evidence " +
+				"on invariant-unenforced, never an enforcer.",
 			Source: "IMPROVEMENTS.md 9.5; docs/adr/0016",
+		},
+		{
+			ID: "unclaimed-guards",
+			Text: "An invariant claims an error guard whose function handles a type one of its " +
+				"entities matched, or is marked as an enforcer of the model. Guard coverage counts " +
+				"only for a model that declares an invariant, and the unclaimed count is ratcheted; " +
+				"a guard that checks the implementation stays unclaimed.",
+			Source: "IMPROVEMENTS.md 10.4",
 		},
 	}
 }

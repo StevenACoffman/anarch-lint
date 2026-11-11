@@ -19,6 +19,10 @@ type Report struct {
 	Ordering Ordering `json:"ordering"`
 	// Coupling holds von Zitzewitz's metrics at each level (mmi.md §7.5).
 	Coupling CouplingLevels `json:"coupling"`
+	// CouplingWithDispatch holds them again with the run-time wiring a VTA
+	// call graph finds added as edges, when the program carries it; each
+	// monotone measure lies between the two (IMPROVEMENTS.md §10.2).
+	CouplingWithDispatch *CouplingLevels `json:"couplingWithDispatch,omitempty"`
 	// Cohesion lists the LCOM4 of struct types with two or more methods.
 	Cohesion []Cohesion `json:"cohesion"`
 	// Packages holds Martin's metrics for every package.
@@ -119,16 +123,17 @@ func Analyze(input *Input) Report {
 			Packages:   CouplingOf(g.Packages),
 			Subsystems: CouplingOf(g.Subsystems),
 		},
-		Cohesion:      cohesion,
-		Packages:      packageMetricsOf(p, &g),
-		ComponentRank: componentRank(g.Types),
-		Excluded:      append(make([]ExcludedFile, 0, len(p.Excluded)), p.Excluded...),
-		Communities:   communitiesOf(&g.Packages, g.SubsystemAssignment.Of),
-		Conformance:   conformanceOf(s, findings),
-		MMI:           newMMI(criteria),
-		Judgements:    slots,
-		Findings:      findings,
-		Assumptions:   assumptions(&limits),
+		CouplingWithDispatch: dispatchCoupling(p, s.m),
+		Cohesion:             cohesion,
+		Packages:             packageMetricsOf(p, &g),
+		ComponentRank:        componentRank(g.Types),
+		Excluded:             append(make([]ExcludedFile, 0, len(p.Excluded)), p.Excluded...),
+		Communities:          communitiesOf(&g.Packages, g.SubsystemAssignment.Of),
+		Conformance:          conformanceOf(s, findings),
+		MMI:                  newMMI(criteria),
+		Judgements:           slots,
+		Findings:             findings,
+		Assumptions:          assumptions(&limits),
 	}
 }
 
@@ -370,5 +375,15 @@ func graphAssumptions() []Assumption {
 		},
 		{"sdi-cut", "SDI cuts are exact for cycle groups of up to 12 elements and use the " +
 			"Eades–Lin–Smyth ordering above that; Coupling.CutMethod says which.", "mmi.md §7.5"},
+		{
+			"coupling-interval",
+			"couplingWithDispatch adds each dispatch as an edge over the same nodes: a " +
+				"reference from a method's receiver type to the concrete type, and an import " +
+				"between their packages; a function's dispatch adds no type edge. CCD, ACD, " +
+				"propagation cost, relative cyclicity and the largest cycle group lie between the " +
+				"static value and this one; SDI only when both cuts are exact; not the MMI, " +
+				"Martin's metrics, LCOM4 or the communities, which are not monotone in edges.",
+			"IMPROVEMENTS.md 10.2",
+		},
 	}
 }

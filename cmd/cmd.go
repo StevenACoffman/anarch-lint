@@ -32,6 +32,7 @@ import (
 	"github.com/StevenACoffman/anarch-lint/cmd/render"
 	"github.com/StevenACoffman/anarch-lint/cmd/root"
 	"github.com/StevenACoffman/anarch-lint/cmd/schema"
+	"github.com/StevenACoffman/anarch-lint/cmd/validate"
 	"github.com/StevenACoffman/anarch-lint/cmd/version"
 )
 
@@ -66,6 +67,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	render.New(r)
 	format.New(r)
 	draft.New(r)
+	validate.New(r)
 	if err := r.Command.Parse(args, ff.WithEnvVarPrefix("ANARCH_LINT")); err != nil {
 		// --help asked for help, and any other parse failure (an unknown flag,
 		// a bad flag value) is the command line's fault, so both show it.

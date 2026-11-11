@@ -44,27 +44,34 @@ type Site struct {
 // beyond a [Program]'s own (connascence.md §4, §9). A loader fills them only
 // when asked; each slice is sorted by site and then by every other field.
 type Facts struct {
-	Uses           []Use           `json:"uses"`
-	Signatures     []Signature     `json:"signatures"`
-	ConstExprs     []ConstExpr     `json:"constExprs"`
-	Constants      []Constant      `json:"constants"`
-	NilNils        []NilNil        `json:"nilNils"`
-	UnkeyedLits    []UnkeyedLit    `json:"unkeyedLits"`
-	ConstIndexes   []ConstIndex    `json:"constIndexes"`
-	Switches       []Switch        `json:"switches"`
-	GlobalUses     []GlobalUse     `json:"globalUses"`
-	PointerEqs     []PointerEq     `json:"pointerEqs"`
-	AlgoCalls      []AlgoCall      `json:"algoCalls"`
-	TimeCalls      []TimeCall      `json:"timeCalls"`
-	Guards         []FieldAccess   `json:"guards"`
-	ErrorGuards    []ErrorGuard    `json:"errorGuards"`
-	FieldWrites    []FieldAccess   `json:"fieldWrites"`
-	LockCalls      []LockCall      `json:"lockCalls"`
-	Linknames      []Linkname      `json:"linknames"`
-	UnsafeConvs    []UnsafeConv    `json:"unsafeConvs"`
-	ReflectByNames []ReflectByName `json:"reflectByNames"`
-	Calls          []Call          `json:"calls"`
-	Clones         []CloneGroup    `json:"clones"`
+	Uses         []Use         `json:"uses"`
+	Signatures   []Signature   `json:"signatures"`
+	ConstExprs   []ConstExpr   `json:"constExprs"`
+	Constants    []Constant    `json:"constants"`
+	NilNils      []NilNil      `json:"nilNils"`
+	UnkeyedLits  []UnkeyedLit  `json:"unkeyedLits"`
+	ConstIndexes []ConstIndex  `json:"constIndexes"`
+	Switches     []Switch      `json:"switches"`
+	GlobalUses   []GlobalUse   `json:"globalUses"`
+	PointerEqs   []PointerEq   `json:"pointerEqs"`
+	AlgoCalls    []AlgoCall    `json:"algoCalls"`
+	TimeCalls    []TimeCall    `json:"timeCalls"`
+	Guards       []FieldAccess `json:"guards"`
+	ErrorGuards  []ErrorGuard  `json:"errorGuards"`
+	// DynamicCalls are the callees a VTA call graph resolves the dynamic
+	// calls to, through an interface or a function value, one per caller and
+	// callee: calls that may happen, where Calls are those that will
+	// (IMPROVEMENTS.md §10.1). UnresolvedCalls are the dynamic calls it
+	// resolves to nothing. Both are read only when a calls rule asks.
+	DynamicCalls    []Call          `json:"dynamicCalls,omitempty"`
+	UnresolvedCalls []Site          `json:"unresolvedCalls,omitempty"`
+	FieldWrites     []FieldAccess   `json:"fieldWrites"`
+	LockCalls       []LockCall      `json:"lockCalls"`
+	Linknames       []Linkname      `json:"linknames"`
+	UnsafeConvs     []UnsafeConv    `json:"unsafeConvs"`
+	ReflectByNames  []ReflectByName `json:"reflectByNames"`
+	Calls           []Call          `json:"calls"`
+	Clones          []CloneGroup    `json:"clones"`
 	// TestUses are the package-level objects of the packages under analysis
 	// that their external test packages (package x_test) name, as
 	// "pkg.Name", sorted. They are read from the test files' syntax alone,

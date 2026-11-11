@@ -67,14 +67,9 @@ func (o *Options) Load(
 	if err != nil {
 		return arch.Input{}, &arch.Error{Op: op, Err: err}
 	}
-	m := &in.Model
-	gated := m.Connascence.Enabled() || m.Balance.Enabled() || m.Fitness.Enabled()
-	if in.Program, err = gopackages.Load(ctx, gopackages.Config{
-		Dir: o.Dir, Patterns: patterns, Tags: o.Tags,
-		Facts: facts == AllFacts || (facts == GatedFacts && gated),
-		Dispatches: slices.ContainsFunc(m.ForbiddenImports,
-			func(fi arch.ForbiddenImport) bool { return fi.Injected }),
-	}); err != nil {
+	cfg := modelConfig(&in.Model, facts)
+	cfg.Dir, cfg.Patterns, cfg.Tags = o.Dir, patterns, o.Tags
+	if in.Program, err = gopackages.Load(ctx, cfg); err != nil {
 		return arch.Input{}, &arch.Error{Op: op, Err: err}
 	}
 	paths := make([]string, len(in.Program.Packages))
@@ -95,6 +90,25 @@ func (o *Options) Load(
 		Patterns:  patterns,
 	}
 	return in, nil
+}
+
+// modelConfig is what model m asks the loader to read: facts when the mode
+// asks or, for GatedFacts, when a measure that reads them is gated, and a VTA
+// call graph when a rule needs it. The graph a dispatch rule pays for also
+// gives the wiring, which analyze's coupling with dispatch reads.
+func modelConfig(m *arch.Model, facts FactsMode) gopackages.Config {
+	gated := m.Connascence.Enabled() || m.Balance.Enabled() || m.Fitness.Enabled()
+	dynamic := slices.ContainsFunc(
+		m.Fitness.Calls,
+		func(c arch.CallRule) bool { return c.Dispatch },
+	)
+	injected := slices.ContainsFunc(m.ForbiddenImports,
+		func(fi arch.ForbiddenImport) bool { return fi.Injected })
+	return gopackages.Config{
+		Facts:        facts == AllFacts || (facts == GatedFacts && gated),
+		Dispatches:   dynamic || injected,
+		DynamicCalls: dynamic,
+	}
 }
 
 // readInputs reads the files a measurement reads besides the code: the

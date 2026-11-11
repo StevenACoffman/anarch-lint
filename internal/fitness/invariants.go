@@ -53,7 +53,7 @@ func governed(inv *arch.DomainInvariant, m *arch.DomainModel) []string {
 //
 // Requires: matched maps each entity matched to exactly one type.
 func (c *invariantCheck) check(matched map[string]string) {
-	guards := c.guardsByType()
+	guards := c.guardsByType(c.handlesByFunc())
 	for i := range c.model.Invariants {
 		inv := &c.model.Invariants[i]
 		enforcers := slices.DeleteFunc(
@@ -98,10 +98,9 @@ func (c *invariantCheck) unenforced(inv *arch.DomainInvariant, guards []string) 
 	)
 }
 
-// guardsByType maps each type to the error guards of the rule's functions
-// that handle it, one line per guard: its methods, and the functions with a
-// parameter or result of the type, constructors among them.
-func (c *invariantCheck) guardsByType() map[string][]string {
+// handlesByFunc maps each function to the named types of its parameters
+// and results.
+func (c *invariantCheck) handlesByFunc() map[string][]string {
 	handles := map[string][]string{}
 	for i := range c.program.Facts.Signatures {
 		sig := &c.program.Facts.Signatures[i]
@@ -111,19 +110,33 @@ func (c *invariantCheck) guardsByType() map[string][]string {
 			}
 		}
 	}
+	return handles
+}
+
+// handledBy returns the types a guard's function handles: its receiver's,
+// and those handles gives it, sorted, with no duplicates and no "".
+func handledBy(site *arch.Site, handles map[string][]string) []string {
+	types := slices.Sorted(slices.Values(append([]string{site.Type}, handles[site.Func]...)))
+	return slices.DeleteFunc(slices.Compact(types), func(t string) bool { return t == "" })
+}
+
+// guardLine names an error guard in evidence.
+func guardLine(site *arch.Site) string {
+	return fmt.Sprintf("%s guards at %s:%d", site.Func, site.File, site.Line)
+}
+
+// guardsByType maps each type to the error guards of the rule's functions
+// that handle it, one line per guard: its methods, and the functions with a
+// parameter or result of the type, constructors among them.
+func (c *invariantCheck) guardsByType(handles map[string][]string) map[string][]string {
 	out := map[string][]string{}
 	for i := range c.program.Facts.ErrorGuards {
 		site := &c.program.Facts.ErrorGuards[i].Site
 		if !c.inRule(site.Package) {
 			continue
 		}
-		line := fmt.Sprintf("%s guards at %s:%d", site.Func, site.File, site.Line)
-		types := slices.Compact(slices.Sorted(slices.Values(
-			append([]string{site.Type}, handles[site.Func]...))))
-		for _, t := range types {
-			if t != "" {
-				out[t] = append(out[t], line)
-			}
+		for _, t := range handledBy(site, handles) {
+			out[t] = append(out[t], guardLine(site))
 		}
 	}
 	return out

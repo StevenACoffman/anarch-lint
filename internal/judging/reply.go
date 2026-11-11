@@ -71,6 +71,16 @@ func Parse(raw string, it *Item) (Reply, []string) {
 // Abstains reports an answer that the evidence is insufficient.
 func (r *Reply) Abstains() bool { return r.Answer == arch.AnswerInsufficient }
 
+// gaps returns the unexamined aspects as an event records them, "aspect:
+// reason".
+func (r *Reply) gaps() []string {
+	var out []string
+	for _, g := range r.Unexamined {
+		out = append(out, g.Aspect+": "+g.Reason)
+	}
+	return out
+}
+
 // answerDefects checks the answer against what the item accepts: a family
 // slot's answers, or a score or an abstention for an MMI criterion.
 func (r *Reply) answerDefects(v *arch.JudgeView) []string {

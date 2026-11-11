@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/google/renameio/v2/maybe"
@@ -22,6 +23,7 @@ import (
 type emitConfig struct {
 	*Config
 	configs         []string
+	adversaries     []string
 	maxExhibits     int
 	maxExhibitBytes int
 	flags           *ff.FlagSet
@@ -34,6 +36,9 @@ func newEmit(parent *Config) {
 	cfg.flags = ff.NewFlagSet("emit").SetParent(parent.Flags)
 	cfg.flags.StringListVar(&cfg.configs, 0, "config",
 		"a judge configuration NAME=MODEL or NAME=MODEL:VARIANT (repeatable; at least two)")
+	cfg.flags.StringListVar(&cfg.adversaries, 0, "adversary",
+		"an adversary NAME=MODEL[:VARIANT] that challenges the judges' drafts awaiting a human, "+
+			"shown their coverage but not their answers (repeatable)")
 	cfg.flags.IntVar(&cfg.maxExhibits, 0, "max-exhibits", budget.MaxExhibits,
 		"the most exhibits one prompt shows; the rest are counted")
 	cfg.flags.IntVar(&cfg.maxExhibitBytes, 0, "max-exhibit-bytes", budget.MaxExhibitBytes,
@@ -49,7 +54,7 @@ func newEmit(parent *Config) {
 }
 
 func (cfg *emitConfig) exec(ctx context.Context, args []string) error {
-	configs, err := parseConfigs(cfg.configs)
+	configs, err := parseConfigs(cfg.configs, cfg.adversaries)
 	if err != nil {
 		return &root.UsageError{Err: fmt.Errorf("judge emit: %w", err)}
 	}
@@ -127,21 +132,28 @@ func (cfg *emitConfig) write(m *judging.Manifest) (int, error) {
 	return written, nil
 }
 
-// parseConfigs reads NAME=MODEL[:VARIANT] flags: at least two, each name
-// once, since independence comes from different configurations.
-func parseConfigs(flags []string) ([]judging.Config, error) {
+// parseConfigs reads NAME=MODEL[:VARIANT] flags: at least two judges, and
+// any adversaries, each name once, since independence comes from different
+// configurations.
+func parseConfigs(judges, adversaries []string) ([]judging.Config, error) {
 	var out []judging.Config
 	seen := map[string]bool{}
-	for _, f := range flags {
+	for i, f := range slices.Concat(judges, adversaries) {
+		flag := "--config"
+		if i >= len(judges) {
+			flag = "--adversary"
+		}
 		name, spec, ok := strings.Cut(f, "=")
 		model, variant, _ := strings.Cut(spec, ":")
 		if !ok || name == "" || model == "" || seen[name] {
-			return nil, fmt.Errorf("--config %q is not a new NAME=MODEL[:VARIANT]", f)
+			return nil, fmt.Errorf("%s %q is not a new NAME=MODEL[:VARIANT]", flag, f)
 		}
 		seen[name] = true
-		out = append(out, judging.Config{Name: name, Model: model, Variant: variant})
+		out = append(out, judging.Config{
+			Name: name, Model: model, Variant: variant, Adversary: i >= len(judges),
+		})
 	}
-	if len(out) < 2 {
+	if len(judges) < 2 {
 		return nil, errors.New("give at least two --config, so judges are independent")
 	}
 	return out, nil

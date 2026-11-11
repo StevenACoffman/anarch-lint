@@ -779,6 +779,11 @@
       "id": "sdi-cut",
       "text": "SDI cuts are exact for cycle groups of up to 12 elements and use the Eades–Lin–Smyth ordering above that; Coupling.CutMethod says which.",
       "source": "mmi.md §7.5"
+    },
+    {
+      "id": "coupling-interval",
+      "text": "couplingWithDispatch adds each dispatch as an edge over the same nodes: a reference from a method's receiver type to the concrete type, and an import between their packages; a function's dispatch adds no type edge. CCD, ACD, propagation cost, relative cyclicity and the largest cycle group lie between the static value and this one; SDI only when both cuts are exact; not the MMI, Martin's metrics, LCOM4 or the communities, which are not monotone in edges.",
+      "source": "IMPROVEMENTS.md 10.2"
     }
   ]
 }

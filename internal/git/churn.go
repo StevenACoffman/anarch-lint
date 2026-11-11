@@ -3,6 +3,7 @@ package git
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"context"
 	"fmt"
 	"io"
@@ -12,6 +13,12 @@ import (
 
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
+
+// After is the first Commits commits of HEAD's first-parent line after Rev.
+type After struct {
+	Rev     string
+	Commits int
+}
 
 // Churn returns the commits since rev, up to HEAD, that changed each file of
 // dir's work tree, with paths relative to dir; an empty rev means every
@@ -115,4 +122,79 @@ func ParseLog(r io.Reader) (map[string][]string, map[string]string, error) {
 		commits[file] = slices.Compact(hs)
 	}
 	return commits, authors, nil
+}
+
+// Fixes returns what a validation reads of the commits a names: how many
+// there were, and the files each one whose subject reads as a fix changed,
+// with paths relative to dir. Rename detection is off, as for Churn. Since
+// is the revision's full hash, and Until the last commit read, the
+// revision's own when none follows it.
+//
+// Requires: a.Commits > 0.
+func Fixes(ctx context.Context, dir string, a After) (arch.FixHistory, error) {
+	const op = "git.Fixes"
+	if err := gitOnPath(); err != nil {
+		return arch.FixHistory{}, &arch.Error{Op: op, Err: err}
+	}
+	since, err := resolve(ctx, dir, a.Rev)
+	if err != nil {
+		return arch.FixHistory{}, &arch.Error{Op: op, Err: err}
+	}
+	log, err := run(ctx, dir, "log", "--first-parent", "--reverse", "--format=%x00%H%x00%s",
+		"--name-only", "--no-renames", "--relative", "--end-of-options", since+"..HEAD", "--")
+	if err != nil {
+		return arch.FixHistory{}, &arch.Error{Op: op, Err: err}
+	}
+	h, err := ParseFixes(bytes.NewReader(log), a.Commits)
+	if err != nil {
+		return arch.FixHistory{}, &arch.Error{Op: op, Err: err}
+	}
+	h.Since = since
+	h.Until = cmp.Or(h.Until, since)
+	return h, nil
+}
+
+// ParseFixes parses git log --reverse --format=%x00%H%x00%s --name-only, the
+// oldest commit first: each commit is a NUL, its hash, a NUL and its
+// subject, and the names of the files it changed. It reads the first n
+// commits, and returns how many it read, the last of them, and the files of
+// each fix among them, each file's fixes sorted.
+func ParseFixes(r io.Reader, n int) (arch.FixHistory, error) {
+	h := arch.FixHistory{Fixes: map[string][]string{}}
+	fix := false
+	sc := bufio.NewScanner(r)
+	sc.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
+	for sc.Scan() {
+		line := sc.Text()
+		switch {
+		case strings.HasPrefix(line, "\x00"):
+			if h.Commits == n {
+				return sortedFixes(h), nil
+			}
+			hash, subject, _ := strings.Cut(strings.TrimPrefix(line, "\x00"), "\x00")
+			h.Commits++
+			h.Until, fix = hash, arch.IsFix(subject)
+			if fix {
+				h.FixCommits++
+			}
+		case line != "" && fix:
+			h.Fixes[line] = append(h.Fixes[line], h.Until)
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return arch.FixHistory{}, &arch.Error{
+			Code:    arch.EINVALID,
+			Message: "read log: " + err.Error(),
+		}
+	}
+	return sortedFixes(h), nil
+}
+
+// sortedFixes returns h with each file's fixes sorted, without duplicates.
+func sortedFixes(h arch.FixHistory) arch.FixHistory {
+	for file, hs := range h.Fixes {
+		slices.Sort(hs)
+		h.Fixes[file] = slices.Compact(hs)
+	}
+	return h
 }

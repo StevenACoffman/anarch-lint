@@ -36,6 +36,7 @@ anarch-lint fmt --check              # is the model file in its canonical form
 anarch-lint judge emit --config a=MODEL --config b=MODEL # ask judges the judgement slots
 anarch-lint diagram components.puml  # draft a model from a PlantUML diagram
 anarch-lint draft                    # draft a model from the import graph's communities
+anarch-lint validate --rev HEAD~200  # did the package metrics there predict the fixes since?
 anarch-lint --format sarif check     # the gate's result as SARIF, for code scanning
 anarch-lint baseline --shrink        # remove what was fixed; accept nothing new
 anarch-lint render                   # write anarch.md, the model as Markdown
@@ -76,7 +77,13 @@ Exit status:
 - **von Zitzewitz's coupling metrics** at the same three levels:
   - ACD and propagation cost;
   - relative cyclicity;
-  - the Structural Debt Index, with the edges to cut.
+  - the Structural Debt Index, with the edges to cut;
+  - when the program carries its run-time wiring (a `calls` rule with
+    `dispatch`, or an `injected` forbidden import), the same measures again
+    with each dispatch added as an edge (`couplingWithDispatch`). The
+    measures that only grow as edges are added lie between the two values:
+    a ratchet move narrower than that range is within the measurement's own
+    uncertainty.
 - **Size and complexity**: lines of code, statements, three variants of
   cyclomatic complexity, cognitive complexity (gocognit's SonarSource count),
   nesting depth, and LCOM4.
@@ -112,7 +119,11 @@ Exit status:
   coupling by strength. With `--since-rev`, it lists the subsystems that
   change in the same commits (co-change) and the packages that change often
   and are complex (hotspots); two subsystems that co-change without importing
-  each other are a `hidden-coupling` candidate. The model's
+  each other are a `hidden-coupling` candidate. Two of Mo et al.'s hotspot
+  patterns, read over packages, are candidates too: an
+  `unstable-interface`, a package three or more import that changed with
+  half of them, and a `crossing`, one that also imports three or more and
+  changed with both sides. The model's
   `"balance": {"history": {"commits": 200, "maxHotspot": 500}}` reads the
   last 200 commits behind HEAD instead, in `check` too, and a package whose
   hotspot score is above 500 is a `hotspot` finding; the window moves with
@@ -125,7 +136,11 @@ Exit status:
   subsystem and that no test runs is an `untested-crossing` candidate.
 - **Fitness** (`fitness`): what ArchUnit tests in Java.
   - Every rule of the model's `fitness` section, with its reason, gate,
-    matches, violations and status.
+    matches, violations and status, and what its check could not see
+    through in the packages it reads (`unseen`): a `//go:linkname`, a
+    `plugin` or `C` import, reflection by name, an `unsafe` conversion. A
+    pass then reads "passed, 2 unseen", and the report lists where each one
+    is.
   - Lakos's metrics with NCCD, Dowalil's visibility metrics, and ArchUnit's
     component dependency metrics.
   - The elementary cycles of the type and subsystem graphs, in a fixed order
@@ -157,6 +172,14 @@ Exit status:
     so does the baseline. `check` against a baseline of another build notes
     the difference instead of failing, and `baseline --shrink` leaves such a
     baseline as it is.
+- **Validation** (`validate --rev REV [--commits N]`): whether the package
+  metrics predicted maintenance cost. It measures the code at REV in a
+  temporary worktree (Martin's metrics and summed cyclomatic and cognitive
+  complexity), reads the next N first-parent commits, counts a commit whose
+  subject says fix, bug, regression or revert as a fix, and gives each
+  metric's Spearman correlation with the packages' fixes, lines of code
+  held constant: `predictive`, `not-predictive` or `insufficient-data`. It
+  is a report, never a gate.
 
 Every finding names the rule of the model it breaks (`modelRule`), such as
 `forbiddenImports[2]` or `fitness.layerAccess web`. A pattern that matches
@@ -217,7 +240,7 @@ following.
 | `thresholds`                                     | The size, complexity and nesting limits. Every one has a default, recorded among the report's assumptions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `connascence`                                    | `{"maxStrength": {"package": 9, "subsystem": 5, "system": 3, "external": 2}, "maxDegree": {"system": 20}}`: the strongest kind (1 name to 9 identity) and the largest degree each locality allows. Setting either opts the connascence findings into `baseline` and `check`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `balance`                                        | `{"gate": true, "messaging": ["github.com/nats-io/nats.go/..."]}`: `gate` opts the Balanced Coupling findings into `baseline` and `check`; `messaging` names message-bus clients, whose importers get an asynchrony slot.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `fitness`                                        | ArchUnit-style rules, each with a `name`, a `reason`, a `gate` (`fail`, `warn` or `off`) and `optional`: `requireAssigned`, `strictLayers`, `layerAccess` (`mayOnlyBeAccessedBy`, `mayOnlyAccess`, `mayNotBeAccessedByAny`, `mayNotAccessAny`, `consideringAll`), `onion`, `slices` (`$*` groups, `freeOfCycles`, `notDependOnEachOther`), `dependents` (`onlyFrom`), `calls` (callees such as `time.Now` or `os.*`, with `only`, and `tests` for the package-level functions test files call, read from source), `interfacesOnly`, `libraries` (`from`, `allow`: the only third-party packages the `from` packages may import; an approval nothing uses is a warning), `fanOut` (`packages`, `max`: how many packages under analysis each may import), `coChange` (`when`, `require`, `except`: doublestar file globs such as `api/**/*.proto`, checked only by `check --new-from-rev`) and `domains` (see below). A rule that matches nothing fails unless optional, and so does a forbidden import, isolation (`from` or `mayImport`), role, subsystem interface or balance messaging pattern that matches nothing. |
+| `fitness`                                        | ArchUnit-style rules, each with a `name`, a `reason`, a `gate` (`fail`, `warn` or `off`) and `optional`: `requireAssigned`, `strictLayers`, `layerAccess` (`mayOnlyBeAccessedBy`, `mayOnlyAccess`, `mayNotBeAccessedByAny`, `mayNotAccessAny`, `consideringAll`), `onion`, `slices` (`$*` groups, `freeOfCycles`, `notDependOnEachOther`), `dependents` (`onlyFrom`), `calls` (callees such as `time.Now`, `os.*` or `(*os.File).*`, with `only`, `tests` for the package-level functions test files call, read from source, and `dispatch` for the callees a VTA call graph says its calls through interfaces and function values may reach, each a `possible-forbidden-call` warning; see [ADR 0019](docs/adr/0019-a-pass-says-what-it-could-not-see.md)), `interfacesOnly`, `libraries` (`from`, `allow`: the only third-party packages the `from` packages may import; an approval nothing uses is a warning), `fanOut` (`packages`, `max`: how many packages under analysis each may import), `expects` (`from`, `to`: a dependency the design intends, such as the shell using the core; without an import from a `from` package to a `to` package the build has an absence, `expected-dependency-missing`), `coChange` (`when`, `require`, `except`: doublestar file globs such as `api/**/*.proto`, checked only by `check --new-from-rev`) and `domains` (see below). A rule that matches nothing fails unless optional, and so does a forbidden import, isolation (`from` or `mayImport`), role, subsystem interface or balance messaging pattern that matches nothing. |
 | `subsystems[].name` captures                     | A subsystem named `$1` whose `packages` capture with `$*` (`example.com/app/$*/...`) is a template: it becomes one subsystem per distinct capture, as ArchUnit's slices.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `findingRules`                                   | Gives a rule no model entry governs, such as `large-func` or `layer-order-violation`, a `gate`, a `reason` and a `qualityAttribute`. A forbidden import, isolation or fitness rule takes the same three keys and governs only its own findings.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `qualityAttribute`                               | One of ISO 25010's characteristics, `functional_suitability`, `performance_efficiency`, `compatibility`, `usability`, `reliability`, `security`, `maintainability` and `portability`, or `availability`, `scalability`, `compliance` and `safety`. Findings carry it into the JSON and SARIF reports, and `anarch.md` groups rules by it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
@@ -304,7 +327,8 @@ The checks:
   carries a directive naming the invariant. The evidence lists the error
   guards of the functions that handle a governed type, an `if` at the top
   of the body that returns an error or panics, as places to look; a guard
-  never counts as an enforcer.
+  never counts as an enforcer. An `if err != nil` that passes the error on
+  is no guard.
 - `invariant-exposed`: an entity the invariant governs, the one that
   declares it or one its statement names in backticks, has a type with an
   exported field. Code outside the type's package can then change the state
@@ -315,6 +339,12 @@ The checks:
   no profile, so the gate never reports it.
 - `unknown-invariant-directive`, a warning: a directive names no invariant
   of a covering model.
+- `domain-guards-unclaimed`, a warning: error guards of the rule's packages
+  that no invariant claims, by handling a governed type or carrying its
+  directive. Each is a question for the modeller: a rule the model leaves
+  out, or a check of the implementation. The report's `guardCoverage` gives
+  the claimed share, and the gate ratchets the unclaimed count,
+  `fitness.domains.unclaimedGuards`, for a model that declares invariants.
 
 A domain model is also evidence for the judgement slots: the subsystem it
 describes, and the models it imports, appear in the bounded-context and
@@ -438,6 +468,14 @@ events: drafts until a human attests them. `judge report` shows the
 canaries, the gold set's agreement and calibration (`--gold`), the tallies
 and the rejected replies.
 
+`judge emit --adversary NAME=MODEL` also asks an adversary about each
+judges' draft that awaits a human, showing it what the judges examined and
+could not, never what they answered. At `judge admit`, an adversary that
+answers otherwise turns the draft into `insufficient-evidence`, and one that
+agrees adds its event. It can never apply an answer, nor change a verdict a
+human attests
+([ADR 0020](docs/adr/0020-an-adversary-can-only-unsettle.md)).
+
 A slot never gates by itself:
 
 - an MMI verdict narrows the MMI interval;
@@ -452,6 +490,13 @@ events, and needs a human
 ([ADR 0010](docs/adr/0010-suppressing-a-fact-needs-a-human.md)). A slot whose
 answer would change nothing is not opened: balance lists it in `skipped`,
 with the reason.
+
+The connascence and balance reports also carry a `queue`: the open slots
+grouped by what one answer would settle together, largest group first, such
+as the candidates of one detector across the same packages, or of one pair.
+It says how many answers would clear the backlog ("QUEUE: 4 answers would
+settle the 6 open slots"). It orders the questions and answers none, so each
+slot still takes its own verdict.
 
 ## Design
 

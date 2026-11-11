@@ -45,9 +45,21 @@ func writeRuleTable(w io.Writer, rules []fitness.RuleResult) {
 		if r.Truncated {
 			status += ", truncated"
 		}
+		if n := unseenCount(r.Unseen); n > 0 {
+			status += fmt.Sprintf(", %d unseen", n)
+		}
 		_, _ = fmt.Fprintf(w, "  %s\t%s\t%s\t%d\t%d\t%s\t%s\t\n",
 			r.Name, r.Kind, r.Gate, r.Matched, r.Violations, status, orNone(r.Reason))
 	}
+}
+
+// unseenCount sums a rule's unseen constructs.
+func unseenCount(unseen map[string]int) int {
+	n := 0
+	for _, c := range unseen {
+		n += c
+	}
+	return n
 }
 
 func writeLakos(w io.Writer, levels []fitness.Lakos) {

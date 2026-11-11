@@ -73,15 +73,30 @@ func Emit(in *EmitInput) Manifest {
 	for i := range in.Gold {
 		questions = append(questions, question{KindGold, in.Gold[i].slot()})
 	}
-	for _, c := range in.Configs {
+	judges, adversaries := splitConfigs(in.Configs)
+	for _, c := range judges {
 		for _, q := range questions {
 			for sample := range 2 {
 				m.Items = append(m.Items, q.item(&c, sample, in.Budget))
 			}
 		}
 	}
+	m.Items = append(m.Items, adversaryItems(in.Slots, adversaries, in.Budget)...)
 	slices.SortFunc(m.Items, func(a, b Item) int { return cmp.Compare(a.Key, b.Key) })
 	return m
+}
+
+// splitConfigs returns the judges and the adversaries among the
+// configurations, each in their order.
+func splitConfigs(configs []Config) (judges, adversaries []Config) {
+	for _, c := range configs {
+		if c.Adversary {
+			adversaries = append(adversaries, c)
+		} else {
+			judges = append(judges, c)
+		}
+	}
+	return judges, adversaries
 }
 
 // item is the question for one configuration and sample, within the budget.
@@ -158,7 +173,30 @@ func Render(it *Item) string {
 		fmt.Fprintf(&b, "\n%d more exhibits were left out to keep this prompt short; "+
 			"cite only those shown.\n", it.Omitted)
 	}
+	if it.Coverage != nil {
+		b.WriteString(adversaryBrief(it.Coverage))
+	}
 	b.WriteString(replyFormat(len(v.Answers) == 0))
+	return b.String()
+}
+
+// adversaryBrief tells an adversary what the reviewers before it covered,
+// and asks it to look hardest where they did not; it never says what they
+// answered.
+func adversaryBrief(c *Coverage) string {
+	var b strings.Builder
+	b.WriteString("\n## Earlier Reviewers\n\nOther reviewers have answered this. Their answers " +
+		"are not shown. Find what they missed: look hardest at what they did not examine, and " +
+		"answer from the evidence alone.\n\n")
+	for _, e := range c.Examined {
+		fmt.Fprintf(&b, "- They examined: %s\n", e)
+	}
+	for _, u := range c.Unexamined {
+		fmt.Fprintf(&b, "- They could not examine: %s\n", u)
+	}
+	if len(c.Examined)+len(c.Unexamined) == 0 {
+		b.WriteString("- They recorded nothing of what they examined.\n")
+	}
 	return b.String()
 }
 

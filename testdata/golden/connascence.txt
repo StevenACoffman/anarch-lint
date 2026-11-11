@@ -139,6 +139,8 @@ JUDGEMENTS (for a human expert or an adversarial LLM; an approved verdict confir
                                          context, hidden from a judge: over the limits: above maxStrength.system 3
                                          evidence hash: 6db1fb538159d9c167bf1348f2250a25ca4b7983c479c98b47cc16d9f7e2f9fa
 
+QUEUE: 5 answers would settle the 5 open slots
+
 SKIPPED SLOTS: 7 candidates within every limit, where an answer would change nothing; listed in the JSON report
 
 ASSUMPTIONS: 14, listed in the JSON report (--format=json)

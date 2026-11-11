@@ -34,6 +34,7 @@ type RuleSetFitness struct {
 	CoChange       []CoChangeRule   `json:"coChange,omitempty"`
 	Boundaries     []BoundaryRule   `json:"boundaries,omitempty"`
 	FanOut         []FanOutRule     `json:"fanOut,omitempty"`
+	Expects        []ExpectRule     `json:"expects,omitempty"`
 }
 
 // DecodeRuleSet reads a rule set file. An unknown field, such as a layer
@@ -105,5 +106,6 @@ func fitnessWith(f *Fitness, set *RuleSetFitness) Fitness {
 	out.CoChange = slices.Concat(f.CoChange, set.CoChange)
 	out.Boundaries = slices.Concat(f.Boundaries, set.Boundaries)
 	out.FanOut = slices.Concat(f.FanOut, set.FanOut)
+	out.Expects = slices.Concat(f.Expects, set.Expects)
 	return out
 }

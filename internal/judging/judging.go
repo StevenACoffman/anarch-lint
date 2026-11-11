@@ -35,6 +35,9 @@ const (
 	// KindGold asks a human-labelled question, to measure agreement and
 	// calibration; it never qualifies or refuses a configuration.
 	KindGold Kind = "gold"
+	// KindAdversary asks an adversary about a slot the judges answered,
+	// showing it their coverage.
+	KindAdversary Kind = "adversary"
 )
 
 // mmiFamily is the family of the five MMI judgement criteria, whose slot IDs
@@ -52,6 +55,9 @@ type Config struct {
 	Name    string `json:"name"`
 	Model   string `json:"model"`
 	Variant string `json:"variant,omitempty"`
+	// Adversary marks a configuration that challenges the judges' drafts
+	// instead of judging.
+	Adversary bool `json:"adversary,omitempty"`
 }
 
 // Item is one prompt: a question of one kind, for one configuration and
@@ -71,6 +77,16 @@ type Item struct {
 	// only its exhibits. Omitted counts the exhibits the budget left out.
 	View    arch.JudgeView `json:"view"`
 	Omitted int            `json:"omitted,omitempty"`
+	// Coverage is what an adversary item shows of the judges: what they
+	// examined, and what they could not; never their answers.
+	Coverage *Coverage `json:"coverage,omitempty"`
+}
+
+// Coverage is the judges' examined and unexamined lists for one slot,
+// merged, sorted and without duplicates.
+type Coverage struct {
+	Examined   []string `json:"examined"`
+	Unexamined []string `json:"unexamined"`
 }
 
 // Manifest lists the items of one judging run.
