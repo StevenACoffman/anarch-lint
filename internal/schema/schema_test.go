@@ -90,15 +90,21 @@ func anySlice(v any) []any {
 // generated returns the schema as it encodes, a generic JSON value.
 func generated(t *testing.T) map[string]any {
 	t.Helper()
-	b, err := json.Marshal(schema.Generate())
+	return decoded(t, schema.Generate())
+}
+
+// decoded is s as a JSON decoder returns it, so validate reads plain maps.
+func decoded(t *testing.T, s map[string]any) map[string]any {
+	t.Helper()
+	b, err := json.Marshal(s)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var s map[string]any
-	if err := json.Unmarshal(b, &s); err != nil {
+	var out map[string]any
+	if err := json.Unmarshal(b, &out); err != nil {
 		t.Fatal(err)
 	}
-	return s
+	return out
 }
 
 // The schema accepts every model the repository uses.
@@ -137,6 +143,41 @@ func TestSchemaRejects(t *testing.T) {
 		"a subsystem without packages": `{"version": 1, "subsystems": [{"name": "a"}]}`,
 	}
 	for name, src := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			var v any
+			if err := json.Unmarshal([]byte(src), &v); err != nil {
+				t.Fatal(err)
+			}
+			if errs := validate(s, s, v, ""); len(errs) == 0 {
+				t.Fatalf("the schema accepts %s", src)
+			}
+		})
+	}
+}
+
+// The proposals schema describes a proposal's rule with the model's
+// definitions, and holds only the rules a rule set may.
+func TestProposalsSchema(t *testing.T) {
+	t.Parallel()
+	s := decoded(t, schema.GenerateProposals())
+	src, err := os.ReadFile("../../testdata/cx/proposals.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var v any
+	if err := json.Unmarshal(src, &v); err != nil {
+		t.Fatal(err)
+	}
+	if errs := validate(s, s, v, ""); len(errs) > 0 {
+		t.Fatalf("the schema rejects testdata/cx/proposals.json:\n%s", strings.Join(errs, "\n"))
+	}
+	for name, src := range map[string]string{
+		"a layer rule": `{"schema": "anarch-lint.proposals.v1", "source": "x", "proposals": [
+			{"id": "p", "fitness": {"layerAccess": [{"layer": "a"}]}}]}`,
+		"a proposal without an id": `{"schema": "anarch-lint.proposals.v1", "source": "x",
+			"proposals": [{"fitness": {}}]}`,
+	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			var v any

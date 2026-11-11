@@ -1,0 +1,39 @@
+{
+  "schema": "anarch-lint.proposals.v1",
+  "source": "codetospec",
+  "proposals": [
+    {
+      "id": "role-writers",
+      "fitness": {
+        "fields": [
+          {
+            "name": "billing.Invoice.Role writers",
+            "reason": "Draft, from the code: only these packages write billing.Invoice.Role today.",
+            "qualityAttribute": "maintainability",
+            "fields": ["example.com/cx/billing.Invoice.Role"],
+            "writes": true,
+            "only": true,
+            "from": ["example.com/cx/billing"]
+          }
+        ]
+      },
+      "evidence": [
+        {"kind": "write", "path": "billing/invoice.go", "lines": "105-107"}
+      ]
+    },
+    {
+      "id": "amount-writers",
+      "fitness": {
+        "fields": [
+          {
+            "name": "billing.Invoice.Amount writers",
+            "fields": ["example.com/cx/billing.Invoice.Amount"],
+            "writes": true,
+            "only": true,
+            "from": ["example.com/cx/web"]
+          }
+        ]
+      }
+    }
+  ]
+}

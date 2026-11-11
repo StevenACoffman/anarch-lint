@@ -221,6 +221,15 @@ func TestSchemaGolden(t *testing.T) {
 	golden(t, "schema.json", out)
 }
 
+func TestProposalsSchemaGolden(t *testing.T) {
+	t.Parallel()
+	code, out, errOut := runCLI(t, "schema", "--proposals")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	golden(t, "proposals-schema.json", out)
+}
+
 func TestFitnessGolden(t *testing.T) {
 	t.Parallel()
 	cases := map[string]struct {
