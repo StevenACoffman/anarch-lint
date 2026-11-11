@@ -908,6 +908,246 @@ implements the specification; anarch-lint uses it.
   step toward the diagrams gap, though none of the projects imports a drawn
   architecture back.
 
+## 10. From the Research Survey
+
+`~/Documents/agent-orange/write/beyond_static_analysis.md` surveys research
+on measuring architecture quality with an explicit "unknown". Its citations
+were written from memory; every paper cited below was checked against
+Crossref, and its DOI is given. Each idea was checked against anarch-lint's
+code at `aea04e9`. None of the survey's ideas comes with code.
+
+### 10.1 Certain and Possible Calls Out of the Core
+
+- **Sources:** may-must analysis pairs an over-approximation with an
+  under-approximation, so what lies between them is a countable unknown
+  (Godefroid, Nori, Rajamani, Tetali, *Compositional May-Must Program
+  Analysis: Unleashing the Power of Alternation*, POPL 2010,
+  [doi:10.1145/1706299.1706307](https://doi.org/10.1145/1706299.1706307)).
+  Variable Type Analysis (Sundaresan et al., *Practical Virtual Method Call
+  Resolution for Java*, OOPSLA 2000,
+  [doi:10.1145/353171.353189](https://doi.org/10.1145/353171.353189)) is
+  `golang.org/x/tools/go/callgraph/vta`, which anarch-lint already uses.
+- **Gap:** `simplicity.md` rates BND 2.1, FCIS 1.4 and SME 2.1 ◐ because I/O
+  through an interface escapes: a core function that writes to an
+  `io.Writer` it is given is caught only by a `calls` rule with an open list
+  such as `(io.Writer).Write`, `fmt.Fprintf` and `io.Copy`.
+- **What exists:** `checkCalls` (`internal/fitness/checks.go`) reads only
+  static calls, `Facts.Calls`. `injected` records a concrete type passed to an
+  interface parameter, but only a type of an in-scope package
+  (`concreteInScope`, `internal/gopackages/injections.go`). The VTA graph,
+  seeded with CHA, is built only when a forbidden import is `injected`
+  (`internal/pipeline/load.go`), and `dispatchOf` keeps only edges to methods
+  of in-scope types (`internal/gopackages/dispatches.go`).
+- **For anarch-lint:**
+  1. *Must side.* Let `injected` also record the standard-library concrete
+     types a model names, such as `*os.File`, `net.Conn` and `*sql.DB`. The
+     shell passing `os.Stdout` to a core function's `io.Writer` parameter
+     becomes a fact. The check is syntactic at the call site, so it misses a
+     value first stored in a variable of interface type.
+  2. *May side.* Let a `calls` rule opt into dispatch, keeping VTA edges to
+     methods of out-of-scope types, and report a forbidden callee reached
+     only through dispatch as a candidate, not a finding.
+  3. *The unknowns.* A rule's result counts the calls that stayed unknown.
+- **Limits:** SSA for dependencies is built from type information alone, so
+  a dispatch inside library code, such as `fmt.Fprintf` calling `w.Write`,
+  stays invisible and still needs the open list. Building library bodies
+  would close that at a cost in load time; the whole-program SSA build is
+  already the expensive part, and only a model that opts in pays for it.
+- **Escalation:** counterexample-guided refinement shrinks an unknown before
+  a person sees it (Clarke, Grumberg, Jha, Lu, Veith,
+  *Counterexample-Guided Abstraction Refinement*, CAV 2000,
+  [doi:10.1007/10722167_15](https://doi.org/10.1007/10722167_15)). In
+  x/tools the ladder is CHA, then VTA; `go/pointer` was removed
+  ([golang/go#59676](https://github.com/golang/go/issues/59676)). What VTA
+  leaves unknown goes to a judgement slot.
+- **Effort:** moderate.
+
+### 10.2 Coupling Metrics as Intervals
+
+- **Sources:** the survey's idea 5. Lutellier et al. found that architecture
+  recovery results change with how accurate the dependencies are
+  (*Comparing Software Architecture Recovery Techniques Using Accurate
+  Dependencies*, ICSE 2015 SEIP,
+  [doi:10.1109/ICSE.2015.136](https://doi.org/10.1109/ICSE.2015.136);
+  *Measuring the Impact of Code Dependencies on Software Architecture
+  Recovery Techniques*, TSE 2018,
+  [doi:10.1109/TSE.2017.2671865](https://doi.org/10.1109/TSE.2017.2671865)).
+  Propagation cost is MacCormack, Rusnak, Baldwin (*Management Science* 2006,
+  [doi:10.1287/mnsc.1060.0552](https://doi.org/10.1287/mnsc.1060.0552)).
+- **What exists:** `CouplingOf` (`internal/arch/coupling.go`) computes CCD,
+  ACD, propagation cost, relative cyclicity, the largest cycle group and SDI
+  on the type, package and subsystem graphs of static references. The gate
+  ratchets the MMI and the cycle and SDI measures (`gateMetrics`,
+  `internal/arch/gate.go`); it reports propagation cost and ACD without
+  ratcheting them.
+- **For anarch-lint:** compute the measures again with the dispatch edges of
+  10.1 added, over the same nodes, and report each as an interval: static,
+  then with dispatch. The interval is valid only for a measure that never
+  falls as edges are added: CCD, ACD, propagation cost, cycle-group sizes,
+  relative cyclicity, and SDI when its cut is `exact` (a greedy cut is not
+  monotone). It is not valid for the MMI, instability, abstractness, LCOM4
+  or Louvain communities. A ratchet move narrower than the interval is then
+  within the measurement's own uncertainty, and the report can say so.
+- **Effort:** low once 10.1 exists.
+
+### 10.3 Say What a Pass Did Not See
+
+- **Sources:** an analysis should state the language features it does not
+  model (Livshits et al., *In Defense of Soundiness: A Manifesto*, CACM 2015,
+  [doi:10.1145/2644805](https://doi.org/10.1145/2644805)). Confidence in a
+  claim grows as the reasons it could be wrong, its defeaters, are
+  eliminated (Goodenough, Weinstock, Klein, *Eliminative Induction: A Basis
+  for Arguing System Confidence*, ICSE 2013 NIER,
+  [doi:10.1109/ICSE.2013.6606668](https://doi.org/10.1109/ICSE.2013.6606668)).
+- **What exists:** the assumptions, the capped results (1.5) and the excluded
+  files (2.3) are reported for the whole run. `Facts.Linknames` and
+  `Facts.ReflectByNames` are read only by `balance`
+  (`internal/balance/level.go`, `internal/balance/judge.go`).
+- **For anarch-lint:** give each fitness rule's result the constructs in its
+  matched packages that its check cannot see through: reflection by name,
+  `//go:linkname`, and imports of `unsafe`, `C` and `plugin`. A pass then
+  reads "passed, with N unseen", each one a defeater a reviewer can
+  eliminate. The facts exist; the imports give `unsafe`, `C` and `plugin`.
+- **Effort:** low.
+
+### 10.4 How Many Rules the Domain Model Leaves Out
+
+- **Source:** the survey's "untrusted generator, trusted checker" caveat: a
+  checker shows that each accepted rule holds, not that every rule was
+  found, so completeness needs its own coverage measure, such as the share
+  of decision points some rule covers.
+- **What exists:** `invariant-unenforced`, `invariant-exposed` and
+  `invariant-untested` check the invariants a modelith model declares. The
+  error guards (9.5) of the functions that handle a governed type are
+  evidence on `invariant-unenforced`, never enforcers (ADR 0016).
+- **For anarch-lint:** count the error guards in a domain rule's packages
+  that handle no governed type and lie in no enforcer, and report the share
+  that is claimed. The unclaimed count can be ratcheted, and each unclaimed
+  guard is a concrete question for the modeller: an undeclared rule, or a
+  check of the implementation.
+- **Effort:** low.
+
+### 10.5 Test the Metrics Against Maintenance Cost
+
+- **Sources:** a metric's validity needs checking against outcomes with size
+  controlled (El Emam, Benlarbi, Goel, Rai, *The Confounding Effect of Class
+  Size on the Validity of Object-Oriented Metrics*, TSE 2001,
+  [doi:10.1109/32.935855](https://doi.org/10.1109/32.935855); Briand,
+  Morasca, Basili, *Property-Based Software Engineering Measurement*, TSE
+  1996, [doi:10.1109/32.481535](https://doi.org/10.1109/32.481535)).
+  Architectural debt measured as bug-fix and change churn (Xiao, Cai,
+  Kazman, Mo, Feng, *Identifying and Quantifying Architectural Debt*, ICSE
+  2016, [doi:10.1145/2884781.2884822](https://doi.org/10.1145/2884781.2884822)).
+  Fix-inducing changes found from history, the SZZ algorithm (Śliwerski,
+  Zimmermann, Zeller, *When Do Changes Induce Fixes?*, MSR 2005,
+  [doi:10.1145/1083142.1083147](https://doi.org/10.1145/1083142.1083147)).
+  Open source: PyDriller's `get_commits_last_modified_lines`
+  ([docs](https://pydriller.readthedocs.io/en/latest/git.html)) performs
+  SZZ's blame step.
+- **What exists:** `git.Churn` maps files to pinned commits, and `hotspot`
+  gates churn times complexity over a window ending at HEAD (ADR 0017).
+  Nothing tests whether a metric predicts anything. The gate already
+  declines to ratchet ACD and propagation cost because they fall as a system
+  grows.
+- **For anarch-lint:** a report outside the gate that, for each package
+  metric at revision R, correlates its ranking of packages with fix churn
+  over the next N commits, controlling for lines of code, and says
+  validated, not predictive or insufficient data. Finding fix commits from
+  their messages or linked issues is a heuristic and goes among the
+  assumptions. Martin's instability and abstractness, which the survey calls
+  weakly validated, would be the first to test. The report could also give
+  PSD 3.1's relative-visibility proxy a threshold from data, which conflict 8
+  in `simplicity.md` lacks.
+- **Effort:** moderate. The computation is deterministic for a pinned
+  history; its conclusion is statistical.
+
+### 10.6 Hotspot Patterns
+
+- **Sources:** Mo, Cai, Kazman, Xiao, *Hotspot Patterns: The Formal
+  Definition and Automatic Detection of Architecture Smells* (WICSA 2015,
+  [doi:10.1109/WICSA.2015.12](https://doi.org/10.1109/WICSA.2015.12))
+  defines Unstable Interface, Implicit Cross-module Dependency, Unhealthy
+  Inheritance Hierarchy, Cross-Module Cycle and Cross-Package Cycle. The
+  extended version (Mo, Cai, Kazman, Xiao, Feng, *Architecture
+  Anti-Patterns: Automatically Detectable Violations of Design Principles*,
+  TSE 47(5), 2021,
+  [doi:10.1109/TSE.2019.2910856](https://doi.org/10.1109/TSE.2019.2910856))
+  adds Crossing, renames Implicit Cross-module Dependency to Modularity
+  Violation Group, and replaces the two cycle patterns with Clique. The tools
+  that detect them, DV8 ([archdia.com](https://archdia.com/)) and Arcan
+  ([arcan.tech](https://www.arcan.tech/)), are commercial.
+- **What exists:** `hidden-coupling`, subsystems that co-change without
+  importing each other, is a Modularity Violation at the level of
+  subsystems, and the cycle findings are Cliques.
+- **For anarch-lint:** Unstable Interface, a package many depend on that
+  changes in the same commits as its dependents, and Crossing, a package with
+  high fan-in and fan-out that co-changes with both sides, as candidates from
+  the import graph and the history `balance --since-rev` already reads.
+  Unhealthy Inheritance Hierarchy has no Go counterpart beyond embedding.
+- **Effort:** low to moderate.
+
+### 10.7 Expected Dependencies: Reflexion Absences
+
+- **Source:** a reflexion model compares an intended model with the code and
+  reports convergences, divergences and absences (Murphy, Notkin, Sullivan,
+  *Software Reflexion Models: Bridging the Gap Between Source and High-Level
+  Models*, FSE 1995,
+  [doi:10.1145/222124.222136](https://doi.org/10.1145/222124.222136); TSE
+  2001, [doi:10.1109/32.917525](https://doi.org/10.1109/32.917525)).
+- **What exists:** the model says what may not depend on what, and
+  `empty-selector` reports a rule that matches nothing. Nothing reports an
+  intended dependency the code lacks.
+- **For anarch-lint:** an `expects` entry, such as "the shell packages use
+  the core" or "every adapter implements a port", reported as an absence
+  when the code has no such edge. `roles` with `implements` covers part of
+  the second.
+- **Effort:** moderate.
+
+### 10.8 Ask the Question That Settles the Most
+
+- **Sources:** feedback on one alarm reranks related ones, and human cost is
+  measured as the interactions needed to find every true alarm
+  (Raghothaman, Kulkarni, Heo, Naik, *User-Guided Program Reasoning Using
+  Bayesian Inference*, PLDI 2018,
+  [doi:10.1145/3192366.3192417](https://doi.org/10.1145/3192366.3192417)).
+  Abduction finds the smallest fact that would settle an alarm (Dillig,
+  Dillig, Aiken, *Automated Error Diagnosis Using Abductive Inference*, PLDI
+  2012, [doi:10.1145/2254064.2254087](https://doi.org/10.1145/2254064.2254087)).
+- **What exists:** each candidate has its own slot, `family/subject`, and a
+  verdict holds while its evidence hash matches (ADR 0007). `judge emit`
+  asks LLM judges, whose answers stay advisory until the `automatic` policy
+  level exists.
+- **For anarch-lint:** group the slots one answer would settle, such as the
+  candidates of one detector on one pair of packages, or every finding that
+  rests on one library's approval. Order the queue by how many candidates an
+  answer settles, and report how many answers would clear the backlog.
+  Grouping only orders the questions and never answers one, so the gate
+  stays deterministic. Bingo's probabilities rank alarms; the survey notes
+  that they are not shown to be calibrated.
+- **Effort:** moderate.
+
+### 10.9 Not Adopted from the Survey
+
+- **A Datalog substrate and provenance semirings.** `explain`, each
+  finding's `provenance` and the evidence hash already give a finding its
+  derivation.
+- **Conformal and selective prediction.** The judge already has gold-set
+  agreement, calibration and Wilson intervals, and conformal coverage
+  assumes exchangeable data, which breaks between code bases.
+- **Symbolic execution, model counting, process mining, automata learning
+  and decision tables.** They extract business rules, which is
+  `codetospec`'s ground.
+- **An abstract interpreter for Go.** Out of proportion to what the gaps
+  need.
+- **Distributed traces as observed dependencies.** They would give the
+  "must" graph of calls between services, but anarch-lint reads one Go
+  module and no run-time data; the contract checks (5.1) cover what is
+  declared.
+- **Most of `simplicity.md`'s ✗ rules.** They concern method, intent,
+  naming or comments, and the survey itself says no analysis recovers
+  intent. Only 10.1 moves rules there (BND 2.1, FCIS 1.4, SME 2.1); the rest
+  make existing measures more trustworthy.
+
 ## Not Worth Adopting
 
 - **Any of the Go resolution.** codegraph-go and gortex resolve with
@@ -979,6 +1219,9 @@ Of what remains, after the work in "Status":
    the adversary role.
 2. Invariants from guard shapes (9.5), once invariants are decided to be
    evidence or advisory.
+3. From the research survey: 10.3 and 10.4, which are cheap and use facts
+   that exist; then 10.1 with 10.2, the only items that move rules in
+   `simplicity.md`.
 
 ## Licensing
 
