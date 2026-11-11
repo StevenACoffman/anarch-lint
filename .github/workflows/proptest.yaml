@@ -32,4 +32,10 @@ jobs:
         go-version: "1.27"
     - name: Check the properties
       # -short skips the end-to-end analyzer test, which has no properties and loads the SDK.
-      run: go test -short ./internal/... -rapid.checks=1000
+      # Only a test binary that imports rapid defines -rapid.checks; any other exits with
+      # "flag provided but not defined", so the flag goes to those packages alone.
+      run: |
+        mapfile -t pkgs < <(go list -f '{{.ImportPath}} {{join .TestImports " "}} {{join .XTestImports " "}}' ./internal/... |
+          awk '/pgregory\.net\/rapid/ {print $1}')
+        test "${#pkgs[@]}" -gt 0 || { echo "no package imports pgregory.net/rapid" >&2; exit 1; }
+        go test -short "${pkgs[@]}" -rapid.checks=1000
