@@ -97,3 +97,11 @@ func Total(xs []int) int {
 
 // Receipt proves an invoice was paid; audit declares a Receipt too.
 type Receipt struct{ Paid bool }
+
+// MustBill bills a role, and refuses none: an error guard on Invoice.
+func MustBill(r auth.Role, amount int) Invoice {
+	if r == "" {
+		panic("an invoice needs a role")
+	}
+	return Invoice{Role: r, Amount: amount}
+}

@@ -274,3 +274,45 @@ func TestInvariantUntested(t *testing.T) {
 		})
 	}
 }
+
+// An unenforced invariant lists, as evidence, the error guards of the
+// functions that handle its governed types: their methods, and the
+// functions taking or returning them. A guard elsewhere is not listed, and
+// no guard enforces it.
+func TestInvariantUnenforcedGuards(t *testing.T) {
+	t.Parallel()
+	model := arch.DomainModel{
+		Path:     "docs/park.modelith.yaml",
+		Entities: []arch.DomainEntity{{Name: "Visit"}},
+		Invariants: []arch.DomainInvariant{{
+			ID: "one-open-visit", Statement: "At most one open visit per car.", Entity: "Visit",
+		}},
+	}
+	m := arch.Model{Version: 1, Fitness: arch.Fitness{Domains: []arch.DomainRule{{
+		RuleOptions: arch.RuleOptions{Name: "park", Reason: "r"}, Path: model.Path,
+	}}}}
+	p := park([]string{"car"}, nil)
+	visit := arch.TypeRef{Type: "m/park.Visit", Named: "m/park.Visit", Package: "m/park"}
+	guard := func(fn, typ string, line int) arch.ErrorGuard {
+		return arch.ErrorGuard{Site: arch.Site{
+			File: "park/visit.go", Line: line, Package: "m/park", Func: fn, Type: typ,
+		}}
+	}
+	p.Facts.Signatures = []arch.Signature{
+		{Func: "m/park.NewVisit", Results: []arch.TypeRef{visit}},
+		{Func: "m/park.Close", Params: []arch.TypeRef{visit}},
+	}
+	p.Facts.ErrorGuards = []arch.ErrorGuard{
+		guard("m/park.NewVisit", "", 3),
+		guard("m/park.Visit.Open", "m/park.Visit", 9),
+		guard("m/park.Close", "", 14),
+		guard("m/park.Pay", "", 20),
+	}
+	r := fitness.Analyze(&arch.Input{Program: p, Model: m, Domains: []arch.DomainModel{model}})
+	equals(t, []string{"invariant-unenforced docs/park.modelith.yaml:one-open-visit "}, rules(&r))
+	equals(t, []string{
+		"m/park.Close guards at park/visit.go:14",
+		"m/park.NewVisit guards at park/visit.go:3",
+		"m/park.Visit.Open guards at park/visit.go:9",
+	}, r.Findings[0].Evidence)
+}

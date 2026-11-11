@@ -15,8 +15,9 @@ import (
 // detection: shorter bodies coincide too often to mean anything.
 const minHashedStatements = 10
 
-// funcFacts records a function's signature, its nil, nil returns, a guard on
-// a receiver field, and the facts of its body; it sets fn.BodyHash.
+// funcFacts records a function's signature, its nil, nil returns, its error
+// guards, a guard on a receiver field, and the facts of its body; it sets
+// fn.BodyHash.
 func (s *factSink) funcFacts(fc *fileContext, d *ast.FuncDecl, fn *arch.Func) {
 	w := s.walker(fc, fn.ID, fn.Receiver)
 	if d.Recv != nil && len(d.Recv.List) == 1 && len(d.Recv.List[0].Names) == 1 {
@@ -30,21 +31,30 @@ func (s *factSink) funcFacts(fc *fileContext, d *ast.FuncDecl, fn *arch.Func) {
 	if d.Body == nil {
 		return
 	}
-	info := fc.pkg.TypesInfo
-	if returnsNillableAndError(obj.Signature()) {
-		for _, pos := range nilNilReturns(info, d.Body) {
-			s.facts.NilNils = append(s.facts.NilNils, arch.NilNil{Site: w.site(pos)})
-		}
-	}
-	if field, pos := guardField(info, w.recv, d.Body); field != "" {
-		s.facts.Guards = append(s.facts.Guards, arch.FieldAccess{
-			Type: w.typ, Field: field, Method: w.fn, Site: w.site(pos),
-		})
-	}
+	s.earlyReturns(w, obj.Signature(), d.Body)
 	if fn.Statements >= minHashedStatements {
 		fn.BodyHash, fn.ExactHash = bodyHash(d.Body), exactHash(fc.fset, d.Body)
 	}
 	w.walk(d)
+}
+
+// earlyReturns records how a body returns early: its nil, nil returns, its
+// error guards, and a first statement that guards on a receiver field.
+func (s *factSink) earlyReturns(w *factWalker, sig *types.Signature, body *ast.BlockStmt) {
+	info := w.info()
+	if returnsNillableAndError(sig) {
+		for _, pos := range nilNilReturns(info, body) {
+			s.facts.NilNils = append(s.facts.NilNils, arch.NilNil{Site: w.site(pos)})
+		}
+	}
+	for _, pos := range errorGuards(info, body) {
+		s.facts.ErrorGuards = append(s.facts.ErrorGuards, arch.ErrorGuard{Site: w.site(pos)})
+	}
+	if field, pos := guardField(info, w.recv, body); field != "" {
+		s.facts.Guards = append(s.facts.Guards, arch.FieldAccess{
+			Type: w.typ, Field: field, Method: w.fn, Site: w.site(pos),
+		})
+	}
 }
 
 // typeFacts records the facts of a type declaration, and the signature of
@@ -255,6 +265,7 @@ func (s *factSink) sortFacts() arch.Facts {
 	sortBySite(f.AlgoCalls, func(a arch.AlgoCall) arch.Site { return a.Site })
 	sortBySite(f.TimeCalls, func(t arch.TimeCall) arch.Site { return t.Site })
 	sortBySite(f.Guards, func(g arch.FieldAccess) arch.Site { return g.Site })
+	sortBySite(f.ErrorGuards, func(g arch.ErrorGuard) arch.Site { return g.Site })
 	sortBySite(f.FieldWrites, func(g arch.FieldAccess) arch.Site { return g.Site })
 	sortBySite(f.LockCalls, func(l arch.LockCall) arch.Site { return l.Site })
 	sortBySite(f.Linknames, func(l arch.Linkname) arch.Site { return l.Site })

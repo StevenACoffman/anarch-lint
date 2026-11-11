@@ -14,9 +14,9 @@ RULES
   patterns-in-billing   calls            fail  2        1           failed  none                                        
   web-ports             interfacesOnly   fail  1        4           failed  none                                        
   requireAssigned       requireAssigned  fail  7        0           passed  none                                        
-  cx-model              domains          fail  11       10          failed  the code speaks the fixture's domain model  
+  cx-model              domains          fail  12       12          failed  the code speaks the fixture's domain model  
 
-FINDINGS (18 errors, 12 warnings)
+FINDINGS (20 errors, 12 warnings)
   error    call-restriction  example.com/cx/web  web/admin.go:14
            example.com/cx/web calls regexp.MustCompile
            model rule: fitness.calls patterns-in-billing
@@ -93,11 +93,21 @@ FINDINGS (18 errors, 12 warnings)
            model rule: fitness.domains cx-model
            evidence: exported fields: Role, Amount
            fix: unexport the fields, and change them only through methods that keep the invariant
+  error    invariant-exposed  cx.modelith.yaml:invoice-has-role  
+           invariant invoice-has-role governs entity Invoice, whose type example.com/cx/billing.Invoice has exported fields that code outside example.com/cx/billing can change: the code speaks the fixture's domain model
+           model rule: fitness.domains cx-model
+           evidence: exported fields: Role, Amount
+           fix: unexport the fields, and change them only through methods that keep the invariant
   error    invariant-exposed  cx.modelith.yaml:positive-amount  
            invariant positive-amount governs entity Invoice, whose type example.com/cx/billing.Invoice has exported fields that code outside example.com/cx/billing can change: the code speaks the fixture's domain model
            model rule: fitness.domains cx-model
            evidence: exported fields: Role, Amount
            fix: unexport the fields, and change them only through methods that keep the invariant
+  error    invariant-unenforced  cx.modelith.yaml:invoice-has-role  
+           invariant invoice-has-role has no enforcer: no function or test of cx-model says it keeps "An `Invoice` is billed to a `Role`.": the code speaks the fixture's domain model
+           model rule: fitness.domains cx-model
+           evidence: example.com/cx/billing.MustBill guards at billing/invoice.go:103
+           fix: mark the function or test that keeps it with //arch:invariant invoice-has-role, which may be one of the guards listed
   error    invariant-unenforced  cx.modelith.yaml:one-session-per-user  
            invariant one-session-per-user has no enforcer: no function or test of cx-model says it keeps "A user has at most one open `Session`.": the code speaks the fixture's domain model
            model rule: fitness.domains cx-model
@@ -141,7 +151,7 @@ LAKOS
   packages    7      14   2.000  0.286  0.824  
   subsystems  5      8    1.600  0.320  0.727  
 
-VISIBILITY (Dowalil)  ARV 0.714  GRV 0.950
+VISIBILITY (Dowalil)  ARV 0.714  GRV 0.951
 
 COMPONENT DEPENDENCY METRICS (ArchUnit's definitions)
   package                    Ca  Ce  I      A      D      
@@ -157,4 +167,4 @@ CYCLES (types: 0)
 
 CYCLES (subsystems: 0)
 
-ASSUMPTIONS: 9, listed in the JSON report (--format=json)
+ASSUMPTIONS: 10, listed in the JSON report (--format=json)

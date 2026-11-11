@@ -285,3 +285,27 @@ func TestLoadFactsTestUses(t *testing.T) {
 	}
 	equals(t, []string{"example.com/gx/wiring/memory.Store"}, p.Facts.TestUses)
 }
+
+// An error guard is an if at the top of a body, with no init statement, that
+// returns a non-nil error or panics; an early return of a value, an if with
+// an init statement and a guard inside a loop are not.
+func TestLoadFactsErrorGuards(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("loads and type-checks a module; skipped with -short")
+	}
+	p, err := gopackages.Load(context.Background(), gopackages.Config{
+		Dir: "../../testdata/gx", Patterns: []string{"./guards"}, Facts: true,
+	})
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	var got []string
+	for _, g := range p.Facts.ErrorGuards {
+		got = append(got, g.Site.Func+" "+where(g.Site))
+	}
+	equals(t, []string{
+		"example.com/gx/guards.NewMoney guards/guards.go:14",
+		"example.com/gx/guards.Money.MustAdd guards/guards.go:22",
+	}, got)
+}

@@ -53,6 +53,7 @@ func governed(inv *arch.DomainInvariant, m *arch.DomainModel) []string {
 //
 // Requires: matched maps each entity matched to exactly one type.
 func (c *invariantCheck) check(matched map[string]string) {
+	guards := c.guardsByType()
 	for i := range c.model.Invariants {
 		inv := &c.model.Invariants[i]
 		enforcers := slices.DeleteFunc(
@@ -63,7 +64,7 @@ func (c *invariantCheck) check(matched map[string]string) {
 		)
 		switch {
 		case len(enforcers) == 0:
-			c.unenforced(inv)
+			c.unenforced(inv, guardsOf(governed(inv, c.model), matched, guards))
 		case c.ran != nil:
 			c.untested(inv, enforcers)
 		}
@@ -78,14 +79,68 @@ func (c *invariantCheck) check(matched map[string]string) {
 }
 
 // unenforced reports an invariant that no "//arch:invariant" directive in
-// the rule's packages names: nobody has said where the code keeps it.
-func (c *invariantCheck) unenforced(inv *arch.DomainInvariant) {
+// the rule's packages names: nobody has said where the code keeps it. The
+// error guards of the functions that handle its governed types are its
+// evidence, places it may be kept that only a person can confirm, so they
+// never enforce it themselves (docs/adr/0016).
+func (c *invariantCheck) unenforced(inv *arch.DomainInvariant, guards []string) {
+	fix := fmt.Sprintf("mark the function or test that keeps it with //arch:invariant %s", inv.ID)
+	if len(guards) > 0 {
+		fix += ", which may be one of the guards listed"
+	}
+	evidence := slices.Clip(guards[:min(len(guards), maxEdgeEvidence)])
 	c.report(
 		arch.FindingID{Rule: arch.RuleInvariantUnenforced, Subject: c.subjectOf(inv.ID)},
 		fmt.Sprintf("invariant %s has no enforcer: no function or test of %s says it keeps %q",
 			inv.ID, c.r.result.Name, inv.Statement),
-		fmt.Sprintf("mark the function or test that keeps it with //arch:invariant %s", inv.ID),
+		fix,
+		appendMore(evidence, len(guards), "error guards", inv.ID)...,
 	)
+}
+
+// guardsByType maps each type to the error guards of the rule's functions
+// that handle it, one line per guard: its methods, and the functions with a
+// parameter or result of the type, constructors among them.
+func (c *invariantCheck) guardsByType() map[string][]string {
+	handles := map[string][]string{}
+	for i := range c.program.Facts.Signatures {
+		sig := &c.program.Facts.Signatures[i]
+		for _, t := range slices.Concat(sig.Params, sig.Results) {
+			if t.Named != "" {
+				handles[sig.Func] = append(handles[sig.Func], t.Named)
+			}
+		}
+	}
+	out := map[string][]string{}
+	for i := range c.program.Facts.ErrorGuards {
+		site := &c.program.Facts.ErrorGuards[i].Site
+		if !c.inRule(site.Package) {
+			continue
+		}
+		line := fmt.Sprintf("%s guards at %s:%d", site.Func, site.File, site.Line)
+		types := slices.Compact(slices.Sorted(slices.Values(
+			append([]string{site.Type}, handles[site.Func]...))))
+		for _, t := range types {
+			if t != "" {
+				out[t] = append(out[t], line)
+			}
+		}
+	}
+	return out
+}
+
+// guardsOf returns the guards of the types the governed entities matched,
+// sorted, with no duplicates: a function that handles two of them is listed
+// once.
+func guardsOf(entities []string, matched map[string]string, guards map[string][]string) []string {
+	var out []string
+	for _, name := range entities {
+		if id, ok := matched[name]; ok {
+			out = append(out, guards[id]...)
+		}
+	}
+	slices.Sort(out)
+	return slices.Compact(out)
 }
 
 // untested reports an invariant whose enforcers are all functions, none of

@@ -57,6 +57,7 @@ type Facts struct {
 	AlgoCalls      []AlgoCall      `json:"algoCalls"`
 	TimeCalls      []TimeCall      `json:"timeCalls"`
 	Guards         []FieldAccess   `json:"guards"`
+	ErrorGuards    []ErrorGuard    `json:"errorGuards"`
 	FieldWrites    []FieldAccess   `json:"fieldWrites"`
 	LockCalls      []LockCall      `json:"lockCalls"`
 	Linknames      []Linkname      `json:"linknames"`
@@ -223,6 +224,15 @@ type AlgoCall struct {
 type TimeCall struct {
 	Callee string `json:"callee"`
 	Site   Site   `json:"site"`
+}
+
+// ErrorGuard is a statement at the top of a function's body that refuses
+// what it was given: an if with no init statement whose body ends by
+// returning a non-nil error, or by panicking. It is where a function may keep
+// an invariant, which only a person can confirm (docs/adr/0016); unlike a
+// guard in Guards, its condition may test anything.
+type ErrorGuard struct {
+	Site Site `json:"site"`
 }
 
 // FieldAccess is a method's access to a field of its receiver: a guard that

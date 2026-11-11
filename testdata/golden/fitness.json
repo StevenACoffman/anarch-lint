@@ -119,8 +119,8 @@
       "kind": "domains",
       "reason": "the code speaks the fixture's domain model",
       "gate": "fail",
-      "matched": 11,
-      "violations": 10,
+      "matched": 12,
+      "violations": 12,
       "status": "failed"
     }
   ],
@@ -359,6 +359,19 @@
       "modelRule": "fitness.domains cx-model"
     },
     {
+      "fingerprint": "b2f782184567bc01",
+      "rule": "invariant-exposed",
+      "severity": "error",
+      "subject": "cx.modelith.yaml:invoice-has-role",
+      "object": "example.com/cx/billing.Invoice",
+      "message": "invariant invoice-has-role governs entity Invoice, whose type example.com/cx/billing.Invoice has exported fields that code outside example.com/cx/billing can change: the code speaks the fixture's domain model",
+      "fix": "unexport the fields, and change them only through methods that keep the invariant",
+      "evidence": [
+        "exported fields: Role, Amount"
+      ],
+      "modelRule": "fitness.domains cx-model"
+    },
+    {
       "fingerprint": "b44add72e2f4d451",
       "rule": "invariant-exposed",
       "severity": "error",
@@ -368,6 +381,18 @@
       "fix": "unexport the fields, and change them only through methods that keep the invariant",
       "evidence": [
         "exported fields: Role, Amount"
+      ],
+      "modelRule": "fitness.domains cx-model"
+    },
+    {
+      "fingerprint": "c6d3a3a1dd7aa05f",
+      "rule": "invariant-unenforced",
+      "severity": "error",
+      "subject": "cx.modelith.yaml:invoice-has-role",
+      "message": "invariant invoice-has-role has no enforcer: no function or test of cx-model says it keeps \"An `Invoice` is billed to a `Role`.\": the code speaks the fixture's domain model",
+      "fix": "mark the function or test that keeps it with //arch:invariant invoice-has-role, which may be one of the guards listed",
+      "evidence": [
+        "example.com/cx/billing.MustBill guards at billing/invoice.go:103"
       ],
       "modelRule": "fitness.domains cx-model"
     },
@@ -514,8 +539,8 @@
       },
       {
         "package": "example.com/cx/billing",
-        "elements": 12,
-        "visible": 12,
+        "elements": 13,
+        "visible": 13,
         "rv": 1
       },
       {
@@ -544,7 +569,7 @@
       }
     ],
     "arv": 0.714286,
-    "grv": 0.95
+    "grv": 0.95122
   },
   "componentDependencyMetrics": [
     {
@@ -666,6 +691,11 @@
       "id": "invariants",
       "text": "An invariant governs every field of its entities' types, since a model does not say which fields it reads, and the type's own package may write them. An exported field exposes it; a zero-value literal from another package, or a method returning a slice or map the type holds, is not seen.",
       "source": "docs/adr/0016"
+    },
+    {
+      "id": "error-guards",
+      "text": "An error guard is an if at the top of a body, with no init statement, that returns a non-nil error or panics; one in a switch or a loop is not seen. Guards are evidence on invariant-unenforced, never an enforcer.",
+      "source": "IMPROVEMENTS.md 9.5; docs/adr/0016"
     }
   ]
 }

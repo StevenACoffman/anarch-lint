@@ -300,7 +300,10 @@ func (v *Visit) Close() error {
 The checks:
 
 - `invariant-unenforced`: no function or test of the rule's packages
-  carries a directive naming the invariant.
+  carries a directive naming the invariant. The evidence lists the error
+  guards of the functions that handle a governed type, an `if` at the top
+  of the body that returns an error or panics, as places to look; a guard
+  never counts as an enforcer.
 - `invariant-exposed`: an entity the invariant governs, the one that
   declares it or one its statement names in backticks, has a type with an
   exported field. Code outside the type's package can then change the state
