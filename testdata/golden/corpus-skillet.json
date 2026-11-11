@@ -1088,6 +1088,11 @@
       "source": "TODO.md, Ideas from ArchUnit: Layer Access"
     },
     {
+      "id": "test-calls",
+      "text": "A calls rule with tests reads the test files' calls from source, not types: only pkg.Name(…) through an import's name counts, an import whose name the file declares anywhere is skipped, a method call or a dot import is not seen, and a conversion such as time.Duration(n) reads as a call.",
+      "source": "IMPROVEMENTS.md 9.7"
+    },
+    {
       "id": "invariants",
       "text": "An invariant governs every field of its entities' types, since a model does not say which fields it reads, and the type's own package may write them. An exported field exposes it; a zero-value literal from another package, or a method returning a slice or map the type holds, is not seen.",
       "source": "docs/adr/0016"

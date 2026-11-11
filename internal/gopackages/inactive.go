@@ -13,6 +13,14 @@ import (
 	"github.com/StevenACoffman/anarch-lint/internal/arch"
 )
 
+// testSource is what one test file's source gives: its imports, the
+// enforcers its directives mark, and its calls of package-level functions.
+type testSource struct {
+	imports   []arch.Import
+	enforcers []arch.Enforcer
+	calls     []arch.Call
+}
+
 // addFromSource records what the type checker does not see, read from
 // source: the imports of the files the build excludes, and the imports and
 // enforcers of the test files.
@@ -78,23 +86,24 @@ func (x *extractor) addTestSources(
 		if err != nil {
 			return &arch.Error{Code: arch.EINVALID, Message: fmt.Sprintf("read %s: %v", name, err)}
 		}
-		imports, enforcers := testFile(relPath(x.dir, name), p.PkgPath, src)
-		for i := range imports {
-			keepFirst(x.tests, imports[i])
+		t := testFile(relPath(x.dir, name), p.PkgPath, src)
+		for i := range t.imports {
+			keepFirst(x.tests, t.imports[i])
 		}
-		x.prog.Enforcers = append(x.prog.Enforcers, enforcers...)
+		x.prog.Enforcers = append(x.prog.Enforcers, t.enforcers...)
+		x.prog.TestCalls = append(x.prog.TestCalls, t.calls...)
 	}
 	return nil
 }
 
-// testFile returns the imports and enforcers of one test file of the
-// package pkg, given its path as reported and its source. A file that does
-// not parse gives nothing, as for the inactive imports: go test reports it.
-func testFile(file, pkg string, src []byte) ([]arch.Import, []arch.Enforcer) {
+// testFile reads one test file of the package pkg, given its path as
+// reported and its source. A file that does not parse gives nothing, as for
+// the inactive imports: go test reports it.
+func testFile(file, pkg string, src []byte) testSource {
 	fset := token.NewFileSet()
 	f, _ := parser.ParseFile(fset, file, src, parser.ParseComments|parser.SkipObjectResolution)
 	if f == nil {
-		return nil, nil
+		return testSource{}
 	}
 	var imports []arch.Import
 	for _, spec := range importsOf(fset, f) {
@@ -114,7 +123,7 @@ func testFile(file, pkg string, src []byte) ([]arch.Import, []arch.Enforcer) {
 			})...)
 		}
 	}
-	return imports, enforcers
+	return testSource{imports: imports, enforcers: enforcers, calls: testCalls(fset, f, file, pkg)}
 }
 
 // sourceFuncName names a function declared in source as a Func's ID does

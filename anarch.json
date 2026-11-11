@@ -124,7 +124,12 @@
        "from": ["github.com/StevenACoffman/anarch-lint/internal/arch", "github.com/StevenACoffman/anarch-lint/internal/connascence", "github.com/StevenACoffman/anarch-lint/internal/balance", "github.com/StevenACoffman/anarch-lint/internal/fitness", "github.com/StevenACoffman/anarch-lint/internal/judging"],
        "callees": ["time.Now", "time.Since", "os.*", "(*os.File).*", "math/rand.*",
          "math/rand/v2.ExpFloat64", "math/rand/v2.Float32", "math/rand/v2.Float64", "math/rand/v2.Int", "math/rand/v2.Int32", "math/rand/v2.Int32N", "math/rand/v2.Int64", "math/rand/v2.Int64N", "math/rand/v2.IntN", "math/rand/v2.N", "math/rand/v2.NormFloat64", "math/rand/v2.Perm", "math/rand/v2.Shuffle", "math/rand/v2.Uint", "math/rand/v2.Uint32", "math/rand/v2.Uint32N", "math/rand/v2.Uint64", "math/rand/v2.Uint64N", "math/rand/v2.UintN"],
-       "reason": "the functional core reads no clock, does no I/O and draws nothing from the global random source; a source seeded with constants, as Louvain's, is deterministic", "qualityAttribute": "maintainability"}
+       "reason": "the functional core reads no clock, does no I/O and draws nothing from the global random source; a source seeded with constants, as Louvain's, is deterministic", "qualityAttribute": "maintainability"},
+      {"name": "tests-wait-and-configure-explicitly",
+       "from": ["github.com/StevenACoffman/anarch-lint/..."],
+       "callees": ["time.Sleep", "os.Getenv", "os.Setenv", "os.Unsetenv"],
+       "tests": true,
+       "reason": "a test that sleeps is slow and flaky, and one that reads or sets the environment shares state with every other test: wait on a signal, and pass configuration in (go-advice summary_rules §10)", "qualityAttribute": "maintainability"}
     ],
     "libraries": [
       {"name": "core-approved-libraries",

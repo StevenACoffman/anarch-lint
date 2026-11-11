@@ -153,6 +153,11 @@ type Program struct {
 	// and external, read from their source and sorted like Imports. Only the
 	// import rules that opt in with tests read them.
 	TestImports []Import `json:"testImports"`
+	// TestCalls are the calls of package-level functions in the packages'
+	// test files, read from their source as the test imports are, one per
+	// calling function and callee like Facts.Calls, sorted by site. Only the
+	// calls rules that opt in with tests read them.
+	TestCalls []Call `json:"testCalls"`
 	// Enforcers are the functions and tests an "//arch:invariant ID"
 	// comment marks, sorted by invariant, function and position.
 	Enforcers []Enforcer `json:"enforcers"`

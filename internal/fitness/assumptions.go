@@ -78,6 +78,14 @@ func ruleAssumptions() []arch.Assumption {
 				"name order; packages in no ring are not checked.",
 			Source: "TODO.md, Ideas from ArchUnit: Layer Access",
 		},
+		{
+			ID: "test-calls",
+			Text: "A calls rule with tests reads the test files' calls from source, not types: " +
+				"only pkg.Name(…) through an import's name counts, an import whose name the " +
+				"file declares anywhere is skipped, a method call or a dot import is not seen, " +
+				"and a conversion such as time.Duration(n) reads as a call.",
+			Source: "IMPROVEMENTS.md 9.7",
+		},
 	}
 }
 

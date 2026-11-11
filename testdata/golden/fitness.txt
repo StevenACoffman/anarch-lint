@@ -167,4 +167,4 @@ CYCLES (types: 0)
 
 CYCLES (subsystems: 0)
 
-ASSUMPTIONS: 10, listed in the JSON report (--format=json)
+ASSUMPTIONS: 11, listed in the JSON report (--format=json)
