@@ -7,9 +7,10 @@ import (
 )
 
 // assumptions lists the choices behind the fitness measures: the metrics'
-// definitions, then what the rules check.
+// definitions, what the rules check, then how the domain models' invariants
+// are checked.
 func assumptions() []arch.Assumption {
-	return slices.Concat(metricAssumptions(), ruleAssumptions())
+	return slices.Concat(metricAssumptions(), ruleAssumptions(), domainAssumptions())
 }
 
 // metricAssumptions lists how the metrics are defined.
@@ -78,12 +79,33 @@ func ruleAssumptions() []arch.Assumption {
 			Source: "TODO.md, Ideas from ArchUnit: Layer Access",
 		},
 		{
+			ID: "test-calls",
+			Text: "A calls rule with tests reads the test files' calls from source, not types: " +
+				"only pkg.Name(…) through an import's name counts, an import whose name the " +
+				"file declares anywhere is skipped, a method call or a dot import is not seen, " +
+				"and a conversion such as time.Duration(n) reads as a call.",
+			Source: "IMPROVEMENTS.md 9.7",
+		},
+	}
+}
+
+// domainAssumptions lists how the domain-model invariants are checked.
+func domainAssumptions() []arch.Assumption {
+	return []arch.Assumption{
+		{
 			ID: "invariants",
 			Text: "An invariant governs every field of its entities' types, since a model does not " +
 				"say which fields it reads, and the type's own package may write them. An exported " +
 				"field exposes it; a zero-value literal from another package, or a method returning " +
 				"a slice or map the type holds, is not seen.",
 			Source: "docs/adr/0016",
+		},
+		{
+			ID: "error-guards",
+			Text: "An error guard is an if at the top of a body, with no init statement, that " +
+				"returns a non-nil error or panics; one in a switch or a loop is not seen. " +
+				"Guards are evidence on invariant-unenforced, never an enforcer.",
+			Source: "IMPROVEMENTS.md 9.5; docs/adr/0016",
 		},
 	}
 }

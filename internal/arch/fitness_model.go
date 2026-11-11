@@ -238,12 +238,15 @@ type LibraryRule struct {
 // alone, "(*pkg.List).Push", or "pkg.*" for every function and method of a
 // package.
 // Without Only, packages matching From may not call the callees; with it,
-// only they may.
+// only they may. With Tests, the calls of the packages' test files count
+// too, read from source: only package-level functions, such as "time.Sleep"
+// (Program.TestCalls).
 type CallRule struct {
 	RuleOptions
 	From    []string `json:"from,omitempty"`
 	Callees []string `json:"callees"`
 	Only    bool     `json:"only,omitempty"`
+	Tests   bool     `json:"tests,omitempty"`
 }
 
 // FieldRule restricts reading and writing struct fields (ArchUnit's

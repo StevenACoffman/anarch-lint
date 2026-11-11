@@ -337,6 +337,8 @@ func (x *extractor) program() arch.Program {
 		p.TestImports = append(p.TestImports, *imp)
 	}
 	slices.SortFunc(p.TestImports, compareImports)
+	p.TestCalls = append(make([]arch.Call, 0, len(p.TestCalls)), p.TestCalls...)
+	sortBySite(p.TestCalls, func(c arch.Call) arch.Site { return c.Site })
 	p.Enforcers = append(make([]arch.Enforcer, 0, len(p.Enforcers)), p.Enforcers...)
 	slices.SortFunc(p.Enforcers, func(a, b arch.Enforcer) int {
 		return cmp.Or(

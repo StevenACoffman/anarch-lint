@@ -20,6 +20,9 @@ const (
 	hiddenScore    = 0.5
 )
 
+// maxHotspotFuncs is how many of a hotspot's functions its evidence names.
+const maxHotspotFuncs = 3
+
 // CoChange is how often two subsystems changed in the same commits of the
 // revision range: Shared commits changed both, and Score is Shared ÷
 // √(commits of A × commits of B), 1 when every change of each was a change of
@@ -45,13 +48,15 @@ type Hotspot struct {
 }
 
 // history holds what the temporal measures read: the churn of a revision
-// range, nil without one, the program, its graphs, and the complexity variant
-// the model chooses.
+// range, nil without one, the program, its graphs, the complexity variant
+// the model chooses, and the hotspot score above which a package is a
+// finding, 0 for none.
 type history struct {
-	churn   *arch.Churn
-	p       *arch.Program
-	g       *arch.Graphs
-	variant arch.CCVariant
+	churn      *arch.Churn
+	p          *arch.Program
+	g          *arch.Graphs
+	variant    arch.CCVariant
+	maxHotspot int
 }
 
 // commitSubsystems are the declared subsystems one commit changed, sorted,
@@ -188,6 +193,57 @@ func (h *history) hotspots() []Hotspot {
 	return out
 }
 
+// hotspotFindings reports each hotspot whose score, commits times
+// complexity, is above the model's limit, located at its most complex
+// function and resting on every function with complexity, so a change to
+// any of them scopes it (docs/adr/0011, docs/adr/0017).
+//
+// Requires: hotspots is sorted by score, highest first, as hotspots returns.
+func (h *history) hotspotFindings(hotspots []Hotspot, sev arch.Severity) []arch.Finding {
+	var out []arch.Finding
+	for _, hs := range hotspots {
+		score := hs.Commits * hs.Complexity
+		if h.maxHotspot == 0 || score <= h.maxHotspot {
+			break // the rest score no higher
+		}
+		funcs := h.complexFuncs(hs.Package)
+		f := arch.NewFinding(arch.FindingID{Rule: arch.RuleHotspot, Subject: hs.Package}, sev)
+		f.Message = fmt.Sprintf("%s changed in %d commits of the window and has complexity %d: "+
+			"a hotspot score of %d, above the limit of %d",
+			hs.Package, hs.Commits, hs.Complexity, score, h.maxHotspot)
+		f.Fix = "split its most complex functions, or move what changes often away from them"
+		for _, fn := range funcs[:min(len(funcs), maxHotspotFuncs)] {
+			f.Evidence = append(f.Evidence, fmt.Sprintf("%s has complexity %d",
+				fn.ID, fn.Complexity.Of(h.variant)))
+		}
+		if hs.Authors > 0 {
+			f.Evidence = append(f.Evidence, fmt.Sprintf("%d authors changed it", hs.Authors))
+		}
+		f.Location = &funcs[0].Span
+		for i := range funcs[1:] {
+			f.RestOn(funcs[1+i].Span)
+		}
+		out = append(out, f)
+	}
+	return out
+}
+
+// complexFuncs returns the package's functions with complexity, the most
+// complex first, then by ID.
+func (h *history) complexFuncs(pkg string) []*arch.Func {
+	var out []*arch.Func
+	for i := range h.p.Funcs {
+		if fn := &h.p.Funcs[i]; fn.Package == pkg && fn.Complexity.Of(h.variant) > 0 {
+			out = append(out, fn)
+		}
+	}
+	slices.SortFunc(out, func(a, b *arch.Func) int {
+		return cmp.Or(cmp.Compare(b.Complexity.Of(h.variant), a.Complexity.Of(h.variant)),
+			cmp.Compare(a.ID, b.ID))
+	})
+	return out
+}
+
 // commitsTo returns the distinct commits that changed any of the files.
 func (h *history) commitsTo(files []string) map[string]bool {
 	commits := map[string]bool{}
@@ -218,7 +274,9 @@ func coChangeAssumption() arch.Assumption {
 			"both; their score is shared ÷ √(commits of each). A commit changing more than %d "+
 			"files is a sweep and counts toward neither pair. A pair scoring %g or more with no "+
 			"import either way is a hidden-coupling candidate. A hotspot is commits × summed "+
-			"cyclomatic complexity.", minShared, maxCommitFiles, hiddenScore),
-		Source: "IMPROVEMENTS.md 4.1 (gortex cochange.Mine; Tornhill's hotspots)",
+			"cyclomatic complexity; one above the model's history maxHotspot is a finding. "+
+			"The model's history window is the last commits of HEAD's first-parent line, "+
+			"merges' other parents included.", minShared, maxCommitFiles, hiddenScore),
+		Source: "IMPROVEMENTS.md 4.1 (gortex cochange.Mine; Tornhill's hotspots); docs/adr/0017",
 	}
 }

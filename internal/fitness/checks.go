@@ -73,7 +73,8 @@ func sliceCycle(rule string, cycle []string, edges map[[2]string][]arch.Import) 
 }
 
 // checkCalls reports calls of callees a rule forbids, or calls from outside
-// the packages a rule allows.
+// the packages a rule allows, and those of the test files for a rule that
+// opts them in.
 func (s *subject) checkCalls() {
 	for i := range s.m.Fitness.Calls {
 		c := &s.m.Fitness.Calls[i]
@@ -84,20 +85,37 @@ func (s *subject) checkCalls() {
 		} else {
 			r.result.Matched = s.matchingPackages(c.From)
 		}
-		for j := range s.p.Facts.Calls {
-			call := &s.p.Facts.Calls[j]
-			if !matchesCallee(c.Callees, call.Callee) {
-				continue
-			}
-			if c.Only {
-				r.result.Matched++
-			}
-			if arch.MatchesAny(c.From, call.Site.Package) == c.Only {
-				continue
-			}
+		calls := s.p.Facts.Calls
+		if c.Tests {
+			calls = slices.Concat(calls, s.p.TestCalls)
+		}
+		callsOf, violations := restrictedCalls(c, calls)
+		if c.Only {
+			r.result.Matched = callsOf
+		}
+		for _, call := range violations {
 			s.violation(r, callFinding(kind, r.result.Name, call))
 		}
 	}
+}
+
+// restrictedCalls returns how many of the calls are of the rule's callees,
+// and those the rule forbids: from its packages, or, for a rule that names
+// who may call, from anywhere else.
+func restrictedCalls(c *arch.CallRule, calls []arch.Call) (int, []*arch.Call) {
+	n := 0
+	var out []*arch.Call
+	for i := range calls {
+		call := &calls[i]
+		if !matchesCallee(c.Callees, call.Callee) {
+			continue
+		}
+		n++
+		if arch.MatchesAny(c.From, call.Site.Package) != c.Only {
+			out = append(out, call)
+		}
+	}
+	return n, out
 }
 
 // callFinding is the finding of one function's calls of a restricted callee.

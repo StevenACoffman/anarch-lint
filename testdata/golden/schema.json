@@ -6,6 +6,9 @@
         "gate": {
           "type": "boolean"
         },
+        "history": {
+          "$ref": "#/$defs/HistoryWindow"
+        },
         "messaging": {
           "items": {
             "type": "string"
@@ -125,6 +128,9 @@
         },
         "reason": {
           "type": "string"
+        },
+        "tests": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -733,6 +739,21 @@
       },
       "required": [
         "schema"
+      ],
+      "type": "object"
+    },
+    "HistoryWindow": {
+      "additionalProperties": false,
+      "properties": {
+        "commits": {
+          "type": "integer"
+        },
+        "maxHotspot": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "commits"
       ],
       "type": "object"
     },
@@ -1513,6 +1534,12 @@
     "roles": {
       "items": {
         "$ref": "#/$defs/Role"
+      },
+      "type": "array"
+    },
+    "ruleSets": {
+      "items": {
+        "type": "string"
       },
       "type": "array"
     },

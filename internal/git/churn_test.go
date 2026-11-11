@@ -2,9 +2,11 @@ package git_test
 
 import (
 	"context"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -70,4 +72,45 @@ func TestChurnInRepository(t *testing.T) {
 
 	_, err = git.Churn(context.Background(), dir, "no-such-rev")
 	equals(t, arch.EINVALID, arch.ErrorCode(err))
+}
+
+// A window is the last n commits of HEAD's first-parent line: a longer
+// history is cut at HEAD~n, a shorter one is read whole, and a shallow clone
+// that cannot reach HEAD~n says so rather than reading fewer commits.
+func TestWindowInRepository(t *testing.T) {
+	t.Parallel()
+	dir, gitIn, write := repository(t)
+	for _, name := range []string{"a.go", "b.go", "c.go"} {
+		write(name, "package a\n")
+		gitIn("add", name)
+		gitIn("commit", "-q", "-m", name)
+	}
+	ctx := context.Background()
+
+	rev, err := git.Window(ctx, dir, 2)
+	if err != nil {
+		t.Fatalf("window: %v", err)
+	}
+	churn, err := git.Churn(ctx, dir, rev)
+	if err != nil {
+		t.Fatalf("churn: %v", err)
+	}
+	equals(t, []string{"b.go", "c.go"}, slices.Sorted(maps.Keys(churn.Commits)))
+
+	rev, err = git.Window(ctx, dir, 3)
+	if err != nil {
+		t.Fatalf("window: %v", err)
+	}
+	equals(t, "", rev)
+	churn, err = git.Churn(ctx, dir, rev)
+	if err != nil {
+		t.Fatalf("churn: %v", err)
+	}
+	equals(t, "", churn.Since)
+	equals(t, []string{"a.go", "b.go", "c.go"}, slices.Sorted(maps.Keys(churn.Commits)))
+
+	clone := filepath.Join(t.TempDir(), "clone")
+	gitIn("clone", "-q", "--depth", "1", "file://"+dir, clone)
+	_, err = git.Window(ctx, clone, 2)
+	equals(t, arch.ENOTFOUND, arch.ErrorCode(err))
 }

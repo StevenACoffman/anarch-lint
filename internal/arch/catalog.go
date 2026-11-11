@@ -90,6 +90,7 @@ const (
 	RuleAccidentalVolatility     = "accidental-volatility"
 	RuleFrozenCore               = "frozen-core"
 	RuleHiddenCoupling           = "hidden-coupling"
+	RuleHotspot                  = "hotspot"
 	ruleTightCouplingPrefix      = "tight-coupling-"
 	connascenceRulePrefix        = "connascence-"
 	reportAnalyze                = "analyze"
@@ -250,6 +251,7 @@ func balanceRules() map[string]string {
 		RuleAccidentalVolatility:    "a subsystem judged generic or supporting changes often",
 		RuleFrozenCore:              "a subsystem judged core never changed",
 		RuleHiddenCoupling:          "two subsystems change together without importing each other",
+		RuleHotspot:                 "a package changes often and is complex, above the model's limit",
 	}
 }
 

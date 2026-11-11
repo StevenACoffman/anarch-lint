@@ -56,6 +56,10 @@ type Model struct {
 	Roles            []Role            `json:"roles,omitempty"`
 	ForbiddenImports []ForbiddenImport `json:"forbiddenImports,omitempty"`
 	Isolations       []Isolation       `json:"isolations,omitempty"`
+	// RuleSets names files of rules to include, relative to the model file,
+	// which repositories may share as vendored copies (docs/adr/0018); their
+	// rules follow the model's own, the files in sorted order (RuleSet).
+	RuleSets []string `json:"ruleSets,omitempty"`
 	// FindingRules gives a gate, a reason and a quality attribute to rules
 	// no entry above declares, by the finding's rule, such as
 	// "layer-order-violation" or "large-func".
@@ -107,6 +111,21 @@ type BalanceSettings struct {
 	// Packages also pairs the packages within each subsystem, a report of
 	// the coupling where distance is low; it never gates.
 	Packages bool `json:"packages,omitempty"`
+	// History has check and baseline read the change history too, for the
+	// co-change and hotspot measures; without it only balance --since-rev
+	// reads it (docs/adr/0017).
+	History HistoryWindow `json:"history,omitzero"`
+}
+
+// HistoryWindow is the change history the gate reads: the last Commits
+// commits of HEAD's first-parent line, a window that moves with HEAD so two
+// runs at one commit agree and the clock never enters (docs/adr/0017).
+type HistoryWindow struct {
+	// Commits is the window's length; 0 means no window.
+	Commits int `json:"commits"`
+	// MaxHotspot is the largest hotspot score, commits in the window times
+	// summed cyclomatic complexity, a package may have; 0 reports none.
+	MaxHotspot int `json:"maxHotspot,omitempty"`
 }
 
 // Subsystem is a named group of packages: a domain module in MMI terms.
@@ -584,13 +603,22 @@ func (c ConnascenceLimits) validate(invalid invalidFunc) error {
 // the gate.
 func (b *BalanceSettings) Enabled() bool { return b.Gate }
 
-// validate rejects an empty messaging pattern.
+// validate rejects an empty messaging pattern, a negative history window or
+// hotspot limit, and a hotspot limit with no window to measure it over.
 func (b BalanceSettings) validate(invalid invalidFunc) error {
-	if slices.Contains(b.Messaging, "") {
+	switch h := b.History; {
+	case slices.Contains(b.Messaging, ""):
 		return invalid(ProblemPattern, "balance messaging has an empty pattern")
+	case h.Commits < 0 || h.MaxHotspot < 0:
+		return invalid(ProblemRange, "balance history has a negative commits or maxHotspot")
+	case h.MaxHotspot > 0 && h.Commits == 0:
+		return invalid(ProblemIncomplete, "balance history sets maxHotspot without commits")
 	}
 	return nil
 }
+
+// Enabled reports whether the model reads a history window.
+func (h *HistoryWindow) Enabled() bool { return h.Commits > 0 }
 
 // namesOf returns the name of every element of xs.
 func namesOf[T any](xs []T, name func(T) string) []string {

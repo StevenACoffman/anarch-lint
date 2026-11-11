@@ -68,6 +68,17 @@ func TestDecodeModel(t *testing.T) {
 			input:   `{"version": 1, "connascence": {"maxDegree": {"system": 0}}}`,
 			message: "model: out-of-range: connascence maxDegree system 0 is below 1",
 		},
+		"a history window": {
+			input: `{"version": 1, "balance": {"history": {"commits": 200, "maxHotspot": 500}}}`,
+		},
+		"a negative history window": {
+			input:   `{"version": 1, "balance": {"history": {"commits": -1}}}`,
+			message: "model: out-of-range: balance history has a negative commits or maxHotspot",
+		},
+		"a hotspot limit without a window": {
+			input:   `{"version": 1, "balance": {"history": {"maxHotspot": 500}}}`,
+			message: "model: incomplete-rule: balance history sets maxHotspot without commits",
+		},
 		"empty messaging pattern": {
 			input:   `{"version": 1, "balance": {"messaging": [""]}}`,
 			message: "model: bad-pattern: balance messaging has an empty pattern",

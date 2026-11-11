@@ -205,6 +205,53 @@ func nilNilReturns(info *types.Info, body *ast.BlockStmt) []token.Pos {
 	return out
 }
 
+// errorGuards returns the position of each statement of body, at its top
+// level, that is an error guard (arch.ErrorGuard): an if with no init
+// statement whose body ends in a return whose last result is an error and
+// not nil, or in a call of the builtin panic. A guard nested deeper, or a
+// switch, is not one: validation comes first in a body, and the shape is
+// kept narrow so what it finds is worth a person's look.
+func errorGuards(info *types.Info, body *ast.BlockStmt) []token.Pos {
+	var out []token.Pos
+	for _, stmt := range body.List {
+		ifs, ok := stmt.(*ast.IfStmt)
+		if !ok || ifs.Init != nil || len(ifs.Body.List) == 0 {
+			continue
+		}
+		if refuses(info, ifs.Body.List[len(ifs.Body.List)-1]) {
+			out = append(out, ifs.Pos())
+		}
+	}
+	return out
+}
+
+// refuses reports a statement that ends a guard by refusing: a return whose
+// last result is a non-nil error, or a call of the builtin panic.
+func refuses(info *types.Info, stmt ast.Stmt) bool {
+	switch s := stmt.(type) {
+	case *ast.ReturnStmt:
+		if len(s.Results) == 0 {
+			return false
+		}
+		last := info.Types[s.Results[len(s.Results)-1]]
+		errType := types.Universe.Lookup("error").Type()
+		return !last.IsNil() && last.Type != nil &&
+			types.Implements(last.Type, errType.Underlying().(*types.Interface))
+	case *ast.ExprStmt:
+		call, ok := s.X.(*ast.CallExpr)
+		if !ok {
+			return false
+		}
+		id, ok := ast.Unparen(call.Fun).(*ast.Ident)
+		if !ok {
+			return false
+		}
+		b, ok := info.Uses[id].(*types.Builtin)
+		return ok && b.Name() == "panic"
+	}
+	return false
+}
+
 // guardField returns the receiver field a method's first statement tests
 // before returning early, the signature of a required call order, and the
 // position of that statement; "" when the method has no such guard.

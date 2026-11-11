@@ -423,7 +423,12 @@
       "severity": "error",
       "subject": "skillet.modelith.yaml:check-names-an-artifact",
       "message": "invariant check-names-an-artifact has no enforcer: no function or test of skillet-model says it keeps \"A `Check` names the artifact whose run confirms or clears it.\": skillet's code should speak its own domain model (mmi-plan.md §10.0)",
-      "fix": "mark the function or test that keeps it with //arch:invariant check-names-an-artifact",
+      "fix": "mark the function or test that keeps it with //arch:invariant check-names-an-artifact, which may be one of the guards listed",
+      "evidence": [
+        "github.com/StevenACoffman/skillet/judge.Score guards at judge/judge.go:78",
+        "github.com/StevenACoffman/skillet/ruleset.parseCheck guards at ruleset/marker.go:224",
+        "github.com/StevenACoffman/skillet/ruleset.parseCheck guards at ruleset/marker.go:229"
+      ],
       "modelRule": "fitness.domains skillet-model"
     },
     {
@@ -432,7 +437,12 @@
       "severity": "error",
       "subject": "skillet.modelith.yaml:finding-cites-its-check",
       "message": "invariant finding-cites-its-check has no enforcer: no function or test of skillet-model says it keeps \"A `Finding` cites the `Check` that produced it.\": skillet's code should speak its own domain model (mmi-plan.md §10.0)",
-      "fix": "mark the function or test that keeps it with //arch:invariant finding-cites-its-check",
+      "fix": "mark the function or test that keeps it with //arch:invariant finding-cites-its-check, which may be one of the guards listed",
+      "evidence": [
+        "github.com/StevenACoffman/skillet/judge.Score guards at judge/judge.go:78",
+        "github.com/StevenACoffman/skillet/ruleset.parseCheck guards at ruleset/marker.go:224",
+        "github.com/StevenACoffman/skillet/ruleset.parseCheck guards at ruleset/marker.go:229"
+      ],
       "modelRule": "fitness.domains skillet-model"
     },
     {
@@ -459,7 +469,11 @@
       "severity": "error",
       "subject": "skillet.modelith.yaml:manifest-verified-iff-all-gates-pass",
       "message": "invariant manifest-verified-iff-all-gates-pass has no enforcer: no function or test of skillet-model says it keeps \"A `Manifest` is marked verified only when every recorded `Skill` passes its gates.\": skillet's code should speak its own domain model (mmi-plan.md §10.0)",
-      "fix": "mark the function or test that keeps it with //arch:invariant manifest-verified-iff-all-gates-pass",
+      "fix": "mark the function or test that keeps it with //arch:invariant manifest-verified-iff-all-gates-pass, which may be one of the guards listed",
+      "evidence": [
+        "github.com/StevenACoffman/skillet/manifest.Manifest.Marshal guards at manifest/manifest.go:261",
+        "github.com/StevenACoffman/skillet/manifest.Parse guards at manifest/manifest.go:192"
+      ],
       "modelRule": "fitness.domains skillet-model"
     },
     {
@@ -495,7 +509,13 @@
       "severity": "error",
       "subject": "skillet.modelith.yaml:rule-belongs-to-one-ruleset",
       "message": "invariant rule-belongs-to-one-ruleset has no enforcer: no function or test of skillet-model says it keeps \"Every `Rule` belongs to exactly one `Ruleset`.\": skillet's code should speak its own domain model (mmi-plan.md §10.0)",
-      "fix": "mark the function or test that keeps it with //arch:invariant rule-belongs-to-one-ruleset",
+      "fix": "mark the function or test that keeps it with //arch:invariant rule-belongs-to-one-ruleset, which may be one of the guards listed",
+      "evidence": [
+        "github.com/StevenACoffman/skillet/ruleset.Parse guards at ruleset/ruleset.go:369",
+        "github.com/StevenACoffman/skillet/ruleset.parseHeader guards at ruleset/ruleset.go:427",
+        "github.com/StevenACoffman/skillet/ruleset.parseHeader guards at ruleset/ruleset.go:431",
+        "github.com/StevenACoffman/skillet/ruleset.parseHeader guards at ruleset/ruleset.go:434"
+      ],
       "modelRule": "fitness.domains skillet-model"
     },
     {
@@ -504,7 +524,12 @@
       "severity": "error",
       "subject": "skillet.modelith.yaml:rule-has-severity-and-level",
       "message": "invariant rule-has-severity-and-level has no enforcer: no function or test of skillet-model says it keeps \"Every `Rule` carries a severity and a level.\": skillet's code should speak its own domain model (mmi-plan.md §10.0)",
-      "fix": "mark the function or test that keeps it with //arch:invariant rule-has-severity-and-level",
+      "fix": "mark the function or test that keeps it with //arch:invariant rule-has-severity-and-level, which may be one of the guards listed",
+      "evidence": [
+        "github.com/StevenACoffman/skillet/ruleset.parseHeader guards at ruleset/ruleset.go:427",
+        "github.com/StevenACoffman/skillet/ruleset.parseHeader guards at ruleset/ruleset.go:431",
+        "github.com/StevenACoffman/skillet/ruleset.parseHeader guards at ruleset/ruleset.go:434"
+      ],
       "modelRule": "fitness.domains skillet-model"
     },
     {
@@ -513,7 +538,10 @@
       "severity": "error",
       "subject": "skillet.modelith.yaml:ruleset-derives-from-one-source",
       "message": "invariant ruleset-derives-from-one-source has no enforcer: no function or test of skillet-model says it keeps \"A `Ruleset` derives from exactly one `Source`.\": skillet's code should speak its own domain model (mmi-plan.md §10.0)",
-      "fix": "mark the function or test that keeps it with //arch:invariant ruleset-derives-from-one-source",
+      "fix": "mark the function or test that keeps it with //arch:invariant ruleset-derives-from-one-source, which may be one of the guards listed",
+      "evidence": [
+        "github.com/StevenACoffman/skillet/ruleset.Parse guards at ruleset/ruleset.go:369"
+      ],
       "modelRule": "fitness.domains skillet-model"
     },
     {
@@ -540,7 +568,10 @@
       "severity": "error",
       "subject": "skillet.modelith.yaml:source-is-authoritative",
       "message": "invariant source-is-authoritative has no enforcer: no function or test of skillet-model says it keeps \"A `Ruleset` derived from a `Source` never asserts beyond what the `Source` supports.\": skillet's code should speak its own domain model (mmi-plan.md §10.0)",
-      "fix": "mark the function or test that keeps it with //arch:invariant source-is-authoritative",
+      "fix": "mark the function or test that keeps it with //arch:invariant source-is-authoritative, which may be one of the guards listed",
+      "evidence": [
+        "github.com/StevenACoffman/skillet/ruleset.Parse guards at ruleset/ruleset.go:369"
+      ],
       "modelRule": "fitness.domains skillet-model"
     }
   ],
@@ -1057,9 +1088,19 @@
       "source": "TODO.md, Ideas from ArchUnit: Layer Access"
     },
     {
+      "id": "test-calls",
+      "text": "A calls rule with tests reads the test files' calls from source, not types: only pkg.Name(…) through an import's name counts, an import whose name the file declares anywhere is skipped, a method call or a dot import is not seen, and a conversion such as time.Duration(n) reads as a call.",
+      "source": "IMPROVEMENTS.md 9.7"
+    },
+    {
       "id": "invariants",
       "text": "An invariant governs every field of its entities' types, since a model does not say which fields it reads, and the type's own package may write them. An exported field exposes it; a zero-value literal from another package, or a method returning a slice or map the type holds, is not seen.",
       "source": "docs/adr/0016"
+    },
+    {
+      "id": "error-guards",
+      "text": "An error guard is an if at the top of a body, with no init statement, that returns a non-nil error or panics; one in a switch or a loop is not seen. Guards are evidence on invariant-unenforced, never an enforcer.",
+      "source": "IMPROVEMENTS.md 9.5; docs/adr/0016"
     }
   ]
 }

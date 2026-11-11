@@ -2,6 +2,7 @@ package gopackages_test
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"testing"
 
@@ -284,4 +285,53 @@ func TestLoadFactsTestUses(t *testing.T) {
 		t.Fatalf("load: %v", err)
 	}
 	equals(t, []string{"example.com/gx/wiring/memory.Store"}, p.Facts.TestUses)
+}
+
+// An error guard is an if at the top of a body, with no init statement, that
+// returns a non-nil error or panics; an early return of a value, an if with
+// an init statement and a guard inside a loop are not.
+func TestLoadFactsErrorGuards(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("loads and type-checks a module; skipped with -short")
+	}
+	p, err := gopackages.Load(context.Background(), gopackages.Config{
+		Dir: "../../testdata/gx", Patterns: []string{"./guards"}, Facts: true,
+	})
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	var got []string
+	for _, g := range p.Facts.ErrorGuards {
+		got = append(got, g.Site.Func+" "+where(g.Site))
+	}
+	equals(t, []string{
+		"example.com/gx/guards.NewMoney guards/guards.go:14",
+		"example.com/gx/guards.Money.MustAdd guards/guards.go:22",
+	}, got)
+}
+
+// A test file's calls of package-level functions are read from its source,
+// one per caller and callee with a count; a name the file declares, such as
+// a local os, hides the import of that name everywhere in the file.
+func TestLoadTestCalls(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("loads and type-checks a module; skipped with -short")
+	}
+	p, err := gopackages.Load(context.Background(), gopackages.Config{
+		Dir: "../../testdata/gx", Patterns: []string{"./guards"},
+	})
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	var got []string
+	for _, c := range p.TestCalls {
+		got = append(got, fmt.Sprintf("%s calls %s %d at %s", c.Site.Func, c.Callee, c.Count,
+			where(c.Site)))
+	}
+	equals(t, []string{
+		"example.com/gx/guards.TestNewMoney calls time.Sleep 2 at guards/guards_test.go:13",
+		"example.com/gx/guards.TestNewMoney calls example.com/gx/guards.NewMoney 1 at guards/guards_test.go:16",
+	}, got)
 }

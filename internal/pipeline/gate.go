@@ -19,7 +19,8 @@ import (
 )
 
 // History names the change history balance may read beyond the code: the
-// commits after SinceRev; empty means none.
+// commits after SinceRev; empty means the model's history window, if it has
+// one (docs/adr/0017).
 type History struct {
 	SinceRev string
 }
@@ -86,7 +87,8 @@ func (o *Options) JudgementSlots(
 
 // BalanceInput gathers what the Balanced Coupling measure reads beyond the
 // program: the connascence instances, the owners from CODEOWNERS, and the
-// history h names. A coverage profile comes with l (ReadCoverage).
+// history h names, or else the model's window. A coverage profile comes with
+// l (ReadCoverage).
 func (o *Options) BalanceInput(
 	ctx context.Context, l *arch.Input, conn *connascence.Report, h History,
 ) (balance.Input, error) {
@@ -100,12 +102,32 @@ func (o *Options) BalanceInput(
 	if in.Owners, in.CodeownersHash, err = o.readOwners(&l.Program); err != nil {
 		return balance.Input{}, &arch.Error{Op: op, Err: err}
 	}
-	if h.SinceRev != "" {
-		if in.Churn, in.Input, err = readRange(ctx, o.Dir, l, h.SinceRev); err != nil {
-			return balance.Input{}, &arch.Error{Op: op, Err: err}
-		}
+	switch w := &l.Model.Balance.History; {
+	case h.SinceRev != "":
+		in.Churn, in.Input, err = readRange(ctx, o.Dir, l, h.SinceRev)
+	case w.Enabled():
+		in.Churn, err = readWindow(ctx, o.Dir, w.Commits)
+	}
+	if err != nil {
+		return balance.Input{}, &arch.Error{Op: op, Err: err}
 	}
 	return in, nil
+}
+
+// readWindow reads the churn of the last n commits of the repository at dir
+// (git.Window). Unlike a range, a window draws no change set: it is the
+// history behind the code, not a change under review.
+func readWindow(ctx context.Context, dir string, n int) (*arch.Churn, error) {
+	const op = "pipeline.readWindow"
+	rev, err := git.Window(ctx, dir, n)
+	if err != nil {
+		return nil, &arch.Error{Op: op, Err: err}
+	}
+	churn, err := git.Churn(ctx, dir, rev)
+	if err != nil {
+		return nil, &arch.Error{Op: op, Err: err}
+	}
+	return &churn, nil
 }
 
 // readRange reads the churn of the repository at dir since rev and, unless

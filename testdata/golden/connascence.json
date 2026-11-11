@@ -172,7 +172,7 @@
       "basis": "fact",
       "locality": "system",
       "degree": 3,
-      "siteCount": 8,
+      "siteCount": 9,
       "sites": [
         {
           "file": "auth/role.go",
@@ -204,6 +204,12 @@
           "func": "example.com/cx/billing.Describe"
         },
         {
+          "file": "billing/invoice.go",
+          "line": 102,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.MustBill"
+        },
+        {
           "file": "web/admin.go",
           "line": 17,
           "package": "example.com/cx/web",
@@ -222,7 +228,7 @@
           "func": "example.com/cx/web.Steal"
         }
       ],
-      "message": "8 places in 3 packages refer to example.com/cx/auth.Role by name",
+      "message": "9 places in 3 packages refer to example.com/cx/auth.Role by name",
       "fix": "connascence of name is the weakest kind; keep Role stable, and reach it only through its subsystem's interface"
     },
     {
@@ -418,7 +424,7 @@
       "basis": "fact",
       "locality": "system",
       "degree": 3,
-      "siteCount": 6,
+      "siteCount": 7,
       "sites": [
         {
           "file": "auth/role.go",
@@ -439,6 +445,12 @@
           "func": "example.com/cx/billing.Describe"
         },
         {
+          "file": "billing/invoice.go",
+          "line": 102,
+          "package": "example.com/cx/billing",
+          "func": "example.com/cx/billing.MustBill"
+        },
+        {
           "file": "web/admin.go",
           "line": 17,
           "package": "example.com/cx/web",
@@ -457,7 +469,7 @@
           "func": "example.com/cx/web.Steal"
         }
       ],
-      "message": "example.com/cx/auth.Role appears in the signatures or fields of 5 places in other packages",
+      "message": "example.com/cx/auth.Role appears in the signatures or fields of 6 places in other packages",
       "fix": "a domain type crossing a boundary is connascence of type, which is desirable; keep the type small and stable, or cross the boundary with a contract type"
     },
     {

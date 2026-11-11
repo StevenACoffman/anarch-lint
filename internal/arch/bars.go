@@ -29,6 +29,7 @@ func Loosened(prev, next *Bars) []string {
 		looserThresholds(new(prev.Model.Limits()), new(next.Model.Limits())),
 		looserFloors(&prev.Model.Gates, &next.Model.Gates),
 		looserConnascence(&prev.Model.Connascence, &next.Model.Connascence),
+		looserHistory(&prev.Model.Balance.History, &next.Model.Balance.History),
 		fewerRules(&prev.Model, &next.Model),
 		weakerGates(&prev.Model, &next.Model),
 		looserBaseline(prev.Baseline, next.Baseline),
@@ -72,6 +73,24 @@ func looserFloors(prev, next *Gates) []string {
 	if next.MinCompliance < prev.MinCompliance {
 		out = append(out, fmt.Sprintf("gates.minCompliance lowered from %g to %g",
 			prev.MinCompliance, next.MinCompliance))
+	}
+	return out
+}
+
+// looserHistory names how next narrows the history window or raises the
+// hotspot limit: a shorter window counts fewer commits toward every hotspot.
+func looserHistory(prev, next *HistoryWindow) []string {
+	if prev.Enabled() && !next.Enabled() {
+		return []string{"balance.history removed"}
+	}
+	var out []string
+	if next.Commits < prev.Commits {
+		out = append(out, fmt.Sprintf("balance.history.commits lowered from %d to %d",
+			prev.Commits, next.Commits))
+	}
+	if prev.MaxHotspot > 0 && (next.MaxHotspot == 0 || next.MaxHotspot > prev.MaxHotspot) {
+		out = append(out, fmt.Sprintf("balance.history.maxHotspot raised or removed from %d",
+			prev.MaxHotspot))
 	}
 	return out
 }

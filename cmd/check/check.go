@@ -84,7 +84,9 @@ today's rules.
 When the model has a "connascence" section, the connascence findings and the
 degree of each strong instance across subsystems gate too; with "balance":
 {"gate": true}, so do the Balanced Coupling findings and the strong references
-of each tightly coupled pair.
+of each tightly coupled pair. With "balance": {"history": {"commits": N}},
+check reads the last N commits behind HEAD, so a package whose hotspot score
+rises above "maxHotspot" fails it; a shallow clone must fetch that history.
 
 A waiver accepts one new finding, by fingerprint, until its expiry date, with
 a reason and an approver. An expired waiver protects nothing and is reported.

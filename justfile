@@ -59,7 +59,12 @@ test-short:
 #
 # Run the rapid properties with more attempts than the default
 proptest checks="1000":
-    go test ./internal/... -rapid.checks={{checks}}
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Only a test binary that imports rapid defines -rapid.checks.
+    mapfile -t pkgs < <(go list -f '{{"{{"}}.ImportPath{{"}}"}} {{"{{"}}join .TestImports " "{{"}}"}} {{"{{"}}join .XTestImports " "{{"}}"}}' ./internal/... |
+        awk '/pgregory\.net\/rapid/ {print $1}')
+    go test "${pkgs[@]}" -rapid.checks={{checks}}
 
 # Run the suite with a coverage report (a report for humans, not a gate)
 test-cover:

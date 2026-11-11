@@ -71,7 +71,7 @@ Limitations: The book is an opinion piece built from the author's experience and
       ✓  Callers write `data.put(attribute, null)` directly, or the operation is folded into a method that does substantial work behind a simple signature
       ↦  "In order for an element to provide a net gain against complexity, it must eliminate some complexity that would be present in the absence of the design element."
 
-§3.2  [SHOULD][CODE]  Do not split a method or class because it exceeds a length or size limit; keep a long method intact when it has a simple signature and reads easily, and split only when the result has cleaner abstractions (overrides common practice — apply as stated).
+§3.2  [SHOULD][CODE]  Do not split a method or class for its length alone, which is rarely a good reason; keep a long method intact when it has a simple signature and reads easily, and split only when that makes the overall system simpler (overrides common practice — apply as stated).
       Size-driven splitting multiplies shallow methods and classes whose interfaces add up to system-level complexity, and it separates related code so readers must flip between pieces to understand it.
       ✗  Break a 120-line method made of five tightly interacting sequential blocks into five private methods to satisfy a "no method over 20 lines" rule
       ✓  Keep the 120-line method with a comment before each block, because its signature is simple and the blocks must be read together

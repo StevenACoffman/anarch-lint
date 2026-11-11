@@ -22,6 +22,8 @@ entities:
     invariants: # Total enforces it, and its exported fields expose it: invariant-exposed
       - id: positive-amount
         statement: "An `Invoice` amount is never negative."
+      - id: invoice-has-role # no directive, so unenforced; MustBill's guard is its evidence
+        statement: "An `Invoice` is billed to a `Role`."
     relationships: # Invoice.Role refers to it: conforms
       - entity: Role
         cardinality: "n:1"
