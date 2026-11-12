@@ -6,7 +6,7 @@ goreleaser = "latest"
 # Mutation testing, pinned to the version the justfile and the mutation workflow run:
 # v2.10.24 is the first whose annotations suppress composite/field-clear, which
 # the composite literals in internal/arch rely on. Needs a Go 1.26+ toolchain.
-"go:github.com/quality-gates/mutago/v2/cmd/mutago" = "2.10.24"
+"go:github.com/quality-gates/mutago/v2/cmd/mutago" = "2.10.42"
 # Known-vulnerability scan of the module and its dependencies; CI's vulncheck job
 # runs it after mise-action installs these tools.
 "go:golang.org/x/vuln/cmd/govulncheck" = "latest"
