@@ -24,7 +24,7 @@ require (
 	github.com/uudashr/gocognit v1.3.0
 	github.com/vektah/gqlparser/v2 v2.5.64
 	github.com/xeipuuv/gojsonschema v1.2.0
-	golang.org/x/mod v0.42.0
+	golang.org/x/mod v0.43.0
 	golang.org/x/tools v0.52.0
 	gonum.org/v1/gonum v0.17.0
 	google.golang.org/protobuf v1.36.12
