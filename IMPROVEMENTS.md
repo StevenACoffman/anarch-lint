@@ -133,7 +133,7 @@ idea:
 | 9.2  | `fitness.unusedExports`, counting what used API exposes as used.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | 9.3  | In `analyze`: `communities`, gonum's Louvain split into connected parts, and `misplaced` packages; `anarch-lint draft` prints a starter model from them, with a subsystem order when they form no cycle.                                                                                                                                                                                                                                                                                                                                                                                        |
 | 9.4  | `//arch:entity NAME` on a type maps it to a domain-model entity, beating a match by name; one naming no entity of a covering model is an `unknown-entity-directive` warning.                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| 9.5  | `arch.ErrorGuard`: an `if` at the top of a body, with no init statement, that returns a non-nil error or panics, unless it tests an error against nil. Guards of the functions that handle an invariant's governed types are evidence on `invariant-unenforced`, never an enforcer (ADR 0016).                                                                                                                                                                                                                                                                                                                                        |
+| 9.5  | `arch.ErrorGuard`: an `if` at the top of a body, with no init statement, that returns a non-nil error or panics, unless it tests an error against nil. Guards of the functions that handle an invariant's governed types are evidence on `invariant-unenforced`, never an enforcer (ADR 0016).                                                                                                                                                                                                                                                                                                  |
 | 9.6  | With `uudashr/gocognit`: `Func.Cognitive` and `cognitive-complexity` warnings above `highCognitive` (15).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | 9.7  | In part: test files' imports are read from source into `testImports`, and a forbidden import or isolation checks them with `tests: true`; the self-check opts its isolations in. Their calls of package-level functions are read into `testCalls`, which a `calls` rule checks with `tests: true`; the self-check forbids `time.Sleep` and the environment in tests. The measures still read the build only.                                                                                                                                                                                    |
 | 9.8  | The `fanOut` fitness rule.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
@@ -1162,6 +1162,385 @@ code at `aea04e9`. None of the survey's ideas comes with code.
   intent. Only 10.1 moves rules there (BND 2.1, FCIS 1.4, SME 2.1); the rest
   make existing measures more trustworthy.
 
+## 11. From the Modularity Tools
+
+ADR 0021 chose the dependency profile and the cluster factor and left four
+decisions open: which elements to profile and how to weigh them, how to set
+omnipresent packages aside, the ratchet's tolerance, and validation. Eight
+projects that implement the papers behind it were read, under
+`~/Documents/agent-green`, at the revisions below, against anarch-lint at
+`59ecc04`. Paths are relative to each project's root.
+
+| Project             | Revision  | License                    | What it is                                                              |
+| ------------------- | --------- | -------------------------- | ----------------------------------------------------------------------- |
+| Bunch               | `269fef7` | GPL-3.0 (stated in readme) | Mitchell's own clustering tool, the source of TurboMQ                   |
+| arcade_core         | `53e6f4f` | BSD-3-Clause               | USC's ARCADE: recovery, decay and evolution metrics (Java)              |
+| arcade-agent        | `0c5a2b7` | MIT                        | A Python reimplementation of ARCADE's metrics, with a Go parser         |
+| arcana              | `961bc6a` | none                       | Architecture analyses over a knowledge graph, with a dependency profile |
+| MOSARCH             | `c87df44` | LGPL-2.1                   | Exact and heuristic clustering, normalized TurboMQ                      |
+| code-maat           | `50537ab` | GPL-3.0                    | Tornhill's mining of version-control history                            |
+| Famix               | `f9ca157` | MIT                        | Moose's metamodel, with package metrics (Pharo)                         |
+| FAMIX-Compatibility | `990e392` | MIT                        | Moose's older package metrics, Bunch's among them (Pharo)               |
+
+No project weighs elements by size, gates on these measures or checks that
+they predict anything; anarch-lint would be the first to do each.
+
+### 11.1 Set Omnipresent Packages Aside by Removing Them
+
+- **Sources:** Bunch, `src/main/java/bunch/engine/BunchEngine.java:377-482`.
+  A node is a *client* when its count of distinct targets exceeds 3 × the
+  mean, a *supplier* when its count of distinct sources does, and *central*
+  when both; a node with no targets is a *library*, and a library is never a
+  supplier. Every edge has one tail and one head, so both means are the same
+  number. Detection only reports; when the lists are passed in,
+  `arrangeLibrariesClientsAndSuppliers` deletes the nodes and every edge to
+  them (`:284-367`), before any MQ is computed. ARCADE's link overload flags
+  a cluster whose in-, out- or total degree exceeds the mean plus 1.5
+  sample standard deviations
+  (`src/main/java/edu/usc/softarch/arcade/antipattern/detection/dependency/LinkOverload.java:28-31,62-71`).
+  arcade-agent flags a component that half or more of the others, and at
+  least three, depend on (`src/arcade_agent/algorithms/concern.py:156-187`).
+- **What exists:** ADR 0021 counts an edge to an element assigned to no
+  module as crossing the other module's boundary
+  (`internal/arch/encapsulation.go`). That suits code outside every
+  subsystem, but it is the opposite of setting a package aside: an
+  omnipresent package left unassigned would lower every module's factor.
+- **For anarch-lint:**
+  1. *Candidates.* List packages above Bunch's 3 × mean, by direction, as
+     `omnipresent` candidates that never gate. Unlike Bunch, keep a widely
+     imported package with no imports of its own: in Go that is the typical
+     `util` package, the one that distorts cohesion most.
+  2. *Declared, not inferred.* Measure on the graph without the packages the
+     model declares omnipresent, nodes and edges both, as Bunch does. The
+     set goes into the baseline's key, so changing it orphans the baseline
+     instead of moving the measures.
+  3. *A test:* two modules and one supplier both import gives the same
+     factors as the two modules alone.
+- **Effort:** low.
+
+### 11.2 Ratchet Exact Fractions
+
+- **Sources:** arcade-agent never gates: `ci/compare_baseline.py` "Exits with
+  code 0 always" (`:10`; its only other exit is for a missing file).
+  Its two comparison scripts hide changes below different thresholds,
+  0.0001 (`ci/compare_baseline.py:27,36`) and 0.005 (`ci/arch_diff.py:300`),
+  and disagree on which way IntraConnectivity improves
+  (`ci/compare_baseline.py:148-165`, `ci/arch_diff.py:39-57`). The workflow
+  rewrites the baseline on every push to the default branch
+  (`.github/workflows/arch-drift.yml:103-141`), so it tracks the latest
+  state rather than ratcheting. It skips the comparison when the baseline
+  was made with another `analysis_profile` (`ci/arch_diff.py:371-381`).
+- **What exists:** `ClusterFactor` keeps the integers μ and boundary beside
+  the rounded factor, and `DependencyProfile` keeps integer sizes. The
+  baseline already notes a baseline of another platform or tags instead of
+  failing.
+- **For anarch-lint:**
+  1. Record the integers and compare fractions by cross-multiplication; the
+     six-decimal rounding is for display only. The measures are exact, so
+     ADR 0021's tolerance is not measurement noise; it is policy.
+  2. That policy needs deciding with this in view: with no tolerance, every
+     new reference between two subsystems lowers both their factors and
+     fails the gate unless internal references grow too. Two candidates:
+     gate only the system's hidden share, or allow each module a declared
+     floor rather than its last value.
+  3. Key the baseline by the profile's parameters (element kind, weight,
+     the omnipresent set), noting a mismatch as the platform note does.
+- **Effort:** low for the comparison; the policy is a decision.
+
+### 11.3 Choose the Profiled Elements and Their Weights
+
+- **Sources:** arcana profiles types only, by call edges lifted from methods
+  to their types, and counts each type once
+  (`arcana/metrics.py:49-69`, `arcana/graph_utils.py:7-14`). Famix's
+  package metrics count classes, nested and anonymous ones included, on the
+  instance side (`FAMIX-Compatibility/src/Famix-Compatibility-Entities/FAMIXPackage.class.st:59-74`);
+  its `bunchCohesion` keeps self-references and its `martinCohesion` drops
+  them (`:253-267`). Bunch weighs an edge by its repeated declarations,
+  summing duplicates (`src/main/java/bunch/DependencyFileParser.java:179-196`),
+  and drops self-loops when it parses (`:134-138`). Bouwers et al. weigh
+  files by lines of code; no project here does.
+- **What exists:** `arch.Graph` already drops self-loops (`graph.go`), as
+  Bunch does, and an edge's weight counts the references it stands for.
+  `Sizes` measures lines and statements per type and package.
+- **For anarch-lint:** profile types, weighted by lines, as Bouwers do; also
+  report the count of types per category, which is what arcana's numbers
+  are. Go has no nested named types, but a type declared inside a function
+  must be counted with its package or left out; decide which, and test it.
+  Compute a subsystem's factor on the type or package graph with
+  subsystems as modules, never by collapsing packages first: Bunch's
+  next-level graph drops each level's internal edges
+  (`src/main/java/bunch/NextLevelGraph.java:112`).
+- **Effort:** low.
+
+### 11.4 Compare the Declared Subsystems with the Communities
+
+- **Sources:** ARCADE's cvg counts the clusters of one partition that some
+  cluster of the other covers above 0.66 of the larger
+  (`src/main/java/edu/usc/softarch/arcade/metrics/evolution/Cvg.java:50-53,93-110`).
+  MoJoFM, `src/main/java/mojo/MoJoCalculator.java:261-291,356`, is one
+  minus the moves and joins needed to turn one partition into the other,
+  over the most such a pair could need, with groups assigned by maximum
+  bipartite matching; it is one-way and counts only shared elements. a2a,
+  `metrics/evolution/A2a.java:96-139`, compares two revisions' partitions,
+  counting added and removed elements, with moves found by min-cost flow
+  (`util/McfpDriver.java`). Bunch has EdgeSim and MeCl
+  (`src/main/java/bunch/api/BunchGraphUtils.java`), but EdgeSim counts edges
+  where Mitchell's papers weigh them, and MeCl divides a weight by a count.
+- **What exists:** communities (Louvain, fixed seed) and the packages whose
+  community lies mostly in another subsystem, as advice (9.3).
+- **For anarch-lint:** report cvg and MoJoFM between the declared
+  subsystems and the communities, as advice: how far the import graph
+  agrees with the model. Leave out ARCADE's `RenameFixer`, which renames
+  elements by suffix before comparing. An a2a between the baseline's
+  communities and HEAD's would say how stable the communities are, which
+  decides whether they could ever do more than advise.
+- **Dependencies:** gonum v0.17.0 has neither bipartite matching nor
+  min-cost flow, so MoJoFM and a2a need an approved library (ADR 0012) or
+  a small exact algorithm; cvg needs neither.
+- **Effort:** moderate.
+
+### 11.5 Make Co-Change Candidates Need More Evidence
+
+- **Sources:** code-maat's coupling analysis
+  (`src/code_maat/cmd_line.clj:23-36`,
+  `src/code_maat/analysis/logical_coupling.clj:39-42`,
+  `src/code_maat/analysis/coupling_algos.clj:53,87`): a pair needs 5 shared
+  revisions, an average of 5 revisions and a degree of 30%, where degree is
+  shared ÷ the mean of the two revision counts, and commits of more than 30
+  entities are dropped before any count. Its sum of coupling adds n − 1 to
+  each entity of a revision with n entities
+  (`src/code_maat/analysis/sum_of_coupling.clj:29-32`).
+- **What exists:** `internal/balance/cochange.go` keeps a pair with 2 shared
+  commits, scores it shared ÷ √(commits of A × commits of B), and makes it a
+  `hidden-coupling` candidate at 0.5 with no static dependency. A sweep of
+  more than 40 files is left out of the pairs but counted toward each
+  subsystem's commits (`:80-84`), following gortex (4.1). Two subsystems
+  that changed twice, both times together, score 1.0.
+- **For anarch-lint:**
+  1. Require a minimum of commits per subsystem, such as code-maat's 5,
+     before a pair can be a candidate, and list it among the assumptions.
+     A test: the pair above yields no candidate.
+  2. Keep counting sweeps toward each subsystem's commits or stop, but say
+     which in the co-change assumption; code-maat leaves them out of both.
+  3. Rank subsystems by sum of coupling: one near the top changes with
+     everything, which is 11.1's omnipresence seen in time.
+- **Effort:** low.
+
+### 11.6 Exported but Unused Outside the Package
+
+- **Sources:** ARCADE's unused-interface smell, a class none of whose
+  members has an inbound dependency
+  (`src/main/java/edu/usc/softarch/arcade/antipattern/detection/interfacebased/DependencyFinderProcessing.java:496-535`).
+- **What exists:** `fitness.unusedExports` (9.2) already reports exported
+  types, functions and constants that no other package nor external test
+  uses, counting what used API reaches. It is stricter than ARCADE's smell,
+  which looks at a class's members only.
+- **For anarch-lint:** nothing new to build. The one link worth making: the
+  rule's count, beside the profile's internal share, shows how much of a
+  module's exported surface is exported without being used.
+
+### 11.7 Not Adopted, and Not Copied
+
+- **Concern overload and scattered parasitic functionality.** ARCADE's need
+  topic models; arcade-agent's are name-suffix heuristics.
+- **ARCADE's default of skipping two-cluster cycles.** anarch-lint's cycle
+  rules are stricter.
+- **arcade-agent's Balanced Architecture Score.** Its weights are, in its
+  own words, "expert-judgment … not … empirically validated"
+  (`src/arcade_agent/algorithms/coupling.py:530-532`), and ADR 0014 keeps a
+  weighted score out of the gate.
+- **The tools' numbers as oracles.** ARCADE averages factors over unweighted
+  edges and drops edges with an end outside the architecture
+  (`src/main/java/edu/usc/softarch/arcade/metrics/decay/TurboMQ.java:34-57`,
+  `clustering/data/ReadOnlyArchitecture.java:334-348`). arcade-agent sums
+  them, also unweighted, and its BasicMQ is the mean factor, not
+  Mancoridis's mean intra- minus inter-connectivity
+  (`src/arcade_agent/algorithms/coupling.py:299-389`). MOSARCH's modularity
+  leaves out the i = j terms (`metrics/modularity.py:31-39`). Bunch's
+  `TurboMQ2` and `SpirosMQ` multiply a count ratio by a weight ratio. The
+  oracle is Bunch's `TurboMQIncrW`, the factory default, which matches the
+  paper: weighted, each crossing edge charged to both clusters, factors
+  summed (Mitchell, Mancoridis, *On the Automatic Modularization of
+  Software Systems Using the Bunch Tool*, TSE 2006,
+  [doi:10.1109/TSE.2006.31](https://doi.org/10.1109/TSE.2006.31);
+  Shokoufandeh, Mancoridis, Denton, Maycock, *Spectral and Meta-heuristic
+  Algorithms for Software Clustering*, JSS 2005,
+  [doi:10.1016/j.jss.2004.03.032](https://doi.org/10.1016/j.jss.2004.03.032),
+  Eq. 2).
+- **No research justifies the divergences.** DOIs were checked against
+  Crossref.
+  - *Averaging the factors* has a stated reason, not a validation:
+    Lutellier, Chollak, Garcia, Tan, Rayside, Medvidović, Kroeger,
+    *Measuring the Impact of Code Dependencies on Software Architecture
+    Recovery Techniques*, TSE 2018,
+    [doi:10.1109/TSE.2017.2671865](https://doi.org/10.1109/TSE.2017.2671865),
+    normalise TurboMQ by the number of clusters because the sum "is biased
+    toward architectures with a large number of clusters": ACDC's
+    thousands of clusters for Chromium scored "400 times higher". They do
+    not test whether the mean measures quality better, and the literature
+    disagrees on the remedy: Praditwong, Harman, Yao, *Software Module
+    Clustering as a Multi-Objective Search Problem*, TSE 2011,
+    [doi:10.1109/TSE.2010.26](https://doi.org/10.1109/TSE.2010.26), note
+    that MQ "will tend to increase if there are more clusters" and make the
+    number of clusters an objective, maximised in one formulation, rather
+    than divide it out. Their authors wrote their own TurboMQ, so ARCADE's
+    `TurboMQ.java` is not shown to descend from the paper. MOSARCH's code
+    cites nothing; Sözer's paper on it, *Evaluating the Effectiveness of
+    Multi-level Greedy Modularity Clustering for Software Architecture
+    Recovery*, ECSA 2019,
+    [doi:10.1007/978-3-030-29983-5_5](https://doi.org/10.1007/978-3-030-29983-5_5),
+    cites Lutellier's work. anarch-lint compares each module with its own
+    baseline under a fixed set of modules, so the bias does not arise; a
+    system-wide figure, if one is reported, is the mean, labelled
+    normalised TurboMQ after Lutellier et al., as a convention.
+  - *Unweighted edges* are a limitation by the same paper's account: "we do
+    not consider weighting dependencies… Using weighted dependencies could
+    also be a way to improve the quality of the recovered architectures."
+    Bunch's authors added weights for that reason. Doval, Mancoridis,
+    Mitchell, *Automatic Clustering of Software Systems Using a Genetic
+    Algorithm*, STEP 1999,
+    [doi:10.1109/STEP.1999.798481](https://doi.org/10.1109/STEP.1999.798481),
+    list them as future work, since modules that "call each other once are
+    considered equivalent to pairs of modules that call each other twenty
+    times"; the 2006 definition is over edge weights.
+  - *Dropping edges to entities outside the architecture* has no published
+    reason. For MoJoFM, Lutellier et al. instead added the missing files to
+    a separate cluster.
+  - *arcade-agent's BasicMQ* is a misnomer: its docstring calls the term
+    "algebraically the same cluster factor TurboMQ sums", which
+    Mancoridis's mean intra- minus inter-connectivity is not. Its
+    intra-connectivity over N(N − 1) is uncited, though it is the right
+    maximum once self-loops are excluded.
+  - *MOSARCH's modularity* leaves out the i = j terms, edges and expected
+    edges both, which the directed form includes (Leicht, Newman,
+    *Community Structure in Directed Networks*, PRL 2008,
+    [doi:10.1103/PhysRevLett.100.118703](https://doi.org/10.1103/PhysRevLett.100.118703));
+    nothing says why.
+- **arcade-agent's Go numbers.** Its parser is tree-sitter: imports resolve
+  by path suffix and same-named methods collide
+  (`src/arcade_agent/parsers/go.py:194-204`), so its graph is comparable
+  with anarch-lint's at package level at most.
+- **Validation.** None of the tools tests a measure against outcomes, so
+  ADR 0021's condition stands: both measures go through `validate --rev`
+  before either gates.
+
+## 12. What to Remove
+
+Accidental complexity accrues because nothing pushes back against keeping
+code that has stopped earning its place. WIB 1.1 says to remove what the
+requirements do not need; SME 1.5 and SM 1.6 say not to merge independent
+parts merely to lower a count. The measures below therefore name *candidates*,
+code with no observed use, and each states what it cannot see. None counts
+parts as a score, and none gates except where a rule already does.
+
+Already built: `fitness.unusedExports` (9.2), `algorithm.clone` and
+`algorithm.partial-clone` (PSD 8.4 and 4.2), the model's own hygiene
+(`empty-selector`, `redundant-rule`, `unusable-allowance`),
+`baseline --shrink`, the gate's `unusedWaivers` and `expiredWaivers`
+(`internal/arch/gate.go:105-110`), and hotspots (10.6), which come from
+Tornhill rather than these rule sets.
+
+### 12.1 Exported Variables in `unusedExports`
+
+- **Gap:** `exportsOf` lists exported types, functions and constants, not
+  package-level variables (`internal/fitness/exports.go:50-80`), so an
+  exported `var` nothing uses is never reported.
+- **For anarch-lint:** add package-level variables, with the same use test.
+  A variable written only by its own package's `init` is still unused.
+- **Effort:** low.
+
+### 12.2 Reachability from the Program's Entry Points
+
+- **Sources:** `golang.org/x/tools/cmd/deadcode` (v0.52.0) runs RTA from
+  every `main` and `init`; run once with `-test` and once without, the
+  difference is code only tests reach, and `-whylive` gives a path.
+- **Constraints:**
+  - `deadcode` loads full syntax for every dependency
+    (`packages.LoadAllSyntax`, `deadcode.go:119`) and refuses a module
+    with no `main` package (`deadcode.go:159-161`).
+  - anarch-lint loads no dependency syntax (`internal/gopackages/load.go:24-26`)
+    and builds dependencies' SSA from types alone
+    (`internal/gopackages/dispatches.go:100-105`). RTA on that program
+    would miss every call made from inside a library, so a handler passed
+    to `http.HandleFunc` would look unreachable: false positives on exactly
+    the code that matters.
+- **For anarch-lint:** two options.
+  1. *Read `deadcode -json` from the shell* (twice, with and without
+     `-test`) and weigh its functions by lines, rank them by package, and
+     ratchet their total. Cheapest, and `deadcode` maintains the analysis;
+     it needs a subprocess or an approval under ADR 0012.
+  2. *An opt-in mode* that loads dependency syntax and runs
+     `x/tools/go/callgraph/rta`, already in the required v0.52.0, counting
+     reflection, `plugin` and `//go:linkname` as `unseen` (ADR 0019).
+
+  Either way this applies to programs. For a library, report exported API
+  used only by tests beside `unusedExports`, which today counts external
+  tests as users (`exports.go:17-19`).
+- **Effort:** low for option 1, medium for option 2.
+
+### 12.3 Fields Written but Never Read
+
+- **What exists:** `Facts.Uses` records, per function, each reference to a
+  field (`Count`) and how many of them write it (`Writes`)
+  (`internal/arch/facts.go:91-108`). A field whose references are all
+  writes is never read in the build.
+- **For anarch-lint:** report such fields as candidates. A field with a
+  struct tag, or of a type passed to reflection-based encoding, is read
+  outside the build and goes to `unseen` instead. Whether staticcheck's
+  `unused` already reports write-only fields is unchecked.
+- **Effort:** low.
+
+### 12.4 What a Removal Would Pay
+
+- **What exists:** the cycle findings list imports to cut and the cycle each
+  closes, but no measure is recomputed without them.
+- **For anarch-lint:** for a candidate package or import, report the change
+  in propagation cost, ACD, cycle count and ADR 0021's cohesion figures on
+  the graph without it, using `CouplingOf` as it is. A report, never a gate.
+- **Effort:** low.
+
+### 12.5 Dependency Cost Against Use
+
+- **Gap:** without `NeedDeps`, an import carries no module, so mapping
+  imports to modules needs the `go` command or `golang.org/x/mod`, already
+  a dependency.
+- **For anarch-lint:** per required module, the number of call sites and
+  distinct symbols the build uses, against the transitive packages it
+  brings in (`go list -deps`, which counts what the build loads, unlike
+  `go mod graph`). A report only: WIB 3.3 prefers an existing library.
+- **Effort:** medium.
+
+### 12.6 Unused Contract Surface
+
+- **OpenAPI:** balance already matches in-repo client requests to the
+  documents' routes (`internal/balance/documents.go:38-60`). A declared
+  route no in-repo client requests is a candidate.
+- **GraphQL:** `fitness.graphql` validates operation documents against the
+  schema but keeps only their count (`internal/fitness/graphql.go:26`).
+  Recording the fields each operation selects would let it list schema
+  fields no operation selects.
+- **Caveat:** clients outside the repository are invisible, so both are
+  candidates that never gate, and a rule may declare a contract public.
+- **Effort:** low for OpenAPI, medium for GraphQL.
+
+### 12.7 Weaker Signals, Only in Combination
+
+- **Dormancy.** Code untouched for a long window is a signal only beside
+  12.2 or 12.3; age alone says nothing about value.
+- **Speculative generality.** Interfaces with one implementation (with test
+  implementations counted separately), and functions with one caller that
+  only pass the call on (PSD 6.1, which `simplicity.md` rates ✗ for want of
+  a detector). Candidates only: SME 1.5 objects to merging by rule.
+
+### 12.8 Not Adopted
+
+- **Counting parts as a score.** SME 1.5 and SM 1.6, and conflict 1 in
+  `simplicity.md`.
+- **Low churn as a proxy for low value.** Stable code is often the most
+  used.
+- **Feature flags.** Flag systems differ too much to read without a model
+  choice, and a stale flag is usually found by 12.2 once its branch is dead.
+
 ## Not Worth Adopting
 
 - **Any of the Go resolution.** codegraph-go and gortex resolve with
@@ -1217,13 +1596,20 @@ code at `aea04e9`. None of the survey's ideas comes with code.
 - **Team structure.** gortex reads CODEOWNERS into `owns` edges, as
   anarch-lint does for distance; none models team cognitive load or
   communication paths.
-- **Importing a drawn architecture** (C4, D2, PlantUML), to keep it and
-  `anarch.json` in step. feelc draws; nothing reads a drawing.
+- **Keeping a drawn architecture and `anarch.json` in step.** Each direction
+  exists once: `anarch-lint diagram` drafts a model from a PlantUML
+  component diagram, as ArchUnit's `adhereToPlantUmlDiagram` reads one, and
+  `render` draws the model in `anarch.md`. Nothing checks that a diagram
+  kept by hand still matches the model after the draft, and C4 and D2 are
+  not read.
 - **Generated code in the graph.** 2.3 lists it; measuring it needs a model
   choice about whether generated code may break the rules it serves.
-- **A base revision in a worktree.** `--new-from-rev` filters findings by
-  line; comparing whole reports across revisions (4.3, 6.1) needs `TODO.md`'s
-  worktree checkout.
+
+Closed since this list was written: a base revision in a worktree.
+`check --baseline-rev` measures the base revision's code in a temporary git
+worktree under the current model and gates against it, and
+`validate --rev` measures there too; a history of every commit stays
+decided against (4.3).
 
 ## Suggested Order
 
@@ -1234,6 +1620,13 @@ Of what remains, after the work in "Status":
    adversary challenged.
 2. The certain side of 10.1, if a model ever needs it: standard-library
    types recorded where the shell passes them in.
+3. ADR 0021's measures, in the order its open decisions fall: the elements
+   and weights (11.3), omnipresent packages (11.1), exact fractions in the
+   baseline (11.2), then `validate --rev` before either gates. 11.5 needs
+   none of them.
+4. §12's removal candidates, cheapest first: exported variables in
+   `unusedExports` (12.1), `deadcode` read from the shell (12.2), then
+   write-only fields (12.3) and the payoff of a removal (12.4).
 
 ## Licensing
 
@@ -1241,4 +1634,7 @@ Ideas carry over freely. To copy code: gortex, feelc and codegrapher are
 Apache-2.0, so keep their notices (gortex's `NOTICE` names its vendored
 `renameio` and `go-pointer`); codegraph-go, codetospec, go-rule-engine,
 code-graph and zen-go are MIT, so keep the copyright line, and codegraph-go's
-`NOTICE` file.
+`NOTICE` file. Of §11's projects, Bunch and code-maat are GPL-3.0 and
+MOSARCH is LGPL-2.1: take ideas and formulas only, never code. arcana has no
+license, so nothing of it may be copied. ARCADE (BSD-3-Clause), arcade-agent
+and Moose (MIT) need their notices kept.
