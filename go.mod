@@ -8,7 +8,7 @@ require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.2
 	buf.build/go/protovalidate v1.4.0
 	github.com/StevenACoffman/indomain v0.5.0
-	github.com/StevenACoffman/skillet v0.36.0
+	github.com/StevenACoffman/skillet v0.37.0
 	github.com/agnivade/levenshtein v1.2.2
 	github.com/bluekeyes/go-gitdiff v0.9.0
 	github.com/bmatcuk/doublestar/v4 v4.10.4
