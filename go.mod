@@ -14,7 +14,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.10.4
 	github.com/bufbuild/protocompile v0.14.1
 	github.com/fzipp/gocyclo v0.6.0
-	github.com/getkin/kin-openapi v0.152.0
+	github.com/getkin/kin-openapi v0.153.0
 	github.com/golangci/dupl v0.0.0-20260401084720-c99c5cf5c202
 	github.com/google/renameio/v2 v2.0.2
 	github.com/google/uuid v1.6.0
@@ -45,6 +45,7 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
+	go.yaml.in/yaml/v4 v4.0.0 // indirect
 	golang.org/x/exp v0.0.0-20260820142414-ca536658362e // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
