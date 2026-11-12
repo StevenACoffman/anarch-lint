@@ -12,6 +12,8 @@ github.com/StevenACoffman/indomain v0.5.0 h1:Lz/BWKsNLq7XnyJbgb40dO/YTBnrTrSrHgb
 github.com/StevenACoffman/indomain v0.5.0/go.mod h1:A2IakdtJe6w/nczYzeSEkQ/A9px23op1+CUqEwwpsHs=
 github.com/StevenACoffman/skillet v0.36.0 h1:4g3HSuGItbUncfkQUotM54yxxpaWHdt9A7mCxzXHOIs=
 github.com/StevenACoffman/skillet v0.36.0/go.mod h1:ASlQ3/6uPMnxVKEQUaYnqcB0ch9zBdRg8e0NLmlI0qE=
+github.com/StevenACoffman/skillet v0.37.0 h1:pzofzDWrEEmANT9rEeDJaeAM3VR2iDBOFp5CgQO5jm8=
+github.com/StevenACoffman/skillet v0.37.0/go.mod h1:ASlQ3/6uPMnxVKEQUaYnqcB0ch9zBdRg8e0NLmlI0qE=
 github.com/agnivade/levenshtein v1.2.2 h1:fI8RgiztYX1Nn5pBHHqQ9EMCCklhrmXqPRIedFmx5M4=
 github.com/agnivade/levenshtein v1.2.2/go.mod h1:QVVI16kDrtSuwcpd0p1+xMC6Z/VfhtCyDIjcwga4/DU=
 github.com/antlr4-go/antlr/v4 v4.13.1 h1:SqQKkuVZ+zWkMMNkjy5FZe5mr5WURWnlpmOuzYWrPrQ=
