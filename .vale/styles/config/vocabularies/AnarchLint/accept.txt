@@ -53,3 +53,15 @@ codetospec
 Jaccard
 JUnit
 unjudged
+Briand('s)?
+Morasca
+Basili
+Mancoridis
+Bouwers
+Deursen
+Visser
+Fortunato
+Barthélemy
+Ponisio('s)?
+Abreu
+Goulão
