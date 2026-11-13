@@ -20,6 +20,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hmarr/codeowners v1.2.1
 	github.com/owenrumney/go-sarif/v2 v2.3.3
+	github.com/owenrumney/go-sarif/v3 v3.3.2
 	github.com/peterbourgon/ff/v4 v4.0.0-beta.1
 	github.com/uudashr/gocognit v1.3.0
 	github.com/vektah/gqlparser/v2 v2.5.64
