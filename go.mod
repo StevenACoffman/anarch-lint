@@ -6,7 +6,7 @@ toolchain go1.27.4
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.2
-	buf.build/go/protovalidate v1.4.0
+	buf.build/go/protovalidate v1.4.1
 	github.com/StevenACoffman/indomain v0.5.0
 	github.com/StevenACoffman/skillet v0.36.0
 	github.com/agnivade/levenshtein v1.2.2
@@ -33,7 +33,7 @@ require (
 )
 
 require (
-	cel.dev/cel-go v0.32.0 // indirect
+	cel.dev/cel-go v0.33.2 // indirect
 	cel.dev/expr v0.25.3 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/go-openapi/jsonpointer v0.22.5 // indirect
