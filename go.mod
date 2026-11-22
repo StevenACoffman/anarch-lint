@@ -11,7 +11,7 @@ require (
 	github.com/StevenACoffman/skillet v0.36.0
 	github.com/agnivade/levenshtein v1.2.2
 	github.com/bluekeyes/go-gitdiff v0.9.0
-	github.com/bmatcuk/doublestar/v4 v4.10.4
+	github.com/bmatcuk/doublestar/v4 v4.10.7
 	github.com/bufbuild/protocompile v0.14.1
 	github.com/fzipp/gocyclo v0.6.0
 	github.com/getkin/kin-openapi v0.153.0
